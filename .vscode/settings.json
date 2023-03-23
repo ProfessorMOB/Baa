@@ -1,0 +1,8 @@
+{
+    "cSpell.enableFiletypes": [
+        "cmake"
+    ],
+    "C_Cpp.default.configurationProvider": "ms-vscode.cmake-tools",
+	"cmake.cmakePath": "C:/Program Files/CMake/bin/cmake.exe",
+    //"cmake.generator": "Visual Studio 16 2019"
+}

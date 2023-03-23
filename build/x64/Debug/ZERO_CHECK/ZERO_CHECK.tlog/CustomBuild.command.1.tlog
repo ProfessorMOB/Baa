@@ -1,0 +1,10 @@
+^C:\USERS\AMLAHARDK\DESKTOP\باء\BUILD\CMAKEFILES\15F98A2B4626F435403B22361129BCDB\GENERATE.STAMP.RULE
+setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -SC:/Users/AmlaHardk/Desktop/باء -BC:/Users/AmlaHardk/Desktop/باء/build --check-stamp-list CMakeFiles/generate.stamp.list --vs-solution-file C:/Users/AmlaHardk/Desktop/باء/build/baa.sln
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd
