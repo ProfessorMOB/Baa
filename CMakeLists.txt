@@ -7,7 +7,6 @@ if(CCACHE_PROGRAM)
 endif()
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS on)
-set(CMAKE_C_STANDARD 11)
 
 include(CTest)
 enable_testing()

@@ -219,7 +219,7 @@ build cmake_object_order_depends_target_Baa: phony || CMakeFiles/Baa.dir
 
 build CMakeFiles/Baa.dir/src/main.c.obj: C_COMPILER__Baa_unscanned_Debug C$:/Users/AmlaHardk/Desktop/ÈÇÁ/src/main.c || cmake_object_order_depends_target_Baa
   DEP_FILE = CMakeFiles\Baa.dir\src\main.c.obj.d
-  FLAGS = -g -std=gnu11
+  FLAGS = -g
   OBJECT_DIR = CMakeFiles\Baa.dir
   OBJECT_FILE_DIR = CMakeFiles\Baa.dir\src
 
