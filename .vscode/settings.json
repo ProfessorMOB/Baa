@@ -5,7 +5,10 @@
     "C_Cpp.default.configurationProvider": "ms-vscode.cmake-tools",
     "cmake.cmakePath": "C:/Program Files/CMake/bin/cmake.exe",
     "files.associations": {
-        "stdlib.h": "c"
+        "stdlib.h": "c",
+        "assert.h": "c",
+        "stdio.h": "c"
     },
+    "C_Cpp.errorSquiggles": "disabled",
     //"cmake.generator": "Visual Studio 16 2019"
 }
