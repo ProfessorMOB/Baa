@@ -13,7 +13,8 @@ long file_size(FILE *file)
     if (fgetpos(file, &orginal) != 0)
     {
         /* code */
-        printf("لا يمكن الوصول لموقع الملف : %! \n", errno) return 0;
+        printf("لا يمكن الوصول لموقع الملف : %! \n", errno);
+        return 0;
     }
     //
     fseek(file, 0, SEEK_END);
@@ -21,7 +22,8 @@ long file_size(FILE *file)
     if (fsetpos(file, &orginal) != 0)
     {
         /* code */
-        printf("لا يمكن الوصول لموقع الملف : %! \n", errno) return 0;
+        printf("لا يمكن الوصول لموقع الملف : %! \n", errno);
+        return 0;
     }
     return out;
 }
