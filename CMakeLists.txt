@@ -20,5 +20,3 @@ add_executable(
         Baa
         src/main.c
 )
-
-
