@@ -1,103 +1,120 @@
-# B (باء) Programming Language Compiler
+# B (باء) Programming Language
 
-A compiler implementation for the B (باء) programming language, a C-like language with Arabic support.
+B (باء) is a programming language designed to support Arabic syntax while maintaining full compatibility with K&R C features. It allows developers to write code using Arabic keywords and identifiers while following established C programming patterns.
 
-## Current Status (v0.1.0)
+## Current Status (v0.1.6)
 
-The project is in its early stages, with the following features implemented:
-- Basic file reading with UTF-16LE support
-- Support for Arabic text in source files
-- Modular architecture for future expansion
-- Comprehensive test suite
-- Cross-platform build system
+The project is currently in early development. We have implemented:
 
-## Features
+### Core Features
+- Basic type system with K&R C compatibility
+  - عدد_صحيح (int) - 32-bit integer
+  - عدد_حقيقي (float) - 32-bit float
+  - محرف (char) - 16-bit UTF-16 character
+  - فراغ (void) - No value type
 
-- C-like syntax with Arabic language support
-- UTF-16LE encoding support for Arabic text
-- Modern CMake-based build system
-- Cross-platform compatibility
-- Modular design for easy extension
+- Core operator system
+  - Arithmetic operators (+, -, *, /, %)
+  - Comparison operators (==, !=, <, >, <=, >=)
+  - Assignment operator (=)
+  - Type checking and validation
+  - Arabic operator names
 
-## Prerequisites
+### Project Structure
+```
+baa/
+├── src/
+│   ├── types/       # Type system implementation
+│   └── operators/   # Operator system implementation
+├── tests/
+│   ├── test_types.c    # Type system tests
+│   └── test_operators.c # Operator tests
+└── docs/
+    ├── architecture.md  # System architecture
+    ├── components.md    # Component details
+    ├── development.md   # Developer guide
+    ├── language.md      # Language specification
+    └── roadmap.md       # Development roadmap
+```
 
+## Building from Source
+
+### Prerequisites
 - CMake 3.20 or higher
-- C11 compliant compiler
-- C++23 compliant compiler (for some components)
-- ccache (optional, for faster builds)
+- K&R C compliant compiler
+- Git for version control
+- LLVM development libraries
+- Unicode support libraries
 
-## Building
-
+### Build Steps
 ```bash
-mkdir build
-cd build
+git clone <repository-url>
+cd baa
+mkdir build && cd build
 cmake ..
 cmake --build .
 ```
 
-For release build:
+### Running Tests
 ```bash
-cmake -DCMAKE_BUILD_TYPE=Release ..
+# Build and run type system tests
+gcc -o test_types tests/test_types.c src/types/types.c -I./src
+./test_types
+
+# Build and run operator tests
+gcc -o test_operators tests/test_operators.c src/operators/operators.c src/types/types.c -I./src
+./test_operators
 ```
 
-## Usage
+## Features
 
-Create a source file with `.baa` extension using UTF-16LE encoding. For example:
+### Type Safety
+- Strong type checking
+- Explicit conversion rules
+- Error type for invalid operations
+- UTF-16 support for Arabic text
 
-```
-// مثال برنامج بسيط بلغة باء
-دالة رئيسية() {
-    اطبع("مرحباً بالعالم!");
-    إرجع 0;
-}
-```
+### Operator System
+- Type-safe operations
+- Arabic operator names
+- K&R C operator precedence
+- Comprehensive error handling
 
-Then compile it using:
-```bash
-./Baa <input_file>
-```
-
-## Project Structure
-
-```
-.
-├── src/                    # Source files
-│   ├── lexer/             # Lexical analysis
-│   ├── parser/            # Syntactic analysis
-│   ├── ast/               # Abstract Syntax Tree
-│   ├── codegen/          # Code generation
-│   └── utils/            # Utility functions
-├── include/               # Public headers
-├── tests/                # Test files
-├── docs/                 # Documentation
-├── examples/             # Example programs
-└── tools/                # Build and development tools
-```
-
-## Current Limitations
-
-- Parser not yet implemented
-- Code generation not yet implemented
-- Only file reading and lexical analysis infrastructure available
-- Limited error reporting
+### Documentation
+- Detailed Arabic error messages
+- Comprehensive documentation in both English and Arabic
+- Examples and usage guides
+- Development guidelines
 
 ## Roadmap
 
-1. Implement lexical analyzer (tokenizer)
-2. Develop parser for Arabic syntax
-3. Build abstract syntax tree (AST)
-4. Implement code generation
-5. Add optimization passes
-6. Enhance error reporting and recovery
+### Next Steps (v0.2.0)
+- Control flow implementation (if/else, while, return)
+- Function system
+- Basic preprocessor
+- Memory management
+
+### Future Plans
+- Extended type system
+- Full K&R C standard library support
+- Development tools and IDE integration
+- Advanced error recovery
 
 ## Contributing
 
-Contributions are welcome! Please read our contributing guidelines before submitting pull requests.
+We welcome contributions! Please see our [development guide](docs/development.md) for details on:
+- Code style and standards
+- Testing requirements
+- Documentation guidelines
+- Pull request process
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## Acknowledgments
 
-Special thanks to all contributors who have helped shape this project.
+Special thanks to:
+- The C language designers for their foundational work
+- The Arabic programming community for their support and feedback
+- All contributors who have helped shape this project
