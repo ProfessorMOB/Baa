@@ -197,24 +197,55 @@ void skip_to_statement(void);
 
 ## Testing
 
-### Unit Tests
-```c
-// Test lexer
-void test_lexer_basic(void);
-void test_lexer_utf16(void);
+### Running Tests
+```bash
+# Build and run type system tests
+gcc -o test_types tests/test_types.c src/types/types.c -I./src
+./test_types
 
-// Test parser
-void test_parser_declaration(void);
-void test_parser_statement(void);
+# Build and run operator tests
+gcc -o test_operators tests/test_operators.c src/operators/operators.c src/types/types.c -I./src
+./test_operators
 ```
 
-### Integration Tests
-```c
-// Test compilation
-void test_compile_file(const char *filename);
+### Test Organization
+```
+tests/
+├── test_types.c     # Type system tests
+└── test_operators.c # Operator tests
+```
 
-// Test execution
-void test_run_program(const char *filename);
+### Writing Tests
+1. Create test file in `tests/` directory
+2. Include necessary headers
+3. Write test functions for each feature
+4. Add assertions for expected behavior
+5. Add the test to the build system
+
+### Test Coverage
+- Basic type creation and properties
+- Type system initialization
+- Type comparison and conversion
+- Operator validation
+- Error handling
+- Arabic string handling
+
+### Example Test
+```c
+void test_type_conversion(void) {
+    printf("Testing type conversion...\n");
+    
+    // Valid conversions
+    assert(baa_can_convert(type_int, type_float) == true);
+    assert(baa_can_convert(type_float, type_int) == true);
+    assert(baa_can_convert(type_char, type_int) == true);
+    
+    // Invalid conversions
+    assert(baa_can_convert(type_void, type_int) == false);
+    assert(baa_can_convert(type_error, type_int) == false);
+    
+    printf("Type conversion tests passed.\n");
+}
 ```
 
 ## Documentation

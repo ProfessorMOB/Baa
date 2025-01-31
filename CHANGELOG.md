@@ -5,6 +5,27 @@ All notable changes to the B (باء) compiler project will be documented in thi
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.6] - 2025-01-31
+
+### Added
+- Basic type system implementation with K&R C compatibility
+- Core operator system with arithmetic and comparison operators
+- Comprehensive test suite for type system and operators
+- Type conversion and validation system
+- Arabic operator names and error messages
+- UTF-16 support for character type
+
+### Changed
+- Updated project structure with src/ and tests/ directories
+- Enhanced type safety with strict conversion rules
+- Improved error handling in type system
+
+### Documentation
+- Added type system implementation details
+- Added operator system specifications
+- Updated development guide with testing procedures
+- Added code examples for type and operator usage
+
 ## [0.1.5] - 2025-01-31
 
 ### Added

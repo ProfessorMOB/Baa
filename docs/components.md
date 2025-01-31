@@ -115,36 +115,68 @@ primary     → NUMBER | STRING | "true" | "false" | "(" expression ")"
 ## Type System
 
 ### Basic Types
-```c
-typedef enum {
-    TYPE_INT,      // عدد_صحيح
-    TYPE_FLOAT,    // عدد_حقيقي
-    TYPE_CHAR,     // محرف
-    TYPE_VOID,     // فراغ
-    TYPE_ARRAY,    // مصفوفة
-    TYPE_POINTER,  // مؤشر
-    TYPE_STRUCT,   // بنية
-    TYPE_UNION,    // اتحاد
-    TYPE_TYPEDEF   // نوع_مستخدم
-} TypeKind;
+The type system implements K&R C compatible types with Arabic names:
 
-typedef struct Type {
-    TypeKind kind;
-    union {
-        struct {
-            struct Type *element_type;
-            int size;
-        } array;
-        struct {
-            struct Type *pointed_type;
-        } pointer;
-        struct {
-            char *name;
-            struct SymbolTable *fields;
-        } structure;
-    } info;
-} Type;
+| Arabic Name | C Type | Description |
+|------------|--------|-------------|
+| عدد_صحيح   | int    | 32-bit integer |
+| عدد_حقيقي  | float  | 32-bit float |
+| محرف       | char   | 16-bit UTF-16 character |
+| فراغ       | void   | No value type |
+
+### Type Operations
+```c
+// Create a new type
+Type* baa_create_type(TypeKind kind, uint32_t size, bool is_signed);
+
+// Compare two types
+bool baa_types_equal(Type* a, Type* b);
+
+// Check type conversion
+bool baa_can_convert(Type* from, Type* to);
 ```
+
+### Type Safety
+- Strong type checking
+- Explicit conversion rules
+- Error type for invalid operations
+- UTF-16 support for Arabic text
+
+## Operator System
+
+### Basic Operators
+| Category | Operators | Arabic Names |
+|----------|-----------|--------------|
+| Arithmetic | +, -, *, /, % | جمع, طرح, ضرب, قسمة, باقي |
+| Comparison | ==, !=, <, >, <=, >= | يساوي, لا_يساوي, أصغر_من, أكبر_من, أصغر_أو_يساوي, أكبر_أو_يساوي |
+| Assignment | = | تعيين |
+
+### Operator Functions
+```c
+// Get operator by symbol
+Operator* baa_get_operator(const char* symbol);
+
+// Check types for binary operation
+Type* baa_check_binary_op(Type* left, Type* right, OperatorKind op);
+
+// Validate operator usage
+bool baa_is_valid_operator(Type* left, Type* right, OperatorKind op);
+```
+
+### Type Rules
+1. Arithmetic Operations:
+   - Both operands must be numeric
+   - Result is float if either operand is float
+   - Modulo requires integer operands
+
+2. Comparison Operations:
+   - Both operands must be comparable
+   - Result is always integer (0 or 1)
+   - Numeric types can be compared
+
+3. Assignment Operations:
+   - Right operand must be convertible to left operand's type
+   - Result type is left operand's type
 
 ## Symbol Table
 

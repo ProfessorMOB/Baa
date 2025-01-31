@@ -10,15 +10,21 @@
 
 ## Version 0.2.0 (Next)
 ### Core Language Features
-- [ ] Basic Types Implementation
+- ✅ Basic Types Implementation
   - عدد_صحيح (int)
   - عدد_حقيقي (float)
   - محرف (char)
-  - مصفوفة (array)
-- [ ] Basic Operators
+  - فراغ (void)
+  - Type comparison system
+  - Type conversion rules
+  - Error handling
+- ✅ Basic Operators
   - Arithmetic (+, -, *, /, %)
   - Comparison (<, >, <=, >=, ==, !=)
   - Assignment (=)
+  - Type checking for operators
+  - Arabic operator names
+  - Error handling
 - [ ] Basic Control Flow
   - إذا/وإلا (if/else)
   - طالما (while)
@@ -114,10 +120,10 @@
 
 ## Version 0.7.0
 ### Type System
-- [ ] Enhanced type checking
-- [ ] Implicit conversions
-- [ ] sizeof operator
-- [ ] Type inference
+- ✅ Enhanced type checking
+- ✅ Implicit conversions
+- ✅ sizeof operator
+- ✅ Type inference
 
 ### Memory Model
 - [ ] Stack allocation
