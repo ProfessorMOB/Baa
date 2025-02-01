@@ -4,6 +4,9 @@ add_subdirectory(parser)
 add_subdirectory(ast)
 add_subdirectory(codegen)
 add_subdirectory(utils)
+add_subdirectory(types)
+add_subdirectory(operators)
+add_subdirectory(control_flow)
 
 # Main executable
 add_executable(Baa

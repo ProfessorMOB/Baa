@@ -25,7 +25,7 @@
   - Type checking for operators
   - Arabic operator names
   - Error handling
-- [ ] Basic Control Flow
+- ✅ Basic Control Flow
   - إذا/وإلا (if/else)
   - طالما (while)
   - إرجع (return)

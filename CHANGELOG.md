@@ -5,6 +5,23 @@ All notable changes to the B (باء) compiler project will be documented in thi
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.7] - 2025-02-01
+
+### Added
+- Basic control flow structures implementation:
+  - إذا/وإلا (if/else) statement support
+  - طالما (while) loop support
+  - إرجع (return) statement support
+- New control_flow.h header with comprehensive control flow API
+- Memory-safe statement creation and management functions
+- Unit tests for all control flow structures
+- Integration with existing build system
+
+### Changed
+- Updated CMakeLists.txt to include control flow implementation
+- Enhanced project structure with new control flow components
+- Updated roadmap to reflect completed control flow milestone
+
 ## [0.1.6] - 2025-01-31
 
 ### Added
