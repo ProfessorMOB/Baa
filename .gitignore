@@ -1,3 +1,7 @@
+# Baa source files
+*.baa
+*.ب
+
 # Build directories
 build/
 cmake-build-*/

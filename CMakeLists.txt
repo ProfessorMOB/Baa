@@ -1,56 +1,56 @@
 cmake_minimum_required(VERSION 3.20)
-project(Baa 
-    VERSION 0.0.1
-    DESCRIPTION "A compiler for the B (باء) programming language"
-    LANGUAGES C CXX
+project(baa 
+    VERSION 0.1.8
+    DESCRIPTION "The Baa Programming Language"
+    LANGUAGES C
 )
 
-# Options
-option(BAA_BUILD_TESTS "Build test suite" ON)
-option(BAA_NATIVE_OPT "Enable native optimizations" ON)
-option(BAA_BUILD_DOCS "Build documentation" OFF)
-
-# Global settings
+# Set C standard
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
-set(CMAKE_CXX_STANDARD 23)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-# Dependencies
-find_program(CCACHE_FOUND ccache)
-if(CCACHE_FOUND)
-    set_property(GLOBAL PROPERTY RULE_LAUNCH_COMPILE ccache)
+# Add include directory
+include_directories(${CMAKE_SOURCE_DIR}/src/include)
+
+# Set source file extensions and encoding
+set(BAA_SOURCE_EXTENSIONS ".ب" ".baa")
+
+# Configure Unicode and UTF-8 support
+if(WIN32)
+    add_definitions(-DUNICODE -D_UNICODE)
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /utf-8")  # MSVC UTF-8 support
+else()
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -finput-charset=UTF-8 -fexec-charset=UTF-8")
 endif()
 
-# Compiler flags
-if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
-    add_compile_options(-Wall -Wextra -Wpedantic)
-    if(BAA_NATIVE_OPT)
-        add_compile_options(-march=native)
-    endif()
-elseif(MSVC)
-    add_compile_options(/W4)
-endif()
-
-# Include directories
+# Add include directories
 include_directories(${PROJECT_SOURCE_DIR}/include)
 
-# Add subdirectories for different components
-add_subdirectory(src)
+# Add component subdirectories
+add_subdirectory(src/utils)
+add_subdirectory(src/types)
+add_subdirectory(src/operators)
+add_subdirectory(src/ast)
+add_subdirectory(src/control_flow)
 
-if(BAA_BUILD_TESTS)
-    enable_testing()
-    add_subdirectory(tests)
-endif()
+# Add main executable
+add_executable(baa src/compiler.c)
+target_link_libraries(baa
+    PRIVATE
+    baa_utils
+    baa_types
+    baa_operators
+    baa_ast
+    baa_control_flow
+)
 
-if(BAA_BUILD_DOCS)
-    add_subdirectory(docs)
-endif()
+# Enable testing
+enable_testing()
+add_subdirectory(tests)
 
-# Install rules
-install(TARGETS Baa
-    RUNTIME DESTINATION bin
-    LIBRARY DESTINATION lib
-    ARCHIVE DESTINATION lib
+# Add test file
+configure_file(
+    ${CMAKE_SOURCE_DIR}/examples/برنامج.ب
+    ${CMAKE_BINARY_DIR}/test.ب
+    COPYONLY
 )

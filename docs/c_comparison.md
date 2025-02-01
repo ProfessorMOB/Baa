@@ -186,3 +186,188 @@ This document compares K&R C features with their B (باء) equivalents and outl
 - Works with common build systems
 - Supports standard profiling tools
 - Integrates with popular IDEs
+
+## Syntax Comparison (مقارنة التركيب)
+
+### Basic Program Structure
+```c
+// C Version
+int main() {
+    printf("Hello, World!\n");
+    return 0;
+}
+```
+
+```baa
+// Baa Version
+دالة رئيسية() {
+    اطبع("مرحباً بالعالم!");
+    إرجع 0;
+}
+```
+
+### Variable Declaration
+```c
+// C Version
+int count = 0;
+float price = 10.5;
+char letter = 'A';
+```
+
+```baa
+// Baa Version
+عدد_صحيح عداد = 0;
+عدد_حقيقي سعر = 10.5;
+حرف حرف = 'أ';
+```
+
+### Control Structures
+```c
+// C Version
+if (age >= 18) {
+    printf("Adult\n");
+} else {
+    printf("Minor\n");
+}
+
+while (count < 10) {
+    count++;
+}
+```
+
+```baa
+// Baa Version
+إذا (عمر >= 18) {
+    اطبع("بالغ");
+} وإلا {
+    اطبع("قاصر");
+}
+
+طالما (عداد < 10) {
+    عداد++;
+}
+```
+
+## Feature Comparison (مقارنة الميزات)
+
+### 1. Types (الأنواع)
+| C Type | Baa Type | Size | Notes |
+|--------|----------|------|-------|
+| int | عدد_صحيح | 32-bit | Same range |
+| float | عدد_حقيقي | 32-bit | Same precision |
+| char | حرف | 8-bit | UTF-8 in Baa |
+| void | فراغ | - | Same usage |
+| struct | بنية | varies | Same layout |
+| union | اتحاد | varies | Same usage |
+
+### 2. Operators (العمليات)
+| Category | C | Baa | Notes |
+|----------|---|-----|-------|
+| Arithmetic | +, -, *, /, % | جمع, طرح, ضرب, قسمة, باقي | Same precedence |
+| Comparison | ==, !=, <, > | يساوي, لا_يساوي, أصغر_من, أكبر_من | Same behavior |
+| Logical | &&, \|\|, ! | و, أو, ليس | Same rules |
+| Bitwise | &, \|, ^, ~, <<, >> | Same | Not localized |
+
+### 3. Keywords (الكلمات المفتاحية)
+| C | Baa | Notes |
+|---|-----|-------|
+| if | إذا | Same semantics |
+| else | وإلا | Same usage |
+| while | طالما | Same behavior |
+| for | من_أجل | Same structure |
+| return | إرجع | Same purpose |
+| struct | بنية | Same memory layout |
+| typedef | نوع_مستخدم | Same functionality |
+
+## Memory Model (نموذج الذاكرة)
+- Same stack and heap organization
+- Identical pointer arithmetic
+- Compatible struct padding
+- Similar alignment rules
+
+## Standard Library (المكتبة القياسية)
+| C Function | Baa Function | Purpose |
+|------------|-------------|----------|
+| printf | اطبع | Output text |
+| scanf | اقرأ | Input text |
+| malloc | احجز | Allocate memory |
+| free | حرر | Free memory |
+| strlen | طول_نص | String length |
+| strcpy | انسخ_نص | String copy |
+
+## Compilation Process (عملية الترجمة)
+1. **Preprocessing**
+   - C: #include, #define
+   - Baa: تضمين#, تعريف#
+
+2. **Compilation**
+   - Both generate similar intermediate code
+   - Baa adds Arabic symbol handling
+
+3. **Linking**
+   - Compatible object file format
+   - Same linking process
+
+## Key Differences (الفروق الرئيسية)
+
+### 1. Text Handling
+- Baa uses UTF-8 by default
+- Better support for Arabic text
+- RTL text rendering
+- Arabic string literals
+
+### 2. Error Messages
+- Baa provides Arabic error messages
+- More detailed error descriptions
+- Cultural context in messages
+- Bilingual support
+
+### 3. Development Tools
+- Arabic-aware debugger
+- RTL-compatible editors
+- Arabic documentation
+- Localized tooling
+
+### 4. Extensions
+- Arabic identifier support
+- RTL code formatting
+- Arabic documentation comments
+- Cultural adaptations
+
+## Migration Guide (دليل الترحيل)
+
+### From C to Baa
+1. Convert keywords to Arabic
+2. Update type names
+3. Translate identifiers
+4. Adjust string encoding
+5. Update comments
+
+### From Baa to C
+1. Convert keywords to English
+2. Restore C type names
+3. Transliterate identifiers
+4. Convert UTF-8 strings
+5. Translate comments
+
+## Best Practices (أفضل الممارسات)
+
+### 1. Code Style
+- Consistent language choice
+- Clear naming conventions
+- Proper text direction
+- Cultural considerations
+
+### 2. Interoperability
+- Use compatible types
+- Maintain C ABI
+- Document translations
+- Handle encodings
+
+## Version Compatibility (توافق الإصدارات)
+- Version 0.1.7: Basic C compatibility
+- Version 0.1.8: Enhanced features
+  - Better error messages
+  - Improved type system
+  - Extended standard library
+  - More Arabic keywords

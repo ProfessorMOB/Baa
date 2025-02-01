@@ -1,8 +1,125 @@
-# B (باء) Programming Language Specification
+# لغة باء - مواصفات اللغة
+# B (باء) Language Specification
 
-## Overview
+## 1. Basic Syntax
 
-B (باء) is a programming language designed to support Arabic syntax while maintaining K&R C compatibility. It allows developers to write code using Arabic keywords and identifiers while following established C programming patterns.
+### 1.1 Imports
+Imports use the `#تضمين` directive:
+
+```baa
+#تضمين <مكتبة_طباعة>
+#تضمين "ملف_محلي.ب"
+```
+
+### 1.2 Statement Termination
+Statements are terminated with a dot (.) instead of a semicolon.
+
+```baa
+اطبع("مرحبا").    // Correct
+اطبع("مرحبا");    // Incorrect
+```
+
+### 1.3 Function Declaration
+Functions are declared using the `دالة` keyword followed by the function name.
+
+```baa
+دالة رئيسية() {    // Main function
+    // Function body
+}
+
+دالة مربع(عدد_صحيح س) {    // Square function
+    إرجع س * س.
+}
+```
+
+### 1.4 Core Keywords
+- `دالة` - Function declaration
+- `رئيسية` - Main function
+- `اطبع` - Print to console
+- `إرجع` - Return statement
+- `عدد_صحيح` - Integer type
+- `عدد_حقيقي` - Float type
+- `حرف` - Character type
+- `فراغ` - Void type
+- `إذا` - If statement
+- `وإلا` - Else statement
+- `طالما` - While loop
+
+### 1.5 Basic Types
+```baa
+عدد_صحيح متغير1.    // Integer
+عدد_حقيقي متغير2.   // Float
+حرف متغير3.         // Character
+```
+
+### 1.6 String Literals
+String literals are enclosed in double quotes:
+```baa
+اطبع("مرحباً بالعالم!").
+```
+
+### 1.7 Control Flow
+Control structures follow C-like syntax but with Arabic keywords and dot termination:
+
+```baa
+// If statement
+إذا (س > 0) {
+    اطبع("موجب").
+} وإلا {
+    اطبع("سالب").
+}
+
+// While loop
+طالما (س < 10) {
+    اطبع(س).
+    س = س + 1.
+}
+```
+
+### 1.8 Comments
+- Single-line comments start with //
+- Multi-line comments use /* */
+
+```baa
+// هذا تعليق على سطر واحد
+
+/* هذا تعليق
+   متعدد الأسطر */
+```
+
+## 2. Program Structure
+
+### 2.1 Basic Program Structure
+Every program must have a main function (`دالة رئيسية`):
+
+```baa
+// مثال برنامج بسيط بلغة باء
+دالة رئيسية() {
+    اطبع("مرحباً بالعالم!").
+    إرجع 0.
+}
+```
+
+### 2.2 File Extension
+Programs are saved with the `.ب` extension:
+```
+برنامج.ب
+حاسبة.ب
+```
+
+## 3. Naming Conventions
+
+### 3.1 Identifiers
+- Can use Arabic letters, numbers, and underscores
+- Must start with a letter or underscore
+- Case sensitive
+- Cannot use reserved keywords
+
+Examples:
+```baa
+عدد_صحيح رقم_الطالب.    // Valid
+عدد_صحيح 1رقم.          // Invalid - starts with number
+```
 
 ## Language Elements
 
@@ -11,7 +128,7 @@ B (باء) is a programming language designed to support Arabic syntax while mai
 |-------------|---------|----------------------|---------|
 | عدد_صحيح    | int     | Integer              | 32-bit  |
 | عدد_حقيقي   | float   | Floating-point       | 32-bit  |
-| محرف        | char    | Character            | 16-bit  |
+| حرف        | char    | Character            | 16-bit  |
 | فراغ        | void    | No type             | -       |
 
 ### Derived Types
@@ -107,25 +224,25 @@ B (باء) is a programming language designed to support Arabic syntax while mai
 ```c
 دالة اسم_الدالة(المعاملات) {
     // جسم الدالة
-    إرجع القيمة؛
+    إرجع القيمة.
 }
 ```
 
 ### Variable Declaration
 ```c
-عدد_صحيح متغير؛             // Integer variable
-عدد_حقيقي* مؤشر؛           // Float pointer
-محرف مصفوفة[50]؛          // Character array
+عدد_صحيح متغير.             // Integer variable
+عدد_حقيقي* مؤشر.           // Float pointer
+حرف مصفوفة[50].          // Character array
 ```
 
 ### Structure Definition
 ```c
 بنية نقطة {
-    عدد_صحيح س؛
-    عدد_صحيح ص؛
-}؛
+    عدد_صحيح س.
+    عدد_صحيح ص.
+}.
 
-بنية نقطة نقطة1؛         // Structure variable
+بنية نقطة نقطة1.         // Structure variable
 ```
 
 ### Control Flow Examples
@@ -148,7 +265,7 @@ B (باء) is a programming language designed to support Arabic syntax while mai
 
 #### For Loop
 ```c
-من_أجل (عدد_صحيح i = 0؛ i < 10؛ i++) {
+من_أجل (عدد_صحيح i = 0; i < 10; i++) {
     // عبارات
 }
 ```
@@ -158,10 +275,10 @@ B (باء) is a programming language designed to support Arabic syntax while mai
 اختر (متغير) {
     حالة 1:
         // عبارات
-        توقف؛
+        توقف.
     حالة 2:
         // عبارات
-        توقف؛
+        توقف.
     تلقائي:
         // عبارات
 }
@@ -198,31 +315,31 @@ B (باء) is a programming language designed to support Arabic syntax while mai
 
 ### Input/Output Functions
 ```c
-اطبع(نص)؛              // printf equivalent
-اقرأ(متغير)؛           // scanf equivalent
-افتح_ملف(اسم)؛         // fopen equivalent
-اغلق_ملف(ملف)؛         // fclose equivalent
+اطبع(نص).              // printf equivalent
+اقرأ(متغير).           // scanf equivalent
+افتح_ملف(اسم).         // fopen equivalent
+اغلق_ملف(ملف).         // fclose equivalent
 ```
 
 ### String Functions
 ```c
-نسخ_نص(هدف، مصدر)؛     // strcpy equivalent
-طول_نص(نص)؛           // strlen equivalent
-مقارنة_نص(نص1، نص2)؛   // strcmp equivalent
+نسخ_نص(هدف, مصدر).     // strcpy equivalent
+طول_نص(نص).           // strlen equivalent
+مقارنة_نص(نص1, نص2).   // strcmp equivalent
 ```
 
 ### Memory Functions
 ```c
-حجز_ذاكرة(حجم)؛        // malloc equivalent
-حرر_ذاكرة(مؤشر)؛       // free equivalent
-نسخ_ذاكرة(هدف، مصدر)؛  // memcpy equivalent
+حجز_ذاكرة(حجم).        // malloc equivalent
+حرر_ذاكرة(مؤشر).       // free equivalent
+نسخ_ذاكرة(هدف, مصدر).  // memcpy equivalent
 ```
 
 ## Implementation Notes
 
 ### File Format
 - UTF-16LE encoding required
-- `.baa` file extension
+- `.ب` file extension
 - Optional BOM marker
 
 ### Compilation Process
@@ -247,3 +364,12 @@ B (باء) is a programming language designed to support Arabic syntax while mai
 2. Better error messages
 3. Modern memory management
 4. Development tools integration
+
+## Version History
+- Version 0.1.7: Initial release
+- Version 0.1.8: Updated documentation and added new features
+
+## Change Log
+- Added support for Arabic comments
+- Improved error handling for invalid syntax
+- Added new standard library functions for input/output and string manipulation

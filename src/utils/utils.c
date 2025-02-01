@@ -1,4 +1,5 @@
 #include "baa/utils.h"
+#include "baa_errors.h"
 #include <stdlib.h>
 #include <string.h>
 
@@ -27,7 +28,7 @@ BaaError baa_get_error(void) {
 void *baa_malloc(size_t size) {
     void *ptr = malloc(size);
     if (!ptr) {
-        baa_set_error(BAA_ERROR_MEMORY, L"Memory allocation failed");
+        baa_set_error(BAA_ERROR_MEMORY, L"فشل في تخصيص الذاكرة");
     }
     return ptr;
 }
@@ -35,7 +36,7 @@ void *baa_malloc(size_t size) {
 void *baa_realloc(void *ptr, size_t size) {
     void *new_ptr = realloc(ptr, size);
     if (!new_ptr) {
-        baa_set_error(BAA_ERROR_MEMORY, L"Memory reallocation failed");
+        baa_set_error(BAA_ERROR_MEMORY, L"فشل في إعادة تخصيص الذاكرة");
     }
     return new_ptr;
 }

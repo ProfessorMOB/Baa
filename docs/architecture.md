@@ -1,174 +1,86 @@
-# B (باء) Compiler Architecture
+# Baa Language Architecture
 
 ## Overview
+Baa (باء) is designed with a modular architecture that separates concerns into distinct components. Each component is responsible for a specific aspect of the compilation process, making the system maintainable and extensible.
 
-The B (باء) compiler is designed as a modular system that transforms Arabic source code into executable programs. The compiler follows the traditional K&R C compiler architecture while supporting Arabic syntax and modern features.
+## Core Components
 
-## Components
+### 1. Abstract Syntax Tree (AST)
+The AST module provides the foundation for representing code structure:
+- **Node Types**: Comprehensive set of node types for all language constructs
+- **Memory Management**: Efficient allocation and deallocation of nodes
+- **Tree Operations**: Creation, traversal, and manipulation of the syntax tree
+- **Visitor Pattern**: Support for tree traversal and transformation
 
-### 1. Lexical Analysis (src/lexer)
-- **Purpose**: Converts source text into tokens
-- **Key Features**:
-  - UTF-16LE support for Arabic text
-  - K&R C token compatibility
-  - Arabic identifier support
-  - Error reporting in Arabic
-- **Key Files**:
-  - `lexer.c`: Main lexer implementation
-  - `lexer.h`: Public interface
+### 2. Type System
+A robust type system that supports both C compatibility and Arabic type names:
+- **Basic Types**: عدد_صحيح (int), عدد_حقيقي (float), حرف (char)
+- **Type Checking**: Static type checking with detailed error messages
+- **Type Conversion**: Implicit and explicit type conversion rules
+- **Type Validation**: Compile-time type validation
 
-### 2. Parser (src/parser)
-- **Purpose**: Builds syntax tree from tokens
-- **Features**:
-  - K&R C grammar support
-  - Arabic syntax extensions
-  - Type checking
-  - Symbol table management
-- **Components**:
-  - Expression parser
-  - Declaration parser
-  - Statement parser
-  - Type system
+### 3. Operators
+Operator system with full Arabic support:
+- **Arithmetic**: جمع (+), طرح (-), ضرب (*), قسمة (/)
+- **Comparison**: يساوي (==), أكبر_من (>), أصغر_من (<)
+- **Logical**: و (&&), أو (||), ليس (!)
+- **Precedence**: Clear operator precedence rules
+- **Extensibility**: Easy addition of new operators
 
-### 3. Abstract Syntax Tree (src/ast)
-- **Purpose**: Internal representation of program structure
-- **Node Types**:
-  - Declarations (functions, variables)
-  - Statements (if, while, return)
-  - Expressions (arithmetic, logical)
-  - Types (basic types, structs, unions)
-- **Features**:
-  - Memory management
-  - Tree traversal
-  - Optimization support
+### 4. Control Flow
+Control structures with Arabic keywords:
+- **Conditions**: إذا (if), وإلا (else)
+- **Loops**: طالما (while), من_أجل (for)
+- **Functions**: دالة (function)
+- **Return**: إرجع (return)
 
-### 4. Type System (src/types)
-- **Purpose**: Type checking and management
-- **Features**:
-  - Basic types (عدد_صحيح, عدد_حقيقي, محرف)
-  - Derived types (مصفوفة, مؤشر)
-  - User-defined types (بنية, اتحاد)
-  - Type conversion
-
-### 5. Code Generation (src/codegen)
-- **Purpose**: Generates target code from AST
-- **Features**:
-  - LLVM IR generation
-  - Basic optimizations
-  - Debug information
-  - Memory management
-
-### 6. Preprocessor (src/preproc)
-- **Purpose**: Source code preprocessing
-- **Features**:
-  - File inclusion (تضمين#)
-  - Macro definition (تعريف#)
-  - Conditional compilation
-  - Token manipulation
-
-### 7. Symbol Table (src/symtab)
-- **Purpose**: Manages identifiers and scopes
-- **Features**:
-  - Scope management
-  - Symbol resolution
-  - Type information
-  - Linkage handling
-
-### 8. Error Handling (src/error)
-- **Purpose**: Error detection and reporting
-- **Features**:
-  - Arabic error messages
-  - Source location tracking
-  - Error recovery
-  - Warning system
+### 5. Utils
+Utility functions and support features:
+- **Error Handling**: Detailed Arabic error messages
+- **Memory Management**: Safe memory allocation and tracking
+- **String Handling**: UTF-8 string operations
+- **File Operations**: Source file handling with Arabic support
 
 ## Build System
+The build system is based on CMake and provides:
+- **Component Management**: Each component built as a separate library
+- **Test Integration**: Automated testing for each component
+- **Cross-Platform**: Support for multiple operating systems
+- **Configuration**: Flexible build configuration options
 
-### CMake Configuration
-- Modern CMake practices
-- Component-based structure
-- Test integration
-- Cross-platform support
-
-### Directory Structure
-```
-.
-├── src/                 # Source code
-│   ├── lexer/          # Lexical analysis
-│   ├── parser/         # Syntax analysis
-│   ├── ast/            # Abstract Syntax Tree
-│   ├── types/          # Type system
-│   ├── codegen/        # Code generation
-│   ├── preproc/        # Preprocessor
-│   ├── symtab/         # Symbol table
-│   └── error/          # Error handling
-├── include/            # Public headers
-├── tests/             # Test suite
-├── docs/              # Documentation
-├── examples/          # Example programs
-└── tools/             # Build tools
-```
-
-## Testing Strategy
-
-### Unit Tests
-- Component-level testing
-- K&R C compatibility tests
-- Arabic syntax tests
-- Memory management tests
-
-### Integration Tests
-- End-to-end compilation
-- Standard library tests
-- Error handling tests
-- Performance benchmarks
-
-## Memory Management
-
-### Stack Allocation
-- Local variables
-- Function parameters
-- Temporary objects
-
-### Heap Allocation
-- Dynamic memory
-- String literals
-- Compound objects
-
-### Register Allocation
-- Expression evaluation
-- Variable storage
-- Optimization support
+## Testing Framework
+Comprehensive testing infrastructure:
+- **Unit Tests**: Tests for individual components
+- **Integration Tests**: Tests for component interaction
+- **Arabic Test Cases**: Test cases with Arabic input
+- **Coverage**: Test coverage tracking
 
 ## Error Handling
+Robust error handling system:
+- **Error Types**: Syntax, type, memory, and runtime errors
+- **Arabic Messages**: Error messages in Arabic
+- **Error Recovery**: Graceful error recovery where possible
+- **Debug Info**: Detailed debugging information
 
-### Compile-time Errors
-- Syntax errors
-- Type errors
-- Symbol resolution
-- Preprocessor errors
+## Memory Management
+Memory management strategy:
+- **Allocation Tracking**: Track all memory allocations
+- **Garbage Collection**: Future support for garbage collection
+- **Memory Safety**: Checks for memory leaks and buffer overflows
+- **Resource Cleanup**: Automatic resource cleanup
 
-### Runtime Errors
-- Memory access
-- Division by zero
-- Stack overflow
-- Array bounds
+## Future Extensions
+Planned enhancements:
+- **Parser**: Full Arabic syntax parser
+- **Code Generation**: LLVM-based code generator
+- **Optimizer**: Code optimization passes
+- **IDE Integration**: Support for code editors and IDEs
 
-## Future Enhancements
-
-### Language Extensions
-1. Modern Features
-   - Enhanced type safety
-   - Better error messages
-   - Memory protection
-
-2. Development Tools
-   - Integrated debugger
-   - Profile generation
-   - Code analysis
-
-3. Standard Library
-   - I/O functions
-   - String handling
-   - Math operations
-   - Memory management
+## Version History
+- **0.1.7**: Initial project structure
+- **0.1.8**: Core component implementation
+  - AST implementation
+  - Type system
+  - Operators
+  - Control flow
+  - Utils and error handling

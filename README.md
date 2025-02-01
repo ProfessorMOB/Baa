@@ -2,15 +2,15 @@
 
 B (باء) is a programming language designed to support Arabic syntax while maintaining full compatibility with K&R C features. It allows developers to write code using Arabic keywords and identifiers while following established C programming patterns.
 
-## Current Status (v0.1.6)
+## Current Status (v0.1.8)
 
-The project is currently in early development. We have implemented:
+The project now supports:
 
 ### Core Features
 - Basic type system with K&R C compatibility
   - عدد_صحيح (int) - 32-bit integer
   - عدد_حقيقي (float) - 32-bit float
-  - محرف (char) - 16-bit UTF-16 character
+  - حرف (char) - 16-bit UTF-16 character
   - فراغ (void) - No value type
 
 - Core operator system
@@ -19,6 +19,19 @@ The project is currently in early development. We have implemented:
   - Assignment operator (=)
   - Type checking and validation
   - Arabic operator names
+
+- Control Flow Structures
+  - إذا/وإلا (if/else)
+  - طالما (while)
+  - إرجع (return)
+
+- Arabic File Support
+  - Native `.ب` extension
+  - Full UTF-8 support
+  - Arabic file naming
+  - Build system integration
+
+For detailed information about Arabic file support, see [Arabic Support Documentation](docs/arabic_support.md).
 
 ### Project Structure
 ```
@@ -34,6 +47,7 @@ baa/
     ├── components.md    # Component details
     ├── development.md   # Developer guide
     ├── language.md      # Language specification
+    ├── arabic_support.md # Arabic support documentation
     └── roadmap.md       # Development roadmap
 ```
 
@@ -86,10 +100,25 @@ gcc -o test_operators tests/test_operators.c src/operators/operators.c src/types
 - Examples and usage guides
 - Development guidelines
 
+## File Extensions
+The Baa programming language supports two file extensions:
+- `.ب` - The primary Arabic file extension
+- `.baa` - Alternative Latin file extension
+
+### Example Program
+```baa
+#تضمين <مكتبة_طباعة>
+
+// مثال برنامج بسيط بلغة باء
+دالة رئيسية() {
+    اطبع("مرحباً بالعالم!").
+    إرجع 0.
+}
+```
+
 ## Roadmap
 
 ### Next Steps (v0.2.0)
-- Control flow implementation (if/else, while, return)
 - Function system
 - Basic preprocessor
 - Memory management

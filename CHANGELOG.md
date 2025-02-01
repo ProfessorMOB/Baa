@@ -5,6 +5,40 @@ All notable changes to the B (باء) compiler project will be documented in thi
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.8] - 2025-02-01
+
+### Added
+- Full implementation of AST (Abstract Syntax Tree)
+- Complete type system implementation
+- Operator system with precedence rules
+- Control flow structures (if, while, return)
+- Error handling with Arabic message support
+- Memory management utilities
+- Support for Arabic file extension `.ب`
+- UTF-8 encoding support for source files
+- Basic compiler infrastructure for Arabic source files
+- Example program with Arabic file name (`برنامج.ب`)
+- EditorConfig settings for Arabic source files
+- `#تضمين` directive for imports
+- Updated character type from `محرف` to `حرف`
+
+### Changed
+- Removed placeholder implementations
+- Updated build system to exclude unimplemented components
+- Improved project structure and organization
+- Build system now handles Arabic file extensions
+- Updated CMake configuration for UTF-8 support
+- Enhanced file handling for Arabic source files
+- Improved project documentation with Arabic examples
+- Refined language specification with proper Arabic keywords
+- Updated type system documentation to use `حرف` instead of `محرف`
+- Added proper import syntax using `#تضمين`
+
+### Fixed
+- Corrected character type naming convention
+- Standardized import directive syntax
+- Aligned documentation with actual language specification
+
 ## [0.1.7] - 2025-02-01
 
 ### Added

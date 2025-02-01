@@ -1,5 +1,6 @@
 #include "baa/ast.h"
 #include "baa/utils.h"
+#include "baa_errors.h"
 #include <stdlib.h>
 #include <string.h>
 

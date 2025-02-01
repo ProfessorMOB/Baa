@@ -1,204 +1,174 @@
-# B (باء) Compiler Project Roadmap
+# Baa Language Roadmap (خارطة الطريق)
 
-## Version 0.1.0 (Current)
-- ✅ Basic project structure
-- ✅ UTF-16LE file handling
-- ✅ CMake build system
-- ✅ Basic documentation
-- ✅ Test framework
-- ✅ Error handling utilities
+## Current Version: 0.1.8
 
-## Version 0.2.0 (Next)
-### Core Language Features
-- ✅ Basic Types Implementation
-  - عدد_صحيح (int)
-  - عدد_حقيقي (float)
-  - محرف (char)
-  - فراغ (void)
-  - Type comparison system
-  - Type conversion rules
-  - Error handling
-- ✅ Basic Operators
-  - Arithmetic (+, -, *, /, %)
-  - Comparison (<, >, <=, >=, ==, !=)
-  - Assignment (=)
-  - Type checking for operators
-  - Arabic operator names
-  - Error handling
-- ✅ Basic Control Flow
-  - إذا/وإلا (if/else)
-  - طالما (while)
-  - إرجع (return)
+### Completed Features 
+1. **Core Components**
+   - Abstract Syntax Tree (AST)
+   - Type System
+   - Operators
+   - Control Flow
+   - Memory Management
+   - Error Handling
 
-### Lexical Analysis
-- [ ] Token definition
-- [ ] Lexer implementation
-- [ ] Error reporting
-- [ ] Source position tracking
+2. **Arabic Support**
+   - UTF-8 encoding
+   - Arabic identifiers
+   - Basic RTL support
+   - Arabic error messages
 
-### Parser
-- [ ] Basic expression parsing
-- [ ] Statement parsing
-- [ ] AST generation
-- [ ] Symbol table (basic)
+3. **Documentation**
+   - Language specification
+   - Arabic support guide
+   - C comparison
+   - Architecture overview
+   - Component documentation
 
-## Version 0.3.0
-### Extended Types and Control
-- [ ] Additional Types
-  - عدد_مضاعف (double)
-  - بنية (struct)
-  - اتحاد (union)
-  - نوع_مستخدم (typedef)
-- [ ] Extended Control Flow
-  - من_أجل (for)
-  - افعل_طالما (do-while)
-  - اختر (switch)
-  - توقف (break)
-  - استمر (continue)
-- [ ] Extended Operators
-  - Increment/Decrement (++, --)
-  - Compound Assignment (+=, -=, etc.)
-  - Logical (&&, ||, !)
+### In Progress 
+1. **Parser Development**
+   - Grammar definition
+   - Token handling
+   - Error recovery
+   - Source location tracking
 
-### Parser Enhancements
-- [ ] Type parsing
-- [ ] Declaration parsing
-- [ ] Full expression parsing
-- [ ] Error recovery
+2. **Code Generation**
+   - LLVM integration planning
+   - Basic code emission
+   - Debug information support
 
-## Version 0.4.0
-### Memory Management
-- [ ] Pointer operations
-- [ ] Address operators
-- [ ] Dynamic allocation
-- [ ] Memory safety checks
+3. **Standard Library**
+   - Basic I/O functions
+   - String manipulation
+   - Memory management
+   - File operations
 
-### Scope Implementation
-- [ ] Block scope
-- [ ] File scope
-- [ ] Function scope
-- [ ] External linkage
+## Short-term Goals (0.1.9)
+1. **Parser Implementation**
+   - Complete grammar implementation
+   - Full Arabic syntax support
+   - Error recovery mechanisms
+   - Source position tracking
 
-### Code Generation (Basic)
-- [ ] LLVM IR generation
-- [ ] Basic optimization
-- [ ] Debug information
+2. **Code Generation**
+   - Basic LLVM IR generation
+   - Simple optimizations
+   - Function compilation
+   - Global variable handling
 
-## Version 0.5.0
-### Preprocessor
-- [ ] Basic Preprocessor
-  - تضمين# (#include)
-  - تعريف# (#define)
-  - Simple macros
-- [ ] Advanced Preprocessor
-  - Conditional compilation
-  - Macro functions
-  - Token concatenation
+3. **Testing Infrastructure**
+   - Unit test framework
+   - Integration tests
+   - Benchmarking suite
+   - Test coverage tools
 
-### Optimization
-- [ ] Constant folding
-- [ ] Dead code elimination
-- [ ] Basic optimizations
+## Medium-term Goals (0.2.0)
+1. **Language Features**
+   - Enhanced type system
+   - Function overloading
+   - Module system
+   - Package management
 
-## Version 0.6.0
-### Standard Library
-- [ ] I/O Functions
-  - File operations
-  - Console I/O
-  - Formatted I/O
-- [ ] String Functions
-  - String manipulation
-  - Memory operations
-- [ ] Math Functions
-  - Basic arithmetic
-  - Trigonometry
+2. **Development Tools**
+   - IDE integration
+   - Debugger support
+   - Code formatting
+   - Static analysis
 
-### Development Tools
-- [ ] Basic debugger support
-- [ ] Error analysis
-- [ ] Code formatting
+3. **Standard Library**
+   - Extended I/O support
+   - Network operations
+   - Database connectivity
+   - GUI toolkit bindings
 
-## Version 0.7.0
-### Type System
-- ✅ Enhanced type checking
-- ✅ Implicit conversions
-- ✅ sizeof operator
-- ✅ Type inference
-
-### Memory Model
-- [ ] Stack allocation
-- [ ] Heap management
-- [ ] Register allocation
-- [ ] Memory safety
-
-## Version 0.8.0
-### Advanced Optimization
-- [ ] Loop optimization
-- [ ] Inlining
-- [ ] Tail call optimization
-- [ ] Vectorization
-
-### Analysis Tools
-- [ ] Static analysis
-- [ ] Memory analysis
-- [ ] Performance profiling
-
-## Version 0.9.0
-### Language Extensions
-- [ ] Enhanced Unicode support
-- [ ] Modern string handling
-- [ ] Error handling improvements
-- [ ] Module system
-
-### IDE Integration
-- [ ] Syntax highlighting
-- [ ] Code completion
-- [ ] Refactoring support
-- [ ] Debug integration
-
-## Version 1.0.0
-### Final Features
-- [ ] Full K&R C compatibility
-- [ ] Complete standard library
-- [ ] Comprehensive documentation
-- [ ] Production-ready tools
-
-### Quality Assurance
-- [ ] Complete test suite
-- [ ] Performance benchmarks
-- [ ] Security audits
-- [ ] Documentation review
-
-## Future Enhancements
-
-### Modern Features
-1. Object-Oriented Extensions
-   - Classes
-   - Inheritance
-   - Interfaces
-
-2. Functional Programming
-   - First-class functions
-   - Closures
+## Long-term Goals (1.0.0)
+1. **Language Evolution**
+   - Advanced type features
+   - Metaprogramming support
+   - Concurrency model
    - Pattern matching
 
-3. Concurrency
-   - Threading
+2. **Ecosystem**
+   - Package repository
+   - Documentation site
+   - Community tools
+   - Learning resources
+
+3. **Performance**
+   - Advanced optimizations
+   - JIT compilation
+   - Profile-guided optimization
+   - Cache-aware algorithms
+
+## Future Considerations
+1. **Language Features**
+   - Generic programming
+   - Exception handling
+   - Reflection
    - Async/await
-   - Channels
 
-### Safety and Security
-1. Memory Safety
-   - Bounds checking
-   - Null safety
-   - Lifetime tracking
+2. **Tools and Infrastructure**
+   - Language server protocol
+   - Code coverage tools
+   - Performance profiler
+   - Memory analyzer
 
-2. Type Safety
-   - Generics
-   - Strong type checking
-   - Type inference
+3. **Community and Documentation**
+   - Interactive tutorials
+   - Video courses
+   - Community forums
+   - Best practices guide
 
-3. Security Features
-   - Safe concurrency
-   - Sandboxing
-   - Resource limits
+## Release Schedule
+- **0.1.9** (Q2 2025)
+  - Parser implementation
+  - Basic code generation
+  - Testing infrastructure
+
+- **0.2.0** (Q3 2025)
+  - Enhanced type system
+  - Development tools
+  - Standard library expansion
+
+- **0.3.0** (Q4 2025)
+  - Module system
+  - Package management
+  - IDE integration
+
+- **1.0.0** (2026)
+  - Production-ready release
+  - Complete standard library
+  - Full tool support
+
+## Contributing
+We welcome contributions in the following areas:
+1. Core language development
+2. Standard library implementation
+3. Tool development
+4. Documentation and tutorials
+5. Testing and bug fixes
+
+## Get Involved
+- GitHub repository
+- Documentation site
+- Community chat
+- Mailing list
+- Social media
+
+## Version History
+### 0.1.7 (Initial Release)
+- Project structure
+- Basic documentation
+- Build system setup
+
+### 0.1.8 (Current)
+- AST implementation
+- Type system
+- Operators
+- Control flow
+- Utils and error handling
+
+### 0.1.9 (Planned)
+- Parser implementation
+- Code generation basics
+- Testing infrastructure
+- Standard library foundations

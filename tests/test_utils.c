@@ -1,3 +1,6 @@
+#include <stdlib.h>
+#include <string.h>
+#include "baa_errors.h"
 #include "baa/utils.h"
 #include <assert.h>
 #include <stdio.h>
