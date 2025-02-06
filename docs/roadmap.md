@@ -1,19 +1,18 @@
 # Baa Language Roadmap (خارطة الطريق)
 
-## Current Version: 0.1.8
+## Current Version: 0.1.9
 
 ### Completed Features 
 1. **Core Components**
    - Abstract Syntax Tree (AST)
-   - Type System
-   - Operators
-   - Control Flow
+   - Basic Type System
+   - Basic Operators
    - Memory Management
-   - Error Handling
+   - Basic Error Handling
 
 2. **Arabic Support**
    - UTF-8 encoding
-   - Arabic identifiers
+   - Basic Arabic identifiers
    - Basic RTL support
    - Arabic error messages
 
@@ -42,24 +41,31 @@
    - Memory management
    - File operations
 
-## Short-term Goals (0.1.9)
+## Short-term Goals (0.2.0)
 1. **Parser Implementation**
-   - Complete grammar implementation
-   - Full Arabic syntax support
+   - Complete control flow parsing:
+     - `إذا` (If statement)
+     - `وإلا` (Else statement)
+     - `طالما` (While loop)
+   - Restore decimal number parsing
+   - Full operator precedence handling
+   - Complete string literal support with escape sequences
+   - Enhanced UTF-8 support for identifiers
    - Error recovery mechanisms
    - Source position tracking
 
-2. **Code Generation**
-   - Basic LLVM IR generation
-   - Simple optimizations
-   - Function compilation
-   - Global variable handling
+2. **Advanced Features**
+   - Compound statements
+   - Enhanced error messages
+   - Full RTL support for Arabic
+   - Improved memory management
+   - Better debugging support
 
-3. **Testing Infrastructure**
-   - Unit test framework
-   - Integration tests
-   - Benchmarking suite
-   - Test coverage tools
+3. **Testing & Documentation**
+   - Comprehensive test suite
+   - Performance benchmarks
+   - Updated documentation
+   - Example programs
 
 ## Medium-term Goals (0.2.0)
 1. **Language Features**
@@ -160,14 +166,14 @@ We welcome contributions in the following areas:
 - Basic documentation
 - Build system setup
 
-### 0.1.8 (Current)
+### 0.1.8 
 - AST implementation
 - Type system
 - Operators
 - Control flow
 - Utils and error handling
 
-### 0.1.9 (Planned)
+### 0.1.9 (Current)
 - Parser implementation
 - Code generation basics
 - Testing infrastructure

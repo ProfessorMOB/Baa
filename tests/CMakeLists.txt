@@ -1,5 +1,8 @@
 enable_testing()
 
+# Add parser tests directory
+add_subdirectory(parser_tests)
+
 # Test utilities
 add_executable(test_utils test_utils.c)
 target_link_libraries(test_utils PRIVATE baa_utils)

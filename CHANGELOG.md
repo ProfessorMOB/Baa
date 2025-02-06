@@ -5,6 +5,28 @@ All notable changes to the B (باء) compiler project will be documented in thi
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.9] - 2025-02-06
+
+### Added
+- Enhanced parser debug output for better troubleshooting
+- Added test files for Arabic program parsing
+- Added UTF-8 support for Arabic identifiers in parser
+
+### Changed
+- Refactored parser functions for better error handling
+- Simplified number parsing (temporarily removed decimal support)
+- Improved error messages with more context
+
+### Fixed
+- Fixed memory leaks in parser error handling
+- Fixed function declaration parsing
+- Fixed identifier parsing for UTF-8 characters
+
+### Development
+- Added more debug output in parse_declaration and parse_program
+- Reorganized parser code structure
+- Added test cases for basic language features
+
 ## [0.1.8] - 2025-02-01
 
 ### Added

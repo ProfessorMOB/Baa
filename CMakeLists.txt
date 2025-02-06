@@ -27,11 +27,11 @@ endif()
 include_directories(${PROJECT_SOURCE_DIR}/include)
 
 # Add component subdirectories
-add_subdirectory(src/utils)
-add_subdirectory(src/types)
-add_subdirectory(src/operators)
-add_subdirectory(src/ast)
-add_subdirectory(src/control_flow)
+add_subdirectory(src)
+add_subdirectory(tests)
+
+# Enable testing
+enable_testing()
 
 # Add main executable
 add_executable(baa src/compiler.c)
@@ -43,10 +43,6 @@ target_link_libraries(baa
     baa_ast
     baa_control_flow
 )
-
-# Enable testing
-enable_testing()
-add_subdirectory(tests)
 
 # Add test file
 configure_file(
