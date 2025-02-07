@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-project(baa 
+project(baa
     VERSION 0.1.8
     DESCRIPTION "The Baa Programming Language"
     LANGUAGES C
@@ -18,7 +18,7 @@ set(BAA_SOURCE_EXTENSIONS ".ب" ".baa")
 # Configure Unicode and UTF-8 support
 if(WIN32)
     add_definitions(-DUNICODE -D_UNICODE)
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /utf-8")  # MSVC UTF-8 support
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -finput-charset=UTF-8")  # MSVC UTF-8 support
 else()
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -finput-charset=UTF-8 -fexec-charset=UTF-8")
 endif()

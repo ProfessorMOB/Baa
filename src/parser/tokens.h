@@ -6,7 +6,7 @@ typedef enum {
     TOKEN_EOF = 0,
     TOKEN_ERROR,
     TOKEN_DOT,          // Statement terminator '.'
-    
+
     // Keywords
     TOKEN_FUNCTION,     // دالة
     TOKEN_RETURN,       // إرجع
@@ -19,7 +19,7 @@ typedef enum {
     TOKEN_CASE,         // حالة
     TOKEN_BREAK,        // توقف
     TOKEN_CONTINUE,     // استمر
-    
+
     // Types
     TOKEN_INT,          // عدد_صحيح
     TOKEN_FLOAT,        // عدد_حقيقي
@@ -27,19 +27,19 @@ typedef enum {
     TOKEN_VOID,         // فراغ
     TOKEN_STRUCT,       // بنية
     TOKEN_UNION,        // اتحاد
-    
+
     // Storage classes
     TOKEN_AUTO,         // تلقائي
     TOKEN_STATIC,       // ثابت
     TOKEN_EXTERN,       // خارجي
     TOKEN_REGISTER,     // سجل
-    
+
     // Literals
     TOKEN_IDENTIFIER,
     TOKEN_NUMBER,
     TOKEN_STRING,
     TOKEN_CHAR_LITERAL,
-    
+
     // Operators
     TOKEN_PLUS,         // +
     TOKEN_MINUS,        // -
@@ -56,7 +56,7 @@ typedef enum {
     TOKEN_AND,          // &&
     TOKEN_OR,           // ||
     TOKEN_NOT,          // !
-    
+
     // Delimiters
     TOKEN_LEFT_PAREN,   // (
     TOKEN_RIGHT_PAREN,  // )
@@ -66,7 +66,7 @@ typedef enum {
     TOKEN_RIGHT_BRACKET,// ]
     TOKEN_COMMA,        // ,
     TOKEN_SEMICOLON,    // ;
-    
+
     // Preprocessor
     TOKEN_HASH,         // #
     TOKEN_INCLUDE,      // تضمين#
@@ -77,7 +77,7 @@ typedef enum {
 
 typedef struct {
     TokenType type;
-    const char* start;
+    const wchar_t* start;
     int length;
     int line;
     int column;

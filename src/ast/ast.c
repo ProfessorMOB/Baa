@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-Node *baa_create_node(NodeType type, const char *value) {
+Node *baa_create_node(NodeType type, const wchar_t *value) {
     Node *node = baa_malloc(sizeof(Node));
     if (!node) {
         baa_set_error(BAA_ERROR_MEMORY, L"Failed to allocate memory for AST node");
@@ -12,7 +12,7 @@ Node *baa_create_node(NodeType type, const char *value) {
     }
 
     node->type = type;
-    node->value = value ? strdup(value) : NULL;
+    node->value = value ? wcsdup(value) : NULL;
     node->children = NULL;
     node->children_count = 0;
 
@@ -26,7 +26,7 @@ void baa_add_child(Node *parent, Node *child) {
 
     size_t new_size = (parent->children_count + 1) * sizeof(Node*);
     Node **new_children = baa_realloc(parent->children, new_size);
-    
+
     if (!new_children) {
         baa_set_error(BAA_ERROR_MEMORY, L"Failed to allocate memory for AST node children");
         return;

@@ -74,7 +74,7 @@ typedef struct Node Node;
 // AST node structure
 struct Node {
     NodeType type;
-    char *value;
+    wchar_t *value;
     NodeFlags flags;
     Node **children;
     size_t children_count;
@@ -82,7 +82,7 @@ struct Node {
 };
 
 // AST functions
-Node *baa_create_node(NodeType type, const char *value);
+Node *baa_create_node(NodeType type, const wchar_t *value);
 void baa_add_child(Node *parent, Node *child);
 void baa_free_node(Node *node);
 
