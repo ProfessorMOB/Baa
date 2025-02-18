@@ -2,7 +2,7 @@
 
 B (باء) is a programming language designed to support Arabic syntax while maintaining full compatibility with K&R C features. It allows developers to write code using Arabic keywords and identifiers while following established C programming patterns.
 
-## Current Status (v0.1.8)
+## Current Status (v0.1.9.5)
 
 The project now supports:
 
@@ -32,6 +32,40 @@ The project now supports:
   - Build system integration
 
 For detailed information about Arabic file support, see [Arabic Support Documentation](docs/arabic_support.md).
+
+### Changelog:
+
+**Added:**
+- Enhanced parser debug output for better troubleshooting.
+- Test files for Arabic program parsing.
+- UTF-8 support for Arabic identifiers in the parser.
+
+**Changed:**
+- Refactored parser functions for improved error handling.
+- Simplified number parsing (temporarily removed decimal support).
+- Improved error messages with more context.
+
+**Fixed:**
+- Memory leaks in parser error handling.
+- Function declaration parsing.
+- Identifier parsing for UTF-8 characters.
+
+### Roadmap:
+
+**Completed Features:**
+- Core components (AST, Basic Type System, Basic Operators, Memory Management, Basic Error Handling).
+- Arabic support (UTF-8 encoding, Basic Arabic identifiers, Basic RTL support, Arabic error messages).
+- Documentation (Language specification, Arabic support guide, C comparison, Architecture overview, Component documentation).
+
+**In Progress:**
+- Parser Development (Grammar definition, Token handling, Error recovery, Source location tracking).
+- Code Generation (LLVM integration planning, Basic code emission, Debug information support).
+- Standard Library (Basic I/O functions, String manipulation, Memory management, File operations).
+
+**Short-term Goals (0.2.0):**
+- Complete control flow parsing (إذا, وإلا, طالما).
+- Restore decimal number parsing.
+- Full operator precedence handling.
 
 ### Project Structure
 ```
@@ -115,19 +149,6 @@ The Baa programming language supports two file extensions:
     إرجع 0.
 }
 ```
-
-## Roadmap
-
-### Next Steps (v0.2.0)
-- Function system
-- Basic preprocessor
-- Memory management
-
-### Future Plans
-- Extended type system
-- Full K&R C standard library support
-- Development tools and IDE integration
-- Advanced error recovery
 
 ## Contributing
 
