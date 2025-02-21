@@ -22,9 +22,8 @@ typedef enum
 
     // Statements
     NODE_BLOCK,     // Block of statements
-    NODE_IF,        // If statement
-    NODE_ELSE,      // Else statement
-    NODE_WHILE,     // While loop
+    NODE_IF_STMT,   // If statement
+    NODE_WHILE_STMT, // While loop
     NODE_FOR,       // For loop
     NODE_DO_WHILE,  // Do-while loop
     NODE_SWITCH,    // Switch statement
@@ -60,10 +59,6 @@ typedef enum
     NODE_TYPE_POINTER, // Pointer type
     NODE_TYPE_STRUCT,  // Structure type
     NODE_TYPE_UNION,   // Union type
-
-    // Control flow
-    NODE_IF_STMT,
-    NODE_WHILE_STMT,
 } NodeType;
 
 // Node flags
@@ -78,6 +73,9 @@ typedef enum
 typedef struct Node Node;
 
 // AST node structure
+// Forward declarations
+typedef struct NodeAttributes NodeAttributes;
+
 struct Node
 {
     NodeType type;
@@ -86,11 +84,21 @@ struct Node
     Node **children;
     size_t children_count;
     size_t children_capacity;
+    NodeAttributes *attributes;
 };
 
-// AST functions
+// AST core functions
 Node *baa_create_node(NodeType type, const wchar_t *value);
 void baa_add_child(Node *parent, Node *child);
 void baa_free_node(Node *node);
+
+// Tree traversal functions
+void baa_visit_node(Node *node, void (*visitor)(Node*, void*), void *data);
+
+// Node attribute functions
+void baa_set_node_location(Node *node, size_t line, size_t column, const wchar_t *file);
+void baa_set_node_constant(Node *node, bool is_constant);
+void baa_set_node_static(Node *node, bool is_static);
+void baa_set_node_extern(Node *node, bool is_extern);
 
 #endif /* BAA_AST_H */
