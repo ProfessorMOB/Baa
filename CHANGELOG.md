@@ -5,6 +5,26 @@ All notable changes to the B (باء) compiler project will be documented in thi
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.9.7] - 2025-02-08
+
+### Added
+- Restored decimal number parsing with improved implementation
+- Completed control flow parsing implementation
+  - Full support for إذا (if) statements
+  - Integrated وإلا (else) statements
+  - Implemented طالما (while) loops
+- Added comprehensive test suite for control flow structures
+
+### Changed
+- Updated parser to handle decimal numbers efficiently
+- Enhanced error handling for control flow statements
+- Improved documentation to reflect completed features
+
+### Fixed
+- Edge cases in decimal number parsing
+- Control flow statement nesting issues
+- Parser error recovery in complex control structures
+
 ## [0.1.9] - 2025-02-06
 
 ### Added
