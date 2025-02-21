@@ -2,7 +2,8 @@
 
 ## Current Version: 0.1.9
 
-### Completed Features 
+### Completed Features
+
 1. **Core Components**
    - Abstract Syntax Tree (AST)
    - Basic Type System
@@ -23,7 +24,8 @@
    - Architecture overview
    - Component documentation
 
-### In Progress 
+### In Progress
+
 1. **Parser Development**
    - Grammar definition
    - Token handling
@@ -42,6 +44,7 @@
    - File operations
 
 ## Short-term Goals (0.2.0)
+
 1. **Parser Implementation**
    - Complete control flow parsing:
      - `إذا` (If statement)
@@ -67,7 +70,15 @@
    - Updated documentation
    - Example programs
 
+4. **Compiler Features**
+   - Command-line interface improvements
+   - Compilation flags support
+   - Source file encoding detection
+   - Incremental compilation
+   - Better diagnostic messages
+
 ## Medium-term Goals (0.2.0)
+
 1. **Language Features**
    - Enhanced type system
    - Function overloading
@@ -86,7 +97,15 @@
    - Database connectivity
    - GUI toolkit bindings
 
+4. **Compiler Infrastructure**
+   - Optimization passes
+   - Symbol table improvements
+   - Intermediate representation (IR)
+   - Cross-platform compilation
+   - Build system integration
+
 ## Long-term Goals (1.0.0)
+
 1. **Language Evolution**
    - Advanced type features
    - Metaprogramming support
@@ -106,6 +125,7 @@
    - Cache-aware algorithms
 
 ## Future Considerations
+
 1. **Language Features**
    - Generic programming
    - Exception handling
@@ -125,6 +145,7 @@
    - Best practices guide
 
 ## Release Schedule
+
 - **0.1.9** (Q2 2025)
   - Parser implementation
   - Basic code generation
@@ -146,7 +167,9 @@
   - Full tool support
 
 ## Contributing
+
 We welcome contributions in the following areas:
+
 1. Core language development
 2. Standard library implementation
 3. Tool development
@@ -154,6 +177,7 @@ We welcome contributions in the following areas:
 5. Testing and bug fixes
 
 ## Get Involved
+
 - GitHub repository
 - Documentation site
 - Community chat
@@ -161,12 +185,15 @@ We welcome contributions in the following areas:
 - Social media
 
 ## Version History
+
 ### 0.1.7 (Initial Release)
+
 - Project structure
 - Basic documentation
 - Build system setup
 
-### 0.1.8 
+### 0.1.8
+
 - AST implementation
 - Type system
 - Operators
@@ -174,6 +201,7 @@ We welcome contributions in the following areas:
 - Utils and error handling
 
 ### 0.1.9 (Current)
+
 - Parser implementation
 - Code generation basics
 - Testing infrastructure
