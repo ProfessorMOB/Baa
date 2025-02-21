@@ -91,12 +91,12 @@ Baa (باء) provides comprehensive support for Arabic programming through:
 - `.baa` - Alternative source file extension
 
 ### 2. File Encoding
-- UTF-8 encoding for source files
-- Support for Arabic comments and strings
-- Proper handling of RTL text
+- UTF-16LE encoding for source files (implemented)
+- Support for Arabic comments and strings (implemented)
+- Enhanced RTL text support (planned)
 
 ## Error Messages (رسائل الخطأ)
-The compiler provides error messages in both Arabic and English:
+The compiler will provide error messages in both Arabic and English (planned feature):
 
 ```
 خطأ: متغير غير معرف 'س'

@@ -263,14 +263,23 @@ void baa_parser_free(Parser *parser)
 
 static void set_error(Parser *parser, const wchar_t *message)
 {
-    if (!parser->had_error)
-    {
+    if (!parser->had_error) {
         parser->had_error = true;
-        if (parser->error_msg)
-        {
+
+        // Format error message with location context
+        wchar_t full_msg[256];
+        swprintf(full_msg, 256, L"خطأ في السطر %d، العمود %d: %ls",
+                parser->line, parser->column, message);
+
+        if (parser->error_msg) {
             baa_free((void *)parser->error_msg);
         }
-        parser->error_msg = wcsdup(message);
+        parser->error_msg = wcsdup(full_msg);
+    }
+
+    // Skip to next statement terminator for error recovery
+    while (!is_eof(parser) && peek(parser) != L'.' && peek(parser) != L'}') {
+        advance(parser);
     }
 }
 
@@ -282,7 +291,8 @@ static Node *parse_declaration(Parser *parser)
     // Check for function declaration
     if (match_keyword(parser, L"دالة"))
     {
-        printf("Found function declaration\n");
+        // Parse function declaration syntax: دالة <name>(<params>){<body>}
+        printf("Parsing function declaration\n");
         return parse_function(parser);
     }
 
@@ -400,6 +410,179 @@ static Node *parse_declaration(Parser *parser)
     return decl;
 }
 
+static Node *parse_block(Parser *parser);
+
+static Node *parse_statement(Parser *parser)
+{
+    skip_whitespace(parser);
+
+    // Parse if statement
+    if (match_keyword(parser, L"إذا"))
+    {
+        if (!expect_char(parser, L'('))
+            return NULL;
+
+        Node *condition = parse_expression(parser);
+        if (!condition)
+            return NULL;
+
+        if (!expect_char(parser, L')'))
+        {
+            baa_free_node(condition);
+            return NULL;
+        }
+
+        if (!expect_char(parser, L'{'))
+        {
+            baa_free_node(condition);
+            return NULL;
+        }
+
+        Node *if_body = parse_block(parser);
+        if (!if_body)
+        {
+            baa_free_node(condition);
+            return NULL;
+        }
+
+        Node *else_body = NULL;
+        skip_whitespace(parser);
+
+        // Check for else clause
+        if (match_keyword(parser, L"وإلا"))
+        {
+            if (!expect_char(parser, L'{'))
+            {
+                baa_free_node(condition);
+                baa_free_node(if_body);
+                return NULL;
+            }
+
+            else_body = parse_block(parser);
+            if (!else_body)
+            {
+                baa_free_node(condition);
+                baa_free_node(if_body);
+                return NULL;
+            }
+        }
+
+        Node *if_stmt = baa_create_node(NODE_IF, NULL);
+        if (!if_stmt)
+        {
+            baa_free_node(condition);
+            baa_free_node(if_body);
+            if (else_body) baa_free_node(else_body);
+            return NULL;
+        }
+
+        baa_add_child(if_stmt, condition);
+        baa_add_child(if_stmt, if_body);
+        if (else_body) baa_add_child(if_stmt, else_body);
+
+        if (!expect_char(parser, L'.'))
+        {
+            baa_free_node(if_stmt);
+            return NULL;
+        }
+
+        return if_stmt;
+    }
+
+    // Parse while loop
+    if (match_keyword(parser, L"طالما"))
+    {
+        if (!expect_char(parser, L'('))
+            return NULL;
+
+        Node *condition = parse_expression(parser);
+        if (!condition)
+            return NULL;
+
+        if (!expect_char(parser, L')'))
+        {
+            baa_free_node(condition);
+            return NULL;
+        }
+
+        if (!expect_char(parser, L'{'))
+        {
+            baa_free_node(condition);
+            return NULL;
+        }
+
+        Node *body = parse_block(parser);
+        if (!body)
+        {
+            baa_free_node(condition);
+            return NULL;
+        }
+
+        Node *while_stmt = baa_create_node(NODE_WHILE, NULL);
+        if (!while_stmt)
+        {
+            baa_free_node(condition);
+            baa_free_node(body);
+            return NULL;
+        }
+
+        baa_add_child(while_stmt, condition);
+        baa_add_child(while_stmt, body);
+
+        if (!expect_char(parser, L'.'))
+        {
+            baa_free_node(while_stmt);
+            return NULL;
+        }
+
+        return while_stmt;
+    }
+
+    // Parse other statements
+    Node *expr = parse_expression(parser);
+    if (expr)
+    {
+        if (!expect_char(parser, L'.'))
+        {
+            baa_free_node(expr);
+            return NULL;
+        }
+        return expr;
+    }
+
+    return NULL;
+}
+
+static Node *parse_block(Parser *parser)
+{
+    Node *block = baa_create_node(NODE_BLOCK, NULL);
+    if (!block)
+        return NULL;
+
+    while (peek(parser) && peek(parser) != L'}')
+    {
+        skip_whitespace(parser);
+        skip_comment(parser);
+
+        Node *stmt = parse_statement(parser);
+        if (!stmt)
+        {
+            baa_free_node(block);
+            return NULL;
+        }
+
+        baa_add_child(block, stmt);
+    }
+
+    if (!expect_char(parser, L'}'))
+    {
+        baa_free_node(block);
+        return NULL;
+    }
+
+    return block;
+}
+
 static Node *parse_expression(Parser *parser)
 {
     skip_whitespace(parser);
@@ -412,11 +595,31 @@ static Node *parse_expression(Parser *parser)
     {
         size_t start = parser->position;
         size_t len = 0;
+        bool has_decimal = false;
 
+        // Parse integer part
         while (peek(parser) && is_digit(peek(parser)))
         {
             advance(parser);
             len++;
+        }
+
+        // Parse decimal part if present
+        if (peek(parser) == L'.')
+        {
+            // Look ahead to ensure this is not a statement terminator
+            if (peek_next(parser) && is_digit(peek_next(parser)))
+            {
+                has_decimal = true;
+                advance(parser); // Skip decimal point
+                len++;
+
+                while (peek(parser) && is_digit(peek(parser)))
+                {
+                    advance(parser);
+                    len++;
+                }
+            }
         }
 
         wchar_t *number = baa_malloc((len + 1) * sizeof(wchar_t));
@@ -429,7 +632,7 @@ static Node *parse_expression(Parser *parser)
         wcsncpy(number, parser->source + start, len);
         number[len] = L'\0';
 
-        expr = baa_create_node(NODE_NUMBER, number);
+        expr = baa_create_node(has_decimal ? NODE_FLOAT : NODE_NUMBER, number);
         baa_free(number);
 
         if (!expr)
@@ -572,7 +775,13 @@ static Node *parse_function(Parser *parser)
         return NULL;
     }
 
-    // For now, just skip the function body
+    // Parse function body statements
+    Node *body = parse_block(parser);
+    if (!body) {
+        baa_free_node(func);
+        return NULL;
+    }
+    baa_add_child(func, body);
     int brace_count = 1;
     while (!is_eof(parser) && brace_count > 0)
     {

@@ -5,24 +5,51 @@ All notable changes to the B (باء) compiler project will be documented in thi
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.9.7] - 2025-02-08
+
+### Added
+
+- Restored decimal number parsing with improved implementation
+- Completed control flow parsing implementation
+  - Full support for إذا (if) statements
+  - Integrated وإلا (else) statements
+  - Implemented طالما (while) loops
+- Added comprehensive test suite for control flow structures
+
+### Changed
+
+- Updated parser to handle decimal numbers efficiently
+- Enhanced error handling for control flow statements
+- Improved documentation to reflect completed features
+
+### Fixed
+
+- Edge cases in decimal number parsing
+- Control flow statement nesting issues
+- Parser error recovery in complex control structures
+
 ## [0.1.9] - 2025-02-06
 
 ### Added
+
 - Enhanced parser debug output for better troubleshooting
 - Added test files for Arabic program parsing
 - Added UTF-8 support for Arabic identifiers in parser
 
 ### Changed
+
 - Refactored parser functions for better error handling
 - Simplified number parsing (temporarily removed decimal support)
 - Improved error messages with more context
 
 ### Fixed
+
 - Fixed memory leaks in parser error handling
 - Fixed function declaration parsing
 - Fixed identifier parsing for UTF-8 characters
 
 ### Development
+
 - Added more debug output in parse_declaration and parse_program
 - Reorganized parser code structure
 - Added test cases for basic language features
@@ -30,6 +57,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.1.8] - 2025-02-01
 
 ### Added
+
 - Full implementation of AST (Abstract Syntax Tree)
 - Complete type system implementation
 - Operator system with precedence rules
@@ -45,6 +73,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Updated character type from `محرف` to `حرف`
 
 ### Changed
+
 - Removed placeholder implementations
 - Updated build system to exclude unimplemented components
 - Improved project structure and organization
@@ -57,6 +86,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added proper import syntax using `#تضمين`
 
 ### Fixed
+
 - Corrected character type naming convention
 - Standardized import directive syntax
 - Aligned documentation with actual language specification
@@ -64,6 +94,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.1.7] - 2025-02-01
 
 ### Added
+
 - Basic control flow structures implementation:
   - إذا/وإلا (if/else) statement support
   - طالما (while) loop support
@@ -74,6 +105,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Integration with existing build system
 
 ### Changed
+
 - Updated CMakeLists.txt to include control flow implementation
 - Enhanced project structure with new control flow components
 - Updated roadmap to reflect completed control flow milestone
@@ -81,6 +113,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.1.6] - 2025-01-31
 
 ### Added
+
 - Basic type system implementation with K&R C compatibility
 - Core operator system with arithmetic and comparison operators
 - Comprehensive test suite for type system and operators
@@ -89,11 +122,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - UTF-16 support for character type
 
 ### Changed
+
 - Updated project structure with src/ and tests/ directories
 - Enhanced type safety with strict conversion rules
 - Improved error handling in type system
 
 ### Documentation
+
 - Added type system implementation details
 - Added operator system specifications
 - Updated development guide with testing procedures
@@ -102,18 +137,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.1.5] - 2025-01-31
 
 ### Added
+
 - Comprehensive K&R C feature comparison in `docs/c_comparison.md`
 - Detailed implementation roadmap for K&R C compatibility
 - Arabic equivalents for all K&R C keywords and operators
 - Standard library function mappings with Arabic names
 
 ### Changed
+
 - Updated `docs/language.md` to align with K&R C specification
 - Updated `docs/development.md` to follow K&R coding style
 - Enhanced documentation with UTF-16LE and bidirectional text support details
 - Improved error message documentation with Arabic language support
 
 ### Documentation
+
 - Added detailed type system documentation
 - Added memory model specifications
 - Added preprocessor directive documentation
@@ -123,6 +161,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.1.0] - 2025-01-31
 
 ### Added
+
 - Initial project structure and build system
 - Basic file reading with UTF-16LE support
 - Support for Arabic text in source files
@@ -155,6 +194,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Code organization and structure
 
 ### Changed
+
 - Organized project structure into logical components
 - Improved build system with proper dependency management
 - Enhanced file handling with proper Unicode support
@@ -163,6 +203,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Updated documentation
 
 ### Fixed
+
 - UTF-16LE file handling and BOM detection
 - Memory management in AST operations
 - File size calculations for wide character content
@@ -172,6 +213,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.0.1] - 2025-01-31
 
 ### Added
+
 - Initial release
 - Basic file reading capabilities
 - Command-line interface
@@ -180,6 +222,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Planned
+
 - Parser implementation
 - Code generation
 - Symbol table
