@@ -1,6 +1,13 @@
 # Baa Language Roadmap (خارطة الطريق)
 
-## Current Version: 0.1.9.7
+## Current Version: 0.1.9.8
+
+### Completed in Latest Version
+- ✓ AST Implementation Improvements
+  - ✓ Code cleanup and reorganization
+  - ✓ Enhanced node type definitions
+  - ✓ Improved memory management
+  - ✓ Performance optimization
 
 ### Immediate Goals (0.2.0)
 
