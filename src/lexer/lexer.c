@@ -24,6 +24,22 @@ static struct {
 };
 
 // Helper functions
+static bool is_arabic_letter(wchar_t c) {
+    return (c >= 0x0600 && c <= 0x06FF) || (c >= 0xFB50 && c <= 0xFDFF) || 
+           (c >= 0xFE70 && c <= 0xFEFF); // Basic Arabic, Arabic Presentation Forms-A and B
+}
+
+static bool is_arabic_digit(wchar_t c) {
+    return (c >= 0x0660 && c <= 0x0669); // Arabic-Indic digits
+}
+
+static bool is_arabic_punctuation(wchar_t c) {
+    return (c == 0x060C) || // Arabic comma
+           (c == 0x061B) || // Arabic semicolon
+           (c == 0x061F) || // Arabic question mark
+           (c == 0x066D);   // Arabic five pointed star
+}
+
 static bool is_at_end(Lexer *lexer) {
     return lexer->source[lexer->position] == L'\0';
 }
@@ -170,7 +186,8 @@ void baa_lexer_free(Lexer *lexer) {
 }
 
 static Token scan_identifier(Lexer *lexer) {
-    while (iswalnum(peek(lexer)) || peek(lexer) == L'_') {
+    while (iswalnum(peek(lexer)) || peek(lexer) == L'_' || 
+           is_arabic_letter(peek(lexer)) || is_arabic_digit(peek(lexer))) {
         advance(lexer);
     }
     
@@ -188,7 +205,7 @@ static Token scan_identifier(Lexer *lexer) {
 }
 
 static Token scan_number(Lexer *lexer) {
-    while (iswdigit(peek(lexer))) {
+    while (iswdigit(peek(lexer)) || is_arabic_digit(peek(lexer))) {
         advance(lexer);
     }
     return make_token(lexer, TOKEN_NUMBER);
@@ -233,6 +250,10 @@ Token baa_lexer_next_token(Lexer *lexer) {
         case L'*': return make_token(lexer, TOKEN_STAR);
         case L'/': return make_token(lexer, TOKEN_SLASH);
         case L'=': return make_token(lexer, TOKEN_EQUALS);
+        case 0x060C: return make_token(lexer, TOKEN_COMMA);
+        case 0x061B: return make_token(lexer, TOKEN_SEMICOLON);
+        case 0x061F: return make_token(lexer, TOKEN_QUESTION);
+        case 0x066D: return make_token(lexer, TOKEN_STAR); // Treating Arabic star as multiplication
     }
     
     lexer->had_error = true;

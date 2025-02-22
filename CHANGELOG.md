@@ -5,6 +5,33 @@ All notable changes to the B (باء) compiler project will be documented in thi
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.9.9] - 2025-02-10
+
+### Added
+- Comprehensive Arabic language support in AST
+- Source location tracking for all nodes
+- Validation system for Arabic identifiers
+- Unicode-compliant name handling
+- Bidirectional text support
+- Enhanced node attributes system
+- Improved lexer token handling for Arabic text
+- Better UTF-16 file handling in lexer
+- Comprehensive keyword recognition system
+
+### Changed
+- Improved AST node structure for Arabic support
+- Enhanced memory efficiency in node operations
+- Optimized node attribute management
+- Enhanced error reporting in lexer
+- Optimized whitespace and comment handling
+
+### Fixed
+- Unicode handling in node names
+- Bidirectional text rendering issues
+- Node attribute validation edge cases
+- Lexer token recognition edge cases
+- UTF-16 file handling issues
+
 ## [0.1.9.8] - 2025-02-09
 
 ### Changed
