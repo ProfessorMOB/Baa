@@ -1,6 +1,6 @@
 # Baa Language Roadmap (خارطة الطريق)
 
-## Current Version: 0.1.9.9
+## Current Version: 0.1.9.8
 
 ### Completed in Latest Version
 - ✓ AST Implementation Improvements
@@ -8,18 +8,6 @@
   - ✓ Enhanced node type definitions
   - ✓ Improved memory management
   - ✓ Performance optimization
-  - ✓ Arabic language support
-  - ✓ Comprehensive node attributes
-  - ✓ Source location tracking
-  - ✓ Validation for Arabic identifiers
-  - ✓ Unicode-compliant name handling
-  - ✓ Bidirectional text support
-- ✓ Lexer Enhancements
-  - ✓ Improved token handling for Arabic text
-  - ✓ Enhanced error reporting
-  - ✓ Better UTF-16 file handling
-  - ✓ Optimized whitespace and comment handling
-  - ✓ Comprehensive keyword recognition
 
 ### Immediate Goals (0.2.0)
 
@@ -29,12 +17,10 @@
      - ✓ `وإلا` (Else statement) integration
      - ✓ `طالما` (While loop) support
    - ✓ Restore decimal number parsing functionality
-   - ✓ Enhance UTF-8 support for Arabic identifiers
    - Implement full operator precedence handling
+   - Enhance UTF-8 support for Arabic identifiers
    - Add robust error recovery mechanisms
-   - Implement pattern matching for complex expressions
-   - Add support for nested control structures
-   - Enhance symbol table management
+   - Implement comprehensive source position tracking
 
 2. **Code Generation** (Priority)
    - Complete LLVM integration

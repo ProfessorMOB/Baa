@@ -17,12 +17,6 @@ typedef struct {
     bool is_constant;
     bool is_static;
     bool is_extern;
-    bool is_export;
-    bool is_async;
-    bool is_generator;
-    bool is_abstract;
-    bool is_final;
-    bool is_override;
 } NodeAttributes;
 
 // Tree traversal utilities
@@ -68,95 +62,6 @@ void baa_set_node_extern(Node *node, bool is_extern) {
         return;
     }
     node->attributes->is_extern = is_extern;
-}
-
-void baa_set_node_export(Node *node, bool is_export) {
-    if (!node || !node->attributes) {
-        return;
-    }
-    node->attributes->is_export = is_export;
-}
-
-void baa_set_node_async(Node *node, bool is_async) {
-    if (!node || !node->attributes) {
-        return;
-    }
-    node->attributes->is_async = is_async;
-}
-
-void baa_set_node_generator(Node *node, bool is_generator) {
-    if (!node || !node->attributes) {
-        return;
-    }
-    node->attributes->is_generator = is_generator;
-}
-
-void baa_set_node_abstract(Node *node, bool is_abstract) {
-    if (!node || !node->attributes) {
-        return;
-    }
-    node->attributes->is_abstract = is_abstract;
-}
-
-void baa_set_node_final(Node *node, bool is_final) {
-    if (!node || !node->attributes) {
-        return;
-    }
-    node->attributes->is_final = is_final;
-}
-
-void baa_set_node_override(Node *node, bool is_override) {
-    if (!node || !node->attributes) {
-        return;
-    }
-    node->attributes->is_override = is_override;
-}
-
-bool baa_validate_node_name(const wchar_t *name) {
-    if (!name) {
-        return false;
-    }
-    // Validate that the name contains valid Arabic characters
-    // and follows Arabic programming language naming conventions
-    for (const wchar_t *p = name; *p; p++) {
-        if (*p < 0x0600 || *p > 0x06FF) { // Basic Arabic range
-            if (*p != L'_' && (*p < L'0' || *p > L'9')) {
-                return false;
-            }
-        }
-    }
-    return true;
-}
-
-bool baa_validate_node_type(Node *node) {
-    if (!node) {
-        return false;
-    }
-    // Validate node type based on context and Arabic language rules
-    switch (node->type) {
-        case NODE_FUNCTION:
-        case NODE_STRUCT:
-        case NODE_UNION:
-        case NODE_MODULE:
-        case NODE_NAMESPACE:
-            return node->value && baa_validate_node_name(node->value);
-        default:
-            return true;
-    }
-}
-
-bool baa_validate_node_flags(Node *node) {
-    if (!node) {
-        return false;
-    }
-    // Validate flag combinations
-    if ((node->flags & NODE_FLAG_ABSTRACT) && (node->flags & NODE_FLAG_FINAL)) {
-        return false; // Cannot be both abstract and final
-    }
-    if ((node->flags & NODE_FLAG_OVERRIDE) && (node->flags & NODE_FLAG_FINAL)) {
-        return false; // Cannot be both override and final
-    }
-    return true;
 }
 
 Node *baa_create_node(NodeType type, const wchar_t *value) {
