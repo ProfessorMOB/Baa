@@ -5,19 +5,6 @@ All notable changes to the B (باء) compiler project will be documented in thi
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.1.9.8] - 2025-02-09
-
-### Changed
-- Cleaned up and reorganized AST implementation
-- Improved node type definitions for better code organization
-- Enhanced memory management in AST operations
-- Removed redundant code in AST structures
-
-### Fixed
-- Memory leaks in AST node creation and deletion
-- Inconsistencies in AST node type handling
-- AST traversal performance issues
-
 ## [0.1.9.7] - 2025-02-08
 
 ### Added
