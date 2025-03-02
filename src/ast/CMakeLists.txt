@@ -1,5 +1,6 @@
 add_library(baa_ast
     ast.c
+    expressions.c
 )
 
 target_include_directories(baa_ast

@@ -10,10 +10,11 @@ This document compares K&R C features with their B (باء) equivalents and outl
 
 | K&R C Feature | B (باء) Equivalent | Status | Notes |
 |--------------|-------------------|---------|-------|
-| `char`       | `محرف`           | ✓       | 16-bit for Unicode support |
+| `char`       | `حرف`            | ✓       | 16-bit for Unicode support |
 | `int`        | `عدد_صحيح`       | ✓       | 32-bit integer |
 | `float`      | `عدد_حقيقي`      | ✓       | 32-bit floating point |
 | `void`       | `فراغ`           | ✓       | No value type |
+| `bool`       | `منطقي`          | ✓       | Boolean type (true/false) |
 
 ### Derived Types
 
@@ -52,7 +53,7 @@ This document compares K&R C features with their B (باء) equivalents and outl
 | `switch`     | `اختر`           | ✓       | Switch statement |
 | `case`       | `حالة`           | ✓       | Case label |
 | `break`      | `توقف`           | ✓       | Break statement |
-| `continue`   | `استمر`          | ✓       | Continue statement |
+| `continue`   | `أكمل`           | ✓       | Continue statement |
 | `return`     | `إرجع`           | ✓       | Return statement |
 | `goto`       | `اذهب`           | ✓       | Goto statement |
 
@@ -64,10 +65,28 @@ This document compares K&R C features with their B (باء) equivalents and outl
 | Comparison   | Same symbols      | ✓       | ==, !=, <, >, <=, >= |
 | Logical      | Same symbols      | ✓       | &&, ||, ! |
 | Bitwise      | Same symbols      | ✓       | &, |, ^, <<, >>, ~ |
-| Assignment   | Same symbols      | ✓       | =, +=, -=, etc. |
+| Assignment   | Same symbols      | ✓       | =, +=, -=, *=, /=, %= |
 | Increment    | Same symbols      | ✓       | ++, -- |
 | Address      | Same symbols      | ✓       | &, * |
 | Sizeof       | `حجم`            | ✓       | Size operator |
+| Compound Assignment | Same symbols | ✓ | +=, -=, *=, /=, %=, etc. |
+
+### Boolean Literals
+
+| K&R C Feature | B (باء) Equivalent | Status | Notes |
+|--------------|-------------------|---------|-------|
+| `true`       | `صحيح`            | ✓       | Boolean true literal |
+| `false`      | `خطأ`             | ✓       | Boolean false literal |
+
+### Function Parameters
+
+| K&R C Feature | B (باء) Extension | Status | Notes |
+|--------------|-------------------|---------|-------|
+| Basic parameters | Basic parameters | ✓       | Standard function parameters |
+| Default values | Optional parameters | ✓     | Parameters with default values |
+| Variadic functions | Rest parameters | ✓     | Variable number of arguments |
+| - | Named arguments | ✓     | Calling functions with named parameters |
+| - | Method distinction | ✓     | Explicit method vs function marking |
 
 ### Preprocessor
 

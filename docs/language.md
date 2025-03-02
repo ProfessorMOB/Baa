@@ -50,15 +50,22 @@ Functions are declared using the `دالة` keyword followed by the function nam
 عدد_صحيح متغير1.    // Integer
 عدد_حقيقي متغير2.   // Float
 حرف متغير3.         // Character
+منطقي متغير4.       // Boolean
 ```
 
-### 1.6 String Literals
+### 1.6 Boolean Literals
+```baa
+منطقي صواب = صحيح.  // Boolean true
+منطقي خاطئ = خطأ.   // Boolean false
+```
+
+### 1.7 String Literals
 String literals are enclosed in double quotes:
 ```baa
 اطبع("مرحباً بالعالم!").
 ```
 
-### 1.7 Control Flow
+### 1.8 Control Flow
 Control structures follow C-like syntax but with Arabic keywords and dot termination:
 
 ```baa
@@ -76,7 +83,23 @@ Control structures follow C-like syntax but with Arabic keywords and dot termina
 }
 ```
 
-### 1.8 Comments
+### 1.9 Advanced Operators
+```baa
+// Increment and decrement
+متغير++.    // Postfix increment
+++متغير.    // Prefix increment
+متغير--.    // Postfix decrement
+--متغير.    // Prefix decrement
+
+// Compound assignment
+متغير += 5.  // Add and assign
+متغير -= 3.  // Subtract and assign
+متغير *= 2.  // Multiply and assign
+متغير /= 4.  // Divide and assign
+متغير %= 3.  // Modulo and assign
+```
+
+### 1.10 Comments
 - Single-line comments start with //
 - Multi-line comments use /* */
 
@@ -130,6 +153,7 @@ Examples:
 | عدد_حقيقي   | float   | Floating-point       | 32-bit  |
 | حرف        | char    | Character            | 16-bit  |
 | فراغ        | void    | No type             | -       |
+| منطقي       | bool    | Boolean              | 8-bit   |
 
 ### Derived Types
 | Arabic      | English  | Description         | Example                    |
@@ -178,6 +202,16 @@ Examples:
 --   Decrement
 ```
 
+#### Assignment Operators
+```
+=    Assignment
++=   Add and assign
+-=   Subtract and assign
+*=   Multiply and assign
+/=   Divide and assign
+%=   Modulo and assign
+```
+
 #### Comparison Operators
 ```
 ==   Equal to
@@ -203,21 +237,6 @@ Examples:
 <<   Left shift
 >>   Right shift
 ~    Bitwise NOT
-```
-
-#### Assignment Operators
-```
-=    Simple assignment
-+=   Add and assign
--=   Subtract and assign
-*=   Multiply and assign
-/=   Divide and assign
-%=   Modulo and assign
-&=   Bitwise AND and assign
-|=   Bitwise OR and assign
-^=   Bitwise XOR and assign
-<<=  Left shift and assign
->>=  Right shift and assign
 ```
 
 ### Function Declaration

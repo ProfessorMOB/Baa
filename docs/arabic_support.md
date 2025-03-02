@@ -28,6 +28,7 @@ Baa (باء) provides comprehensive support for Arabic programming through:
 | عدد_صحيح | int | 32-bit | Integer type |
 | عدد_حقيقي | float | 32-bit | Floating-point type |
 | حرف | char | 8-bit | Character type (UTF-8) |
+| منطقي | bool | 8-bit | Boolean type (true/false) |
 | فراغ | void | - | No type |
 | مصفوفة | array | varies | Array type |
 | مؤشر | pointer | varies | Pointer type |
@@ -40,6 +41,13 @@ Baa (باء) provides comprehensive support for Arabic programming through:
 | | ضرب | * | Multiplication |
 | | قسمة | / | Division |
 | | باقي | % | Modulo |
+| | زيادة | ++ | Increment |
+| | إنقاص | -- | Decrement |
+| Compound | جمع_وتعيين | += | Add and assign |
+| | طرح_وتعيين | -= | Subtract and assign |
+| | ضرب_وتعيين | *= | Multiply and assign |
+| | قسمة_وتعيين | /= | Divide and assign |
+| | باقي_وتعيين | %= | Modulo and assign |
 | Comparison | يساوي | == | Equal to |
 | | لا_يساوي | != | Not equal to |
 | | أكبر_من | > | Greater than |
@@ -49,6 +57,20 @@ Baa (باء) provides comprehensive support for Arabic programming through:
 | Logical | و | && | Logical AND |
 | | أو | \|\| | Logical OR |
 | | ليس | ! | Logical NOT |
+
+### 4. Boolean Literals (القيم المنطقية)
+| Arabic | English | Description |
+|--------|---------|-------------|
+| صحيح | true | Boolean true value |
+| خطأ | false | Boolean false value |
+
+### 5. Function Parameters (معاملات الدالة)
+| Feature | Description |
+|---------|-------------|
+| Optional Parameters | Parameters with default values |
+| Rest Parameters | Variable number of parameters (...args) |
+| Named Arguments | Arguments specified by parameter name |
+| Method/Function Distinction | Functions that belong to an object/class |
 
 ## Code Examples (أمثلة برمجية)
 

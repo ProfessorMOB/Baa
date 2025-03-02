@@ -5,6 +5,50 @@ All notable changes to the B (باء) compiler project will be documented in thi
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- LLVM integration for code generation
+  - Basic LLVM IR generation infrastructure
+  - Function generation with proper return types
+  - Support for multiple target platforms (x86-64, ARM64, WebAssembly)
+  - Integration with existing compiler pipeline
+  - Arabic error messages for code generation failures
+- Enhanced compiler driver
+  - Integrated code generation into the compilation pipeline
+  - Added support for generating LLVM IR output files
+  - Improved error handling with Arabic messages
+
+### Changed
+- Updated build system to include LLVM dependencies
+- Enhanced compiler driver to use the new code generation system
+- Improved error handling in the compilation pipeline
+
+## [0.1.9.8] - 2025-02-09
+
+### Added
+- Complete decimal number parsing implementation
+  - Support for both Western (0-9) and Arabic-Indic (٠-٩) digits
+  - Support for Western (.) and Arabic (٫) decimal separators
+  - Comprehensive error handling with Arabic messages
+  - Memory-safe number token management
+- Enhanced lexer functionality
+  - Added number validation and format checking
+  - Implemented overflow protection
+  - Added support for preserving original text representation
+
+### Changed
+- Updated lexer to handle both integer and decimal numbers
+- Enhanced error handling system with detailed Arabic messages
+- Improved memory management for number tokens
+- Updated build system to include number parser module
+
+### Fixed
+- Memory leaks in number parsing
+- Decimal point validation
+- Overflow handling in large numbers
+- Arabic numeral conversion accuracy
+
 ## [0.1.9.7] - 2025-02-08
 
 ### Added
