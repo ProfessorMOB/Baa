@@ -156,6 +156,38 @@ typedef enum {
 } BaaNumberError;
 ```
 
+### Number Format Support
+
+The lexer supports various number formats:
+
+1. **Integer Literals**:
+   - Regular decimal integers: `123`, `42`, `0`
+   - Binary integers (with `0b` or `0B` prefix): `0b1010`, `0B1100`
+   - Hexadecimal integers (with `0x` or `0X` prefix): `0x1a3f`, `0XFF`
+   - Support for Arabic-Indic digits: `١٢٣`, `٤٢`
+
+2. **Floating-Point Literals**:
+   - Regular decimal floats: `3.14`, `0.5`
+   - Support for Arabic decimal separator: `3٫14`
+   - Support for Arabic-Indic digits: `٣٫١٤`
+
+3. **Scientific Notation**:
+   - Standard form with `e` or `E`: `1.23e4`, `5.67e-3`, `42E2`
+   - Support for Arabic-Indic digits: `١٫٢٣e٤`
+   - Optional decimal point: `5e3` (equivalent to `5000`)
+   - Optional sign in exponent: `1.2e+10`, `3.4e-5`
+
+### Number Parsing Functions
+
+The number parser provides these main functions:
+
+- `baa_parse_number`: Parse a string as a number, detecting the format automatically
+- `baa_free_number`: Free a number structure
+- `baa_number_error_message`: Get error message for number parsing
+- `baa_is_digit`: Check if a character is a digit (including Arabic-Indic digits)
+- `baa_is_hex_digit`: Check if a character is a hexadecimal digit
+- `baa_is_arabic_digit`: Check if a character is an Arabic-Indic digit
+
 ## Lexer Operations
 
 The lexer provides the following core functionality:

@@ -29,9 +29,9 @@ This roadmap outlines the planned improvements and current status of the Baa lan
 - [x] Decimal number parsing
 - [x] Number error handling
 - [x] Arabic-Indic digit support
-- [ ] Scientific notation support
-- [ ] Binary and hexadecimal literals
-- [ ] Underscore in number literals (e.g., 1_000_000)
+- [x] Scientific notation support
+- [x] Binary and hexadecimal literals
+- [x] Underscore in number literals (e.g., 1_000_000)
 
 ## String Handling
 
@@ -102,9 +102,9 @@ This roadmap outlines the planned improvements and current status of the Baa lan
 2. ~~Add comment support (single line, multi-line)~~ ✓ Completed!
 3. ~~Implement advanced operators (++, --, +=, -=, etc.)~~ ✓ Completed!
 4. ~~Add support for Boolean literals (true/false - صحيح/خطأ)~~ ✓ Completed!
-5. Add support for additional number formats:
-   - Scientific notation for numbers
-   - Binary and hexadecimal numbers
+5. ~~Add support for additional number formats:~~ ✓ Completed!
+   - ~~Scientific notation for numbers~~ ✓ Completed!
+   - ~~Binary and hexadecimal numbers~~ ✓ Completed!
 6. Enhance error reporting and recovery:
    - Line/column information for errors
    - Improved error messages

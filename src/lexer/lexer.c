@@ -421,13 +421,80 @@ BaaToken* baa_scan_token(BaaLexer* lexer) {
     if (is_digit(c)) {
         // Handle numbers
         bool has_decimal = false;
-        while (is_digit(peek(lexer)) || (!has_decimal && peek(lexer) == L'.')) {
+        bool has_exponent = false;
+        bool is_hex = false;
+        bool is_binary = false;
+        
+        // Check for hexadecimal (0x) or binary (0b) prefix
+        if (c == L'0' && (peek(lexer) == L'x' || peek(lexer) == L'X' || 
+                          peek(lexer) == L'b' || peek(lexer) == L'B')) {
+            wchar_t prefix = peek(lexer);
+            advance(lexer); // Consume the 'x', 'X', 'b', or 'B'
+            
+            if (prefix == L'x' || prefix == L'X') {
+                // Hexadecimal format
+                is_hex = true;
+                
+                // Ensure at least one hex digit follows
+                if (!iswxdigit(peek(lexer))) {
+                    return error_token(lexer, L"رقم سداسي عشري غير صالح: يجب أن يحتوي على رقم واحد على الأقل");
+                }
+                
+                // Consume all hex digits
+                while (iswxdigit(peek(lexer))) {
+                    advance(lexer);
+                }
+            } else if (prefix == L'b' || prefix == L'B') {
+                // Binary format
+                is_binary = true;
+                
+                // Ensure at least one binary digit follows
+                if (peek(lexer) != L'0' && peek(lexer) != L'1') {
+                    return error_token(lexer, L"رقم ثنائي غير صالح: يجب أن يحتوي على 0 أو 1 فقط");
+                }
+                
+                // Consume all binary digits
+                while (peek(lexer) == L'0' || peek(lexer) == L'1') {
+                    advance(lexer);
+                }
+            }
+            
+            return make_token(lexer, BAA_TOKEN_INT_LIT);
+        }
+        
+        // Regular decimal number or scientific notation
+        while (is_digit(peek(lexer)) || 
+              (!has_decimal && peek(lexer) == L'.') ||
+              (!has_exponent && (peek(lexer) == L'e' || peek(lexer) == L'E'))) {
+            
             if (peek(lexer) == L'.') {
                 has_decimal = true;
+                advance(lexer);
+            } else if (peek(lexer) == L'e' || peek(lexer) == L'E') {
+                has_exponent = true;
+                has_decimal = true; // Treat as float even if no decimal point
+                advance(lexer); // Consume 'e' or 'E'
+                
+                // Optional +/- after exponent
+                if (peek(lexer) == L'+' || peek(lexer) == L'-') {
+                    advance(lexer);
+                }
+                
+                // Ensure at least one digit in exponent
+                if (!is_digit(peek(lexer))) {
+                    return error_token(lexer, L"أس غير صالح في الترميز العلمي");
+                }
+                
+                // Consume all digits in exponent
+                while (is_digit(peek(lexer))) {
+                    advance(lexer);
+                }
+            } else {
+                advance(lexer);
             }
-            advance(lexer);
         }
-        return make_token(lexer, has_decimal ? BAA_TOKEN_FLOAT_LIT : BAA_TOKEN_INT_LIT);
+        
+        return make_token(lexer, has_decimal || has_exponent ? BAA_TOKEN_FLOAT_LIT : BAA_TOKEN_INT_LIT);
     }
 
     // Handle operators and delimiters
