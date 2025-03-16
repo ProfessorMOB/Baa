@@ -86,6 +86,9 @@ typedef enum {
     BAA_TOKEN_ELSE,       // وإلا
     BAA_TOKEN_WHILE,      // طالما
     BAA_TOKEN_FOR,        // لكل
+    BAA_TOKEN_DO,         // افعل
+    BAA_TOKEN_CASE,       // حالة
+    BAA_TOKEN_SWITCH,     // اختر
     BAA_TOKEN_RETURN,     // إرجع
     BAA_TOKEN_BREAK,      // توقف
     BAA_TOKEN_CONTINUE,   // أكمل
@@ -113,18 +116,18 @@ typedef enum {
     BAA_TOKEN_GREATER_EQUAL, // >=
     BAA_TOKEN_AND,        // &&
     BAA_TOKEN_OR,         // ||
-    
+
     // Compound assignment operators
     BAA_TOKEN_PLUS_EQUAL,  // +=
     BAA_TOKEN_MINUS_EQUAL, // -=
     BAA_TOKEN_STAR_EQUAL,  // *=
     BAA_TOKEN_SLASH_EQUAL, // /=
     BAA_TOKEN_PERCENT_EQUAL, // %=
-    
+
     // Increment/decrement operators
     BAA_TOKEN_INCREMENT,   // ++
     BAA_TOKEN_DECREMENT,   // --
-    
+
     // Delimiters
     BAA_TOKEN_LPAREN,     // (
     BAA_TOKEN_RPAREN,     // )
