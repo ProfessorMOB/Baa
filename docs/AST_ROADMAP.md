@@ -39,8 +39,11 @@ is indicated.
 - [x] Boolean type support (منطقي)
 - [ ] Type compatibility checking
 - [ ] Type conversion operations
-- [ ] User-defined types support
+- [ ] User-defined types support (structs, unions, enums)
 - [ ] Type inference
+- [ ] Generics/templates support
+- [ ] Union types
+- [ ] Intersection types
 
 ## Function and Parameter Handling
 
@@ -58,6 +61,8 @@ is indicated.
 - [x] Named parameter argument passing
 - [ ] Default parameter value evaluation
 - [x] Rest parameter handling
+- [ ] Anonymous function expressions (Lambdas)
+- [ ] Closure capture analysis
 
 ## Control Flow Statements
 
@@ -65,7 +70,7 @@ is indicated.
 - [x] While loops
 - [x] Block statements with proper scope
 - [x] For loops
-- [x] Switch/case statements 
+- [x] Switch/case statements
 - [x] Break/continue statements
 
 ## Expression Handling
@@ -79,7 +84,8 @@ is indicated.
 - [x] Increment/decrement operators (++, --)
 - [ ] Ternary conditional operator
 - [x] Array indexing
-- [x] Member access
+- [x] Member access (structs/classes)
+- [ ] Pattern matching / Destructuring assignments
 
 ## Arrays and Collections
 - [x] Array type definition
@@ -88,6 +94,7 @@ is indicated.
 - [ ] Array methods (length, push, pop, etc.)
 - [ ] Array iteration
 - [ ] Slice operations
+- [ ] Exception handling constructs
 
 ## Error Handling
 
@@ -97,6 +104,7 @@ is indicated.
 - [ ] Recoverable parsing errors
 - [ ] Type error reporting
 - [ ] Runtime error handling
+- [ ] Add robust error state tracking within AST nodes
 
 ## Unicode and Internationalization
 
@@ -105,6 +113,7 @@ is indicated.
 - [ ] Complete support for right-to-left text
 - [ ] Localized error messages
 - [ ] Advanced character encoding handling
+- [ ] AST support for async/await constructs
 
 ## AST Modularity and Transformations
 
@@ -113,6 +122,7 @@ is indicated.
 - [ ] AST transformation framework
 - [ ] AST serialization and deserialization
 - [ ] AST validation passes
+- [ ] Visitor pattern enhancements for complex traversals
 
 ## Scope Management
 
@@ -121,6 +131,8 @@ is indicated.
 - [ ] Variable shadowing rules
 - [ ] Lexical closure support
 - [ ] Module-level scope
+- [ ] Class/method implementation (OOP support)
+- [ ] Module system enhancements (import/export, namespaces)
 
 ## Optimization Infrastructure
 
@@ -128,6 +140,7 @@ is indicated.
 - [ ] Dead code elimination
 - [ ] Expression simplification
 - [ ] Common subexpression elimination
+- [ ] AST support for metaprogramming features
 
 ## Documentation
 
@@ -136,6 +149,10 @@ is indicated.
 - [ ] AST structure diagrams
 - [ ] Code generation process documentation
 - [ ] API documentation for library users
+- [ ] Add comprehensive tests for all AST node types
+- [ ] Add tests for error conditions and recovery related to AST
+- [ ] Add tests for Unicode and RTL text handling in AST nodes
+- [ ] Add tests for memory management and resource leaks in AST
 
 ## Implementation Priorities
 1. ✓ ~~Function parameter handling~~
@@ -149,3 +166,10 @@ is indicated.
 9. Anonymous function expressions
 10. Pattern matching
 11. Module system enhancements
+12. Type inference
+13. Generics/templates
+14. Exception handling
+15. Anonymous functions / Closures
+16. Pattern matching
+17. Async/await support
+18. Metaprogramming support

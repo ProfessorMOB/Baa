@@ -52,6 +52,20 @@ typedef struct BaaStmt {
 } BaaStmt;
 ```
 
+### Node Modifiers
+
+Nodes, particularly declarations like functions or variables, can have modifier flags associated with them. These are typically stored as bitfields within the relevant node's data structure (e.g., `BaaFunction`, `BaaVarDeclStmt`).
+
+- Constant (ثابت)
+- Static (ساكن)
+- Extern (خارجي)
+- Export (تصدير)
+- Async (متزامن)
+- Generator (مولد)
+- Abstract (مجرد)
+- Final (نهائي)
+- Override (تجاوز)
+
 ## Node Type Enumerations
 
 ### BaaNodeKind
@@ -127,7 +141,7 @@ typedef struct BaaType {
     uint32_t size;           // Size in bytes
     bool is_signed;          // Whether type is signed
     struct BaaType* next;    // For linked list of types
-    
+
     // Array type information (only valid if kind == BAA_TYPE_ARRAY)
     struct BaaType* element_type; // Type of array elements
     size_t array_size;           // Number of elements (0 for dynamic arrays)
@@ -150,7 +164,7 @@ typedef enum {
 
 typedef struct {
     BaaLiteralKind kind;   // Type of literal
-    
+
     // Value storage (only one is used based on kind)
     union {
         bool bool_value;
@@ -505,10 +519,10 @@ For example, with a literal expression:
 ```c
 if (expr->kind == BAA_EXPR_LITERAL) {
     BaaLiteralData* literal_data = (BaaLiteralData*)expr->data;
-    
+
     switch (literal_data->kind) {
         case BAA_LITERAL_INT:
-            return LLVMConstInt(LLVMInt32TypeInContext(context), 
+            return LLVMConstInt(LLVMInt32TypeInContext(context),
                                literal_data->int_value, true);
         // ...other literal types
     }

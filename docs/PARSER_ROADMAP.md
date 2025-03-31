@@ -124,9 +124,10 @@ The Baa parser currently implements:
 Each parser enhancement should include:
 
 1. Unit tests for individual parsing functions
-2. Integration tests with the lexer
+2. Integration tests with the lexer and AST
 3. End-to-end tests with complete programs
-4. Error case testing to ensure helpful error messages
+4. Error case testing to ensure helpful error messages and recovery
+5. Tests for Unicode and RTL text handling in parsing
 
 ## Documentation Approach
 

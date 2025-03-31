@@ -10,15 +10,16 @@ This roadmap outlines the planned improvements and current status of the Baa lan
 - [x] Line and column tracking
 - [x] Error token creation
 - [x] Token memory management
+- [ ] Add support for more token types for language extensions (Future)
 
 ## Token Types
 
-- [ ] Special tokens (Comment - Defined, but comments currently skipped, not tokenized)
-- [x] Literals (Identifier)
+- [ ] Special tokens (Comment - Defined, but comments currently skipped, not tokenized. See Comment Support section)
+- [x] Literals (Identifier - Basic Arabic/ASCII support)
 - [x] Literals (Int - `BAA_TOKEN_INT_LIT`)
 - [ ] Literals (Float - Defined `BAA_TOKEN_FLOAT_LIT`, but lexer currently only makes `INT_LIT`; number parser handles float details post-lexing)
-- [x] Literals (Char - Defined `BAA_TOKEN_CHAR_LIT`, scanned with basic escapes)
-- [x] Literals (String - `BAA_TOKEN_STRING_LIT`)
+- [x] Literals (Char - Defined `BAA_TOKEN_CHAR_LIT`, scanned with basic escapes `\n, \t, \\, \'`)
+- [x] Literals (String - `BAA_TOKEN_STRING_LIT`, scanned with basic escapes `\n, \t, \\, \"`)
 - [x] Literals (Boolean - Defined `BAA_TOKEN_BOOL_LIT`, keywords `صحيح`/`خطأ` scanned)
 - [x] Keywords (FUNC, RETURN, IF, ELSE, WHILE, FOR, DO, SWITCH, CASE, BREAK, CONTINUE - Present in `lexer.c` keyword list)
 - [x] Keywords (VAR, CONST - Defined and added to `lexer.c` keyword list)
@@ -50,17 +51,20 @@ This roadmap outlines the planned improvements and current status of the Baa lan
 
 ## Comment Support
 
-- [x] Single line comments (`#` style)
-- [ ] Multi-line comments (`/* ... */`)
-- [ ] Documentation comments
+- [x] Single line comments (`#` style - Skipped, not tokenized)
+- [ ] Multi-line comments (`/* ... */` - Tokenize or skip)
+- [ ] Documentation comments (e.g., `/** ... */` or `###`)
 
 ## Arabic Language Support
 
 - [x] Arabic letter recognition
 - [x] Arabic-Indic digit support
 - [x] Arabic keyword recognition
-- [ ] Right-to-left text handling improvements
+- [ ] Improve Unicode support for identifiers (beyond basic letters)
+- [ ] Implement better whitespace and comment handling for RTL text
+- [ ] Right-to-left text handling improvements (Visual/Editor concern mostly)
 - [ ] Arabic error messages (Only number parser errors are currently Arabic)
+- [ ] Visual error highlighting for Arabic text (Editor integration?)
 - [ ] Arabic language directives
 
 ## Preprocessing
@@ -74,9 +78,10 @@ This roadmap outlines the planned improvements and current status of the Baa lan
 
 - [x] Basic error reporting
 - [ ] Detailed error messages with context
-- [ ] Error recovery
+- [ ] Error recovery (Improve synchronization points)
 - [ ] Warning system
 - [ ] Suggestions for common errors
+- [ ] Error categorization and filtering
 
 ## Performance Optimizations
 
