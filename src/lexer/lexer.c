@@ -312,12 +312,73 @@ static BaaToken *scan_identifier(BaaLexer *lexer)
 static BaaToken *scan_number(BaaLexer *lexer)
 {
     // lexer->start is already set
+    bool is_float = false;
+
+    // Scan initial digits
     while (iswdigit(peek(lexer)) || is_arabic_digit(peek(lexer)))
     {
         advance(lexer);
     }
-    // TODO: Add float/scientific notation parsing here later
-    return make_token(lexer, BAA_TOKEN_INT_LIT);
+
+    // Check for fractional part (decimal point)
+    // Requires a digit *after* the decimal point for it to be considered part of the float literal
+    wchar_t current_peek = peek(lexer);
+    wchar_t next_peek = peek_next(lexer);
+    if ((current_peek == L'.' || current_peek == 0x066B /* Arabic Decimal Separator */) &&
+        (iswdigit(next_peek) || is_arabic_digit(next_peek)))
+    {
+        is_float = true;
+        advance(lexer); // Consume the decimal point '.' or '٫'
+
+        // Consume digits after decimal point
+        while (iswdigit(peek(lexer)) || is_arabic_digit(peek(lexer)))
+        {
+            advance(lexer);
+        }
+    }
+
+    // Check for exponent part ('e' or 'E')
+    current_peek = peek(lexer); // Re-peek after potentially consuming fractional part
+    if (current_peek == L'e' || current_peek == L'E')
+    {
+        // Check if there's something after 'e'/'E' (digit or sign+digit)
+        next_peek = peek_next(lexer);
+        bool has_exponent_part = false;
+        if (next_peek == L'+' || next_peek == L'-') {
+            // Check for digit after the sign
+            wchar_t after_sign_peek = lexer->source[lexer->current + 2]; // Peek two ahead
+             if (iswdigit(after_sign_peek) || is_arabic_digit(after_sign_peek)) {
+                 has_exponent_part = true;
+             }
+        } else if (iswdigit(next_peek) || is_arabic_digit(next_peek)) {
+            has_exponent_part = true;
+        }
+
+        if (has_exponent_part) {
+            is_float = true;
+            advance(lexer); // Consume 'e' or 'E'
+
+            // Consume optional sign
+            if (peek(lexer) == L'+' || peek(lexer) == L'-')
+            {
+                advance(lexer);
+            }
+
+            // Consume exponent digits
+            // Need at least one digit after 'e'/'E' or sign
+            if (!(iswdigit(peek(lexer)) || is_arabic_digit(peek(lexer)))) {
+                 // This indicates an invalid format like "1e" or "1e+", but we've already decided it's a float pattern.
+                 // The detailed number parser should handle this error later.
+                 // For the lexer's purpose, the 'e'/'E' marks it as float-like.
+            }
+            while (iswdigit(peek(lexer)) || is_arabic_digit(peek(lexer)))
+            {
+                advance(lexer);
+            }
+        }
+    }
+
+    return make_token(lexer, is_float ? BAA_TOKEN_FLOAT_LIT : BAA_TOKEN_INT_LIT);
 }
 
 // Helper to add character to dynamic buffer, resizing if needed
