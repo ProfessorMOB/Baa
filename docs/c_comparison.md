@@ -14,7 +14,7 @@ This document compares K&R C features with their B (باء) equivalents and outl
 | `int`        | `عدد_صحيح`       | ✓       | 32-bit integer |
 | `float`      | `عدد_حقيقي`      | ✓       | 32-bit floating point |
 | `void`       | `فراغ`           | ✓       | No value type |
-| `bool`       | `منطقي`          | ✓       | Boolean type (true/false) |
+| _Bool/bool   | `منطقي`          | ✓       | Boolean type (Baa uses `صحيح`/`خطأ` literals) |
 
 ### Derived Types
 
@@ -38,7 +38,7 @@ This document compares K&R C features with their B (باء) equivalents and outl
 
 | K&R C Feature | B (باء) Equivalent | Status | Notes |
 |--------------|-------------------|---------|-------|
-| `const`      | `ثابت`           | ✓       | Value cannot be modified |
+| `const`      | `ثابت`           | ✓       | Value cannot be modified (Matches later C standard) |
 | `volatile`   | `متطاير`         | ✓       | Value may change externally |
 
 ### Control Flow
@@ -63,7 +63,7 @@ This document compares K&R C features with their B (باء) equivalents and outl
 |--------------|-------------------|---------|-------|
 | Arithmetic   | Same symbols      | ✓       | +, -, *, /, % |
 | Comparison   | Same symbols      | ✓       | ==, !=, <, >, <=, >= |
-| Logical      | Same symbols      | ✓       | &&, ||, ! |
+| Logical      | Same symbols      | ✓       | &&, ||, ! (`&&`, `||` now scanned) |
 | Bitwise      | Same symbols      | ✓       | &, |, ^, <<, >>, ~ |
 | Assignment   | Same symbols      | ✓       | =, +=, -=, *=, /=, %= |
 | Increment    | Same symbols      | ✓       | ++, -- |
@@ -75,8 +75,8 @@ This document compares K&R C features with their B (باء) equivalents and outl
 
 | K&R C Feature | B (باء) Equivalent | Status | Notes |
 |--------------|-------------------|---------|-------|
-| `true`       | `صحيح`            | ✓       | Boolean true literal |
-| `false`      | `خطأ`             | ✓       | Boolean false literal |
+| `1` (typically) | `صحيح`         | ✓       | Boolean true literal (`true` is C99+) |
++| `0` (typically) | `خطأ`          | ✓       | Boolean false literal (`false` is C99+) |
 
 ### Function Parameters
 
@@ -115,6 +115,7 @@ This document compares K&R C features with their B (باء) equivalents and outl
 ## Implementation Roadmap
 
 ### Phase 1: Core Language Features (Complete)
+
 - [x] Basic types
 - [x] Derived types
 - [x] Storage classes
@@ -124,6 +125,7 @@ This document compares K&R C features with their B (باء) equivalents and outl
 - [x] Basic preprocessor directives
 
 ### Phase 2: Standard Library (In Progress)
+
 - [x] Basic I/O functions
 - [x] Memory management
 - [x] String manipulation
@@ -133,6 +135,7 @@ This document compares K&R C features with their B (باء) equivalents and outl
 - [ ] Time functions
 
 ### Phase 3: Advanced Features
+
 - [ ] Variadic functions
 - [ ] Complex expressions
 - [ ] Advanced preprocessor features
@@ -141,6 +144,7 @@ This document compares K&R C features with their B (باء) equivalents and outl
 - [ ] Function pointers
 
 ### Phase 4: Optimizations
+
 - [ ] Register allocation
 - [ ] Constant folding
 - [ ] Dead code elimination
@@ -148,6 +152,7 @@ This document compares K&R C features with their B (باء) equivalents and outl
 - [ ] Peephole optimization
 
 ### Phase 5: Tooling
+
 - [ ] Debugger support
 - [ ] Profiler integration
 - [ ] Static analyzer
@@ -157,24 +162,28 @@ This document compares K&R C features with their B (باء) equivalents and outl
 ## Extensions Beyond K&R C
 
 ### Unicode Support
+
 - 16-bit character type
 - UTF-16LE string literals
 - Arabic identifier support
 - Bidirectional text handling
 
 ### Error Messages
+
 - Arabic language error messages
 - Enhanced error recovery
 - Detailed diagnostic information
 - Context-aware suggestions
 
 ### Development Tools
+
 - Interactive debugger
 - Performance profiler
 - Memory analyzer
 - Documentation generator
 
 ### Modern Features
+
 - Source code formatting
 - Static analysis
 - Code completion
@@ -183,24 +192,28 @@ This document compares K&R C features with their B (باء) equivalents and outl
 ## Compatibility Notes
 
 ### Source Code
+
 - K&R C source code can be compiled with minimal changes
 - Arabic keywords can be used alongside English identifiers
 - UTF-16LE encoding required for source files
 - Bidirectional text support in string literals
 
 ### Binary Compatibility
+
 - Generated object files are compatible with C linkers
 - Standard C calling convention
 - Standard C ABI compliance
 - Platform-specific alignment rules
 
 ### Standard Library
+
 - K&R C standard library functions available
 - Arabic function names provided as aliases
 - Extended Unicode support functions
 - Additional helper functions for Arabic text
 
 ### Tool Integration
+
 - Compatible with standard C debuggers
 - Works with common build systems
 - Supports standard profiling tools
@@ -209,6 +222,7 @@ This document compares K&R C features with their B (باء) equivalents and outl
 ## Syntax Comparison (مقارنة التركيب)
 
 ### Basic Program Structure
+
 ```c
 // C Version
 int main() {
@@ -226,6 +240,7 @@ int main() {
 ```
 
 ### Variable Declaration
+
 ```c
 // C Version
 int count = 0;
@@ -241,6 +256,7 @@ char letter = 'A';
 ```
 
 ### Control Structures
+
 ```c
 // C Version
 if (age >= 18) {
@@ -270,6 +286,7 @@ while (count < 10) {
 ## Feature Comparison (مقارنة الميزات)
 
 ### 1. Types (الأنواع)
+
 | C Type | Baa Type | Size | Notes |
 |--------|----------|------|-------|
 | int | عدد_صحيح | 32-bit | Same range |
@@ -280,6 +297,7 @@ while (count < 10) {
 | union | اتحاد | varies | Same usage |
 
 ### 2. Operators (العمليات)
+
 | Category | C | Baa | Notes |
 |----------|---|-----|-------|
 | Arithmetic | +, -, *, /, % | جمع, طرح, ضرب, قسمة, باقي | Same precedence |
@@ -288,6 +306,7 @@ while (count < 10) {
 | Bitwise | &, \|, ^, ~, <<, >> | Same | Not localized |
 
 ### 3. Keywords (الكلمات المفتاحية)
+
 | C | Baa | Notes |
 |---|-----|-------|
 | if | إذا | Same semantics |
@@ -299,12 +318,14 @@ while (count < 10) {
 | typedef | نوع_مستخدم | Same functionality |
 
 ## Memory Model (نموذج الذاكرة)
+
 - Same stack and heap organization
 - Identical pointer arithmetic
 - Compatible struct padding
 - Similar alignment rules
 
 ## Standard Library (المكتبة القياسية)
+
 | C Function | Baa Function | Purpose |
 |------------|-------------|----------|
 | printf | اطبع | Output text |
@@ -315,6 +336,7 @@ while (count < 10) {
 | strcpy | انسخ_نص | String copy |
 
 ## Compilation Process (عملية الترجمة)
+
 1. **Preprocessing**
    - C: #include, #define
    - Baa: تضمين#, تعريف#
@@ -330,24 +352,28 @@ while (count < 10) {
 ## Key Differences (الفروق الرئيسية)
 
 ### 1. Text Handling
+
 - Baa uses UTF-8 by default
 - Better support for Arabic text
 - RTL text rendering
 - Arabic string literals
 
 ### 2. Error Messages
+
 - Baa provides Arabic error messages
 - More detailed error descriptions
 - Cultural context in messages
 - Bilingual support
 
 ### 3. Development Tools
+
 - Arabic-aware debugger
 - RTL-compatible editors
 - Arabic documentation
 - Localized tooling
 
 ### 4. Extensions
+
 - Arabic identifier support
 - RTL code formatting
 - Arabic documentation comments
@@ -356,6 +382,7 @@ while (count < 10) {
 ## Migration Guide (دليل الترحيل)
 
 ### From C to Baa
+
 1. Convert keywords to Arabic
 2. Update type names
 3. Translate identifiers
@@ -363,6 +390,7 @@ while (count < 10) {
 5. Update comments
 
 ### From Baa to C
+
 1. Convert keywords to English
 2. Restore C type names
 3. Transliterate identifiers
@@ -372,18 +400,21 @@ while (count < 10) {
 ## Best Practices (أفضل الممارسات)
 
 ### 1. Code Style
+
 - Consistent language choice
 - Clear naming conventions
 - Proper text direction
 - Cultural considerations
 
 ### 2. Interoperability
+
 - Use compatible types
 - Maintain C ABI
 - Document translations
 - Handle encodings
 
 ## Version Compatibility (توافق الإصدارات)
+
 - Version 0.1.7: Basic C compatibility
 - Version 0.1.8: Enhanced features
   - Better error messages

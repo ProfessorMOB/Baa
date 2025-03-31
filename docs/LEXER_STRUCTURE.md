@@ -61,7 +61,11 @@ typedef enum {
     BAA_TOKEN_IF,         // إذا
     BAA_TOKEN_ELSE,       // وإلا
     BAA_TOKEN_WHILE,      // طالما
+    BAA_TOKEN_WHILE,      // طالما
     BAA_TOKEN_FOR,        // لكل
+    BAA_TOKEN_DO,         // افعل
+    BAA_TOKEN_CASE,       // حالة
+    BAA_TOKEN_SWITCH,     // اختر
     BAA_TOKEN_RETURN,     // إرجع
     BAA_TOKEN_BREAK,      // توقف
     BAA_TOKEN_CONTINUE,   // أكمل
@@ -73,13 +77,12 @@ typedef enum {
     BAA_TOKEN_TYPE_VOID,  // فراغ
     BAA_TOKEN_TYPE_BOOL,  // منطقي
 
-    // Operators
+    // Operators (Arithmetic, Comparison, Logical)
     BAA_TOKEN_PLUS,       // +
     BAA_TOKEN_MINUS,      // -
     BAA_TOKEN_STAR,       // *
     BAA_TOKEN_SLASH,      // /
     BAA_TOKEN_PERCENT,    // %
-    BAA_TOKEN_EQUAL,      // =
     BAA_TOKEN_EQUAL_EQUAL,// ==
     BAA_TOKEN_BANG,       // !
     BAA_TOKEN_BANG_EQUAL, // !=
@@ -89,18 +92,19 @@ typedef enum {
     BAA_TOKEN_GREATER_EQUAL, // >=
     BAA_TOKEN_AND,        // &&
     BAA_TOKEN_OR,         // ||
-    
+    BAA_TOKEN_EQUAL,      // = (Assignment)
+
     // Compound assignment operators
     BAA_TOKEN_PLUS_EQUAL,  // +=
     BAA_TOKEN_MINUS_EQUAL, // -=
     BAA_TOKEN_STAR_EQUAL,  // *=
     BAA_TOKEN_SLASH_EQUAL, // /=
     BAA_TOKEN_PERCENT_EQUAL, // %=
-    
+
     // Increment/decrement operators
     BAA_TOKEN_INCREMENT,   // ++
     BAA_TOKEN_DECREMENT,   // --
-    
+
     // Delimiters
     BAA_TOKEN_LPAREN,     // (
     BAA_TOKEN_RPAREN,     // )
@@ -219,7 +223,7 @@ The lexer provides the following core functionality:
    - `baa_free_lexer`: Free lexer resources
    - `baa_free_token`: Free token resources
 
-## Boolean Literals
+## Keyword, Type, and Boolean Literal Recognition
 
 The lexer supports boolean literals in both Arabic and English:
 
@@ -230,9 +234,16 @@ The lexer supports boolean literals in both Arabic and English:
 2. **Type Name**:
    - `منطقي` (Boolean)
 
+The lexer now recognizes the following as distinct token types by checking against its internal keyword list after scanning a potential identifier:
+**Keywords**: `متغير` (VAR), `ثابت` (CONST), in addition to control flow keywords like `دالة`, `إذا`, etc.
+**Type Names**: `عدد_صحيح`, `عدد_حقيقي`, `حرف`, `فراغ`, `منطقي`. These are tokenized with their respective `BAA_TOKEN_TYPE_*` types.
+**Boolean Literals**: `صحيح` (True) and `خطأ` (False). These are tokenized as `BAA_TOKEN_BOOL_LIT`.
+ Boolean literals are tokenized with the `BAA_TOKEN_BOOL_LIT` token type, and they can be used in expressions, variable declarations, and other places where a boolean value is expected.
+
 Boolean literals are tokenized with the `BAA_TOKEN_BOOL_LIT` token type, and they can be used in expressions, variable declarations, and other places where a boolean value is expected.
 
 Example:
+
 ```baa
 متغير x: منطقي = صحيح؛
 إذا (x == صحيح) {
@@ -280,41 +291,34 @@ The lexer provides support for a wide range of operators:
 
 These operators are tokenized with corresponding token types (e.g., `BAA_TOKEN_PLUS`, `BAA_TOKEN_INCREMENT`, etc.).
 
-## String Handling
+## String and Character Handling
 
 The lexer provides comprehensive support for string and character literals:
 
 1. **String Literals**:
    - Delimited by double quotes (`"..."`)
-   - Support for escape sequences:
+   - Support for basic escape sequences:
      - `\n` - Newline
      - `\t` - Tab
-     - `\r` - Carriage return
      - `\\` - Backslash
      - `\"` - Double quote
-     - `\'` - Single quote
-     - `\0` - Null character
-     - `\uXXXX` - Unicode escape sequence (4 hex digits)
+     - Note: Unicode escape sequences (`\uXXXX`) are not currently implemented.
 
 2. **Character Literals**:
-   - Delimited by single quotes (`'...'`)
-   - Support for the same escape sequences as string literals
+   - Delimited by single quotes (`'...'`), e.g., `'a'`, `'ح'`, `'\n'`.
+   - Support for basic escape sequences: `\n`, `\t`, `\\`, `\'`, `\r`, `\0`.
+   - Tokenized as `BAA_TOKEN_CHAR_LIT`. Note: Unicode escapes (`\uXXXX`) are not implemented. Empty (`''`) and multi-character literals (`'ab'`) are treated as errors.
 
-Strings are tokenized as `BAA_TOKEN_STRING_LIT` and characters as `BAA_TOKEN_CHAR_LIT`.
+Strings are tokenized as `BAA_TOKEN_STRING_LIT`, characters as `BAA_TOKEN_CHAR_LIT`.
 
 ## Comment Support
 
-The lexer supports multiple comment styles:
+The lexer currently supports one style of single-line comments:
 
-1. **C-style Comments**:
-   - Single-line comments with `//` 
-   - Multi-line comments with `/* ... */`
+1. **Hash Comments**:
+   - Comments start with `#` and continue to the end of the line.
 
-2. **Arabic-Style Comments**:
-   - Single-line comments with `#` 
-   - Single-line comments with `٭` (Arabic asterisk)
-
-Comments are tokenized as `BAA_TOKEN_COMMENT` and can be used for documentation or temporarily removing code.
+The lexer skips these comments; they are not turned into `BAA_TOKEN_COMMENT` tokens. Other comment styles (`//`, `/* ... */`, `٭`) are not currently supported by the implementation.
 
 ## Arabic Language Support
 
@@ -337,17 +341,17 @@ The Baa lexer includes special support for Arabic text:
 The lexer uses several internal helper functions:
 
 1. **Character Classification**:
-   - `is_whitespace`: Check if a character is whitespace
-   - `is_digit`: Check if a character is a digit (including Arabic digits)
-   - `is_identifier_start`: Check if a character can start an identifier
-   - `is_identifier_part`: Check if a character can be part of an identifier
+   - `is_arabic_letter`: Check if a character is an Arabic letter (used in identifier scanning)
+   - `is_arabic_digit`: Check if a character is an Arabic-Indic digit (used in identifier and number scanning)
+   - `iswalnum`, `iswalpha`, `iswdigit`: Standard C functions used for character classification.
+   - Logic for identifying identifier start/part characters is embedded within `scan_identifier`.
 
 2. **Lexer Navigation**:
    - `peek`: Look at the current character without advancing
    - `peek_next`: Look at the next character without advancing
    - `advance`: Consume the current character and advance
-   - `skip_whitespace`: Skip whitespace characters
+   - `skip_whitespace`: Skip whitespace characters and single-line `#` comments.
 
 3. **Token Creation**:
-   - `make_token`: Create a token of a specific type
-   - `error_token`: Create an error token with a message
+   - `make_token`: Create a regular token, copying the lexeme from the source.
+   - `make_error_token`: Create an error token with a specific message.

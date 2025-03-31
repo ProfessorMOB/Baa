@@ -1,9 +1,11 @@
 # لغة باء - مواصفات اللغة
+
 # B (باء) Language Specification
 
 ## 1. Basic Syntax
 
 ### 1.1 Imports
+
 Imports use the `#تضمين` directive:
 
 ```baa
@@ -12,6 +14,7 @@ Imports use the `#تضمين` directive:
 ```
 
 ### 1.2 Statement Termination
+
 Statements are terminated with a dot (.) instead of a semicolon.
 
 ```baa
@@ -20,6 +23,7 @@ Statements are terminated with a dot (.) instead of a semicolon.
 ```
 
 ### 1.3 Function Declaration
+
 Functions are declared using the `دالة` keyword followed by the function name.
 
 ```baa
@@ -33,39 +37,49 @@ Functions are declared using the `دالة` keyword followed by the function nam
 ```
 
 ### 1.4 Core Keywords
+
 - `دالة` - Function declaration
 - `رئيسية` - Main function
 - `اطبع` - Print to console
 - `إرجع` - Return statement
 - `عدد_صحيح` - Integer type
+- `متغير` - Variable declaration keyword
+- `ثابت` - Constant declaration keyword
 - `عدد_حقيقي` - Float type
 - `حرف` - Character type
+- `منطقي` - Boolean type
 - `فراغ` - Void type
 - `إذا` - If statement
 - `وإلا` - Else statement
 - `طالما` - While loop
 
 ### 1.5 Basic Types
+
 ```baa
 عدد_صحيح متغير1.    // Integer
 عدد_حقيقي متغير2.   // Float
 حرف متغير3.         // Character
-منطقي متغير4.       // Boolean
+متغير متغير4 : منطقي = صحيح. // Boolean variable declaration with type
+متغير متغير5 = خطأ.      // Type inferred boolean
 ```
 
 ### 1.6 Boolean Literals
+
 ```baa
 منطقي صواب = صحيح.  // Boolean true
 منطقي خاطئ = خطأ.   // Boolean false
 ```
 
 ### 1.7 String Literals
+
 String literals are enclosed in double quotes:
+
 ```baa
 اطبع("مرحباً بالعالم!").
 ```
 
 ### 1.8 Control Flow
+
 Control structures follow C-like syntax but with Arabic keywords and dot termination:
 
 ```baa
@@ -84,6 +98,7 @@ Control structures follow C-like syntax but with Arabic keywords and dot termina
 ```
 
 ### 1.9 Advanced Operators
+
 ```baa
 // Increment and decrement
 متغير++.    // Postfix increment
@@ -100,8 +115,9 @@ Control structures follow C-like syntax but with Arabic keywords and dot termina
 ```
 
 ### 1.10 Comments
+
 - Single-line comments start with //
-- Multi-line comments use /* */
+- Multi-line comments use /**/
 
 ```baa
 // هذا تعليق على سطر واحد
@@ -113,6 +129,7 @@ Control structures follow C-like syntax but with Arabic keywords and dot termina
 ## 2. Program Structure
 
 ### 2.1 Basic Program Structure
+
 Every program must have a main function (`دالة رئيسية`):
 
 ```baa
@@ -124,7 +141,9 @@ Every program must have a main function (`دالة رئيسية`):
 ```
 
 ### 2.2 File Extension
+
 Programs are saved with the `.ب` extension:
+
 ```
 برنامج.ب
 حاسبة.ب
@@ -133,12 +152,14 @@ Programs are saved with the `.ب` extension:
 ## 3. Naming Conventions
 
 ### 3.1 Identifiers
+
 - Can use Arabic letters, numbers, and underscores
 - Must start with a letter or underscore
 - Case sensitive
 - Cannot use reserved keywords
 
 Examples:
+
 ```baa
 عدد_صحيح رقم_الطالب.    // Valid
 عدد_صحيح 1رقم.          // Invalid - starts with number
@@ -147,6 +168,7 @@ Examples:
 ## Language Elements
 
 ### Basic Types
+
 | Arabic      | English | Description           | Size    |
 |-------------|---------|----------------------|---------|
 | عدد_صحيح    | int     | Integer              | 32-bit  |
@@ -156,6 +178,7 @@ Examples:
 | منطقي       | bool    | Boolean              | 8-bit   |
 
 ### Derived Types
+
 | Arabic      | English  | Description         | Example                    |
 |-------------|----------|---------------------|----------------------------|
 | مصفوفة      | array    | Array type         | عدد_صحيح مصفوفة[10]       |
@@ -166,6 +189,7 @@ Examples:
 ### Keywords
 
 #### Control Flow
+
 | Arabic      | English  | Description           |
 |-------------|----------|-----------------------|
 | إذا         | if       | Conditional statement |
@@ -180,11 +204,14 @@ Examples:
 | إرجع        | return   | Return statement     |
 
 #### Declarations
+
 | Arabic      | English  | Description           |
 |-------------|----------|-----------------------|
 | دالة        | function | Function declaration  |
 | ثابت        | const    | Constant declaration  |
 | خارجي       | extern   | External declaration  |
+| متغير | var | Variable declaration (alternative/future?) |
+| نوع_مستخدم | typedef | Type definition |
 | ثابت        | static   | Static declaration    |
 | نوع_مستخدم  | typedef  | Type definition      |
 | حجم         | sizeof   | Size operator        |
@@ -192,6 +219,7 @@ Examples:
 ### Operators
 
 #### Arithmetic Operators
+
 ```
 +    Addition
 -    Subtraction
@@ -203,6 +231,7 @@ Examples:
 ```
 
 #### Assignment Operators
+
 ```
 =    Assignment
 +=   Add and assign
@@ -213,6 +242,7 @@ Examples:
 ```
 
 #### Comparison Operators
+
 ```
 ==   Equal to
 !=   Not equal to
@@ -223,6 +253,7 @@ Examples:
 ```
 
 #### Logical Operators
+
 ```
 &&   Logical AND
 ||   Logical OR
@@ -230,6 +261,7 @@ Examples:
 ```
 
 #### Bitwise Operators
+
 ```
 &    Bitwise AND
 |    Bitwise OR
@@ -240,6 +272,7 @@ Examples:
 ```
 
 ### Function Declaration
+
 ```c
 دالة اسم_الدالة(المعاملات) {
     // جسم الدالة
@@ -248,6 +281,7 @@ Examples:
 ```
 
 ### Variable Declaration
+
 ```c
 عدد_صحيح متغير.             // Integer variable
 عدد_حقيقي* مؤشر.           // Float pointer
@@ -255,6 +289,7 @@ Examples:
 ```
 
 ### Structure Definition
+
 ```c
 بنية نقطة {
     عدد_صحيح س.
@@ -267,6 +302,7 @@ Examples:
 ### Control Flow Examples
 
 #### If Statement
+
 ```c
 إذا (شرط) {
     // عبارات
@@ -276,6 +312,7 @@ Examples:
 ```
 
 #### While Loop
+
 ```c
 طالما (شرط) {
     // عبارات
@@ -283,6 +320,7 @@ Examples:
 ```
 
 #### For Loop
+
 ```c
 من_أجل (عدد_صحيح i = 0; i < 10; i++) {
     // عبارات
@@ -290,6 +328,7 @@ Examples:
 ```
 
 #### Switch Statement
+
 ```c
 اختر (متغير) {
     حالة 1:
@@ -304,6 +343,7 @@ Examples:
 ```
 
 ### Preprocessor Directives
+
 ```c
 تضمين# "ملف.ه"           // #include
 تعريف# ثابت 100         // #define
@@ -314,18 +354,21 @@ Examples:
 ## Memory Model
 
 ### Storage Classes
+
 - تلقائي (auto): Default for local variables
 - ثابت (static): Persistent storage
 - خارجي (extern): External linkage
 - سجل (register): Hint for register storage
 
 ### Scope Rules
+
 1. Block scope
 2. File scope
 3. Function scope
 4. Prototype scope
 
 ### Type Qualifiers
+
 - ثابت (const): Value cannot be modified
 - متطاير (volatile): Value may change externally
 - مقيد (restrict): Pointer optimization hint
@@ -333,6 +376,7 @@ Examples:
 ## Standard Library
 
 ### Input/Output Functions
+
 ```c
 اطبع(نص).              // printf equivalent
 اقرأ(متغير).           // scanf equivalent
@@ -341,6 +385,7 @@ Examples:
 ```
 
 ### String Functions
+
 ```c
 نسخ_نص(هدف, مصدر).     // strcpy equivalent
 طول_نص(نص).           // strlen equivalent
@@ -348,6 +393,7 @@ Examples:
 ```
 
 ### Memory Functions
+
 ```c
 حجز_ذاكرة(حجم).        // malloc equivalent
 حرر_ذاكرة(مؤشر).       // free equivalent
@@ -357,11 +403,13 @@ Examples:
 ## Implementation Notes
 
 ### File Format
+
 - UTF-16LE encoding required
 - `.ب` file extension
 - Optional BOM marker
 
 ### Compilation Process
+
 1. Lexical analysis
 2. Preprocessing
 3. Parsing
@@ -371,6 +419,7 @@ Examples:
 7. Linking
 
 ### Error Handling
+
 - Compile-time error messages in Arabic
 - Runtime error messages in Arabic
 - Warning system for potential issues
@@ -379,16 +428,19 @@ Examples:
 ## Future Extensions
 
 ### Planned Features
+
 1. Enhanced type safety
 2. Better error messages
 3. Modern memory management
 4. Development tools integration
 
 ## Version History
+
 - Version 0.1.7: Initial release
 - Version 0.1.8: Updated documentation and added new features
 
 ## Change Log
+
 - Added support for Arabic comments
 - Improved error handling for invalid syntax
 - Added new standard library functions for input/output and string manipulation

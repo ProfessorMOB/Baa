@@ -34,15 +34,20 @@
    - Add debug information support
    - Optimize generated code for Arabic text handling
 
-3. **Lexer Enhancements** (New Priority)
-   - ✓ Implement Boolean literals support
-     - ✓ `صحيح` (true) and `خطأ` (false) literals
-     - ✓ `منطقي` (boolean) type
-   - ✓ Add compound assignment operators (+=, -=, *=, /=, %=)
-   - ✓ Add increment/decrement operators (++, --)
-   - Complete string handling with escape sequences
-   - Add comment support (single line, multi-line, documentation)
-   - Enhance error reporting and recovery
+3. **Lexer Enhancements** (Status Updated)
+
+- [ ] Implement Boolean literals scanning (`صحيح`/`خطأ` defined but not scanned)
+- ✓ Add compound assignment operators (+=, -=, *=, /=, %=)
+- ✓ Add increment/decrement operators (++, --)
+- [ ] Complete string handling (basic escapes `\n, \t, \\, \"` done, Unicode/others pending)
+- ✓ Implement Boolean literals scanning (`صحيح`/`خطأ`)
+- ✓ Add compound assignment operators (`+=`, `-=`, `*=`, `/=`, `%=`)
+- ✓ Add increment/decrement operators (`++`, `--`)
+- ✓ Add logical operators (`&&`, `||`)
+- [ ] Complete string/char handling (basic escapes `\n, \t, \\, \"/'` done, Unicode/others pending)
+- ✓ Scan character literals (`'c'`)
+- [ ] Add full comment support (`#` single-line done, `/* */` and others pending)
+- [ ] Enhance error reporting and recovery (Basic error tokens exist, detailed messages/recovery pending)
 
 4. **AST Improvements** (New Priority)
    - ✓ Enhanced function parameter handling
@@ -84,7 +89,6 @@
    - Improve source location tracking for better error reporting
    - Add support for more token types for language extensions
    - Implement better whitespace and comment handling for RTL text
-   - Add scientific notation and binary/hexadecimal number formats
 
 4. **Arabic Language Support**
    - Implement full RTL support

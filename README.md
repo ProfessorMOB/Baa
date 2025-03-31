@@ -7,11 +7,12 @@ B (باء) is a programming language designed to support Arabic syntax while mai
 The project now supports:
 
 ### Core Features
+
 - Basic type system with K&R C compatibility
   - عدد_صحيح (int) - 32-bit integer
   - عدد_حقيقي (float) - 32-bit float
   - حرف (char) - 16-bit UTF-16 character
-  - منطقي (boolean) - Logical true/false values (صحيح, خطأ)
+  - منطقي (boolean) - Logical true/false values (`صحيح`, `خطأ`)
   - فراغ (void) - No value type
 
 - Core operator system
@@ -19,7 +20,8 @@ The project now supports:
   - Comparison operators (==, !=, <, >, <=, >=)
   - Assignment operator (=)
   - Compound assignment operators (+=, -=, *=, /=, %=)
-  - Increment/decrement operators (++, --)
+  - Increment/decrement operators (`++`, `--`)
+  - Logical operators (`&&`, `||`, `!`)
   - Type checking and validation
   - Arabic operator names
 
@@ -35,6 +37,12 @@ The project now supports:
   - Named arguments support
   - Method vs. function distinction
 
+- Literals
+  - Integer and Number scanning (`123`, `١٢٣`)
+  - String literals (`"..."` with basic escapes)
+  - Character literals (`'...'` with basic escapes)
+  - Boolean literals (`صحيح`, `خطأ`)
+
 - Arabic File Support
   - Native `.ب` extension
   - UTF-16LE encoding support
@@ -46,34 +54,39 @@ For detailed information about Arabic support, see [Arabic Support Documentation
 ### Project Status Overview
 
 #### What's Working
+
 - **Core Architecture**: Well-defined architecture with clear separation of concerns
 - **Type System**: Basic types including Boolean, type conversion rules, and type checking
 - **AST (Abstract Syntax Tree)**: Comprehensive node structure, program, function nodes, enhanced parameter handling
-- **Lexer**: UTF-16LE file reading, token recognition, number parsing, Boolean literal support, advanced operators
+- **Lexer**: UTF-16LE file reading, token recognition (keywords, types, bools, operators `+ - * / % = == != < > <= >= && || ! ++ -- += -= *= /= %=`, identifiers, int/number, string, char literals), line/col tracking, basic error tokens. support, advanced operators
 - **Parser**: Recursive descent implementation, expression parsing with precedence, statement parsing
 - **Utils**: Memory management, string handling, error infrastructure
 
 #### What's Not Working
+
 - **Code Generation**: LLVM integration is incomplete, mostly placeholder code
 - **Parser Integration**: Individual components exist but full integration is incomplete
 - **Standard Library**: Defined but not implemented
 - **Testing Infrastructure**: Framework defined but implementation is limited
 
 #### What Needs Improvement
+
 - **Arabic Support**: RTL text handling, more comprehensive error messages
 - **Error Handling**: More detailed messages, better recovery mechanisms
 - **Documentation**: Some parts outdated compared to implementation
 - **Build System**: Cross-platform support, dependency management
 
 #### What Needs Fixing
+
 - **Lexer Issues**: UTF-16LE handling, Arabic character recognition
 - **Parser Issues**: Expression precedence, statement termination, control flow parsing
 - **Memory Management**: Potential leaks, inconsistent allocation
 - **Integration Issues**: Component integration, compilation pipeline gaps
 
-### Changelog:
+### Changelog
 
 **Added:**
+
 - Boolean type (منطقي) with literals صحيح (true) and خطأ (false)
 - Compound assignment operators (+=, -=, *=, /=, %=)
 - Increment/decrement operators (++, --)
@@ -86,20 +99,23 @@ For detailed information about Arabic support, see [Arabic Support Documentation
 - Improved error handling system
 
 **Changed:**
+
 - Refactored parser functions for improved error handling
 - Simplified number parsing (temporarily removed decimal support)
 - Improved error messages with more context
 - Updated project structure to match architecture documentation
 
 **Fixed:**
+
 - Memory leaks in parser error handling
 - Function declaration parsing
 - Identifier parsing for UTF-16LE characters
 - File handling for UTF-16LE encoded files
 
-### Roadmap:
+### Roadmap
 
 **Completed Features:**
+
 - Core components (AST, Type System, Operators, Memory Management, Error Handling)
 - Advanced operators (compound assignment, increment/decrement)
 - Boolean type support
@@ -108,11 +124,13 @@ For detailed information about Arabic support, see [Arabic Support Documentation
 - Documentation (Language specification, Arabic support guide, C comparison, Architecture overview, Component documentation)
 
 **In Progress:**
+
 - Parser Development (Grammar definition, Token handling, Error recovery, Source location tracking)
 - Code Generation (LLVM integration planning, Basic code emission, Debug information support)
 - Standard Library (Basic I/O functions, String manipulation, Memory management, File operations)
 
 **Short-term Goals (0.2.0):**
+
 - Complete control flow parsing (إذا, وإلا, طالما)
 - Restore decimal number parsing
 - Full operator precedence handling
@@ -121,6 +139,7 @@ For detailed information about Arabic support, see [Arabic Support Documentation
 - Improve Arabic character support in lexer
 
 ### Project Structure
+
 ```
 baa/
 ├── include/
@@ -157,6 +176,7 @@ baa/
 ## Building from Source
 
 ### Prerequisites
+
 - CMake 3.20 or higher
 - K&R C compliant compiler
 - Git for version control
@@ -164,6 +184,7 @@ baa/
 - Unicode support libraries
 
 ### Build Steps
+
 ```bash
 git clone <repository-url>
 cd baa
@@ -173,6 +194,7 @@ cmake --build .
 ```
 
 ### Running Tests
+
 ```bash
 cd build
 ctest --output-on-failure
@@ -181,29 +203,35 @@ ctest --output-on-failure
 ## Features
 
 ### Type Safety
+
 - Strong type checking
 - Explicit conversion rules
 - Error type for invalid operations
 - UTF-16 support for Arabic text
 
 ### Operator System
+
 - Type-safe operations
 - Arabic operator names
 - K&R C operator precedence
 - Comprehensive error handling
 
 ### Documentation
+
 - Detailed Arabic error messages
 - Comprehensive documentation in both English and Arabic
 - Examples and usage guides
 - Development guidelines
 
 ## File Extensions
+
 The Baa programming language supports two file extensions:
+
 - `.ب` - The primary Arabic file extension
 - `.baa` - Alternative Latin file extension
 
 ### Example Program
+
 ```baa
 #تضمين <مكتبة_طباعة>
 
@@ -226,6 +254,7 @@ The Baa programming language supports two file extensions:
 ## Contributing
 
 We welcome contributions! Please see our [development guide](docs/development.md) for details on:
+
 - Code style and standards
 - Testing requirements
 - Documentation guidelines
@@ -238,6 +267,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## Acknowledgments
 
 Special thanks to:
+
 - The C language designers for their foundational work
 - The Arabic programming community for their support and feedback
 - All contributors who have helped shape this project

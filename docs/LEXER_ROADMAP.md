@@ -13,15 +13,21 @@ This roadmap outlines the planned improvements and current status of the Baa lan
 
 ## Token Types
 
-- [x] Special tokens (EOF, Error, Unknown)
-- [x] Literals (Identifier, Int, Float, Char, String)
-- [x] Keywords
-- [x] Types
-- [x] Operators
-- [x] Delimiters
-- [x] Advanced operators (++, --, +=, -=, etc.)
-- [ ] Additional keywords (switch, case, etc.)
-- [x] Boolean literals (true/false - صحيح/خطأ)
+- [ ] Special tokens (Comment - Defined, but comments currently skipped, not tokenized)
+- [x] Literals (Identifier)
+- [x] Literals (Int - `BAA_TOKEN_INT_LIT`)
+- [ ] Literals (Float - Defined `BAA_TOKEN_FLOAT_LIT`, but lexer currently only makes `INT_LIT`; number parser handles float details post-lexing)
+- [x] Literals (Char - Defined `BAA_TOKEN_CHAR_LIT`, scanned with basic escapes)
+- [x] Literals (String - `BAA_TOKEN_STRING_LIT`)
+- [x] Literals (Boolean - Defined `BAA_TOKEN_BOOL_LIT`, keywords `صحيح`/`خطأ` scanned)
+- [x] Keywords (FUNC, RETURN, IF, ELSE, WHILE, FOR, DO, SWITCH, CASE, BREAK, CONTINUE - Present in `lexer.c` keyword list)
+- [x] Keywords (VAR, CONST - Defined and added to `lexer.c` keyword list)
+- [x] Types (TYPE_INT, TYPE_FLOAT, TYPE_CHAR, TYPE_VOID, TYPE_BOOL - Defined and added to `lexer.c` keyword list)
+- [x] Operators (+, -, *, /, %, =, ==, !, !=, <, <=, >, >=)
+- [x] Operators (&&, || - Defined and scanning logic added in `lexer.c`)
+- [x] Compound assignment operators (+=, -=, *=, /=, %=)
+- [x] Increment/decrement operators (++, --)
+- [x] Delimiters ((, ), {, }, [, ], ,, ., ;, :)
 
 ## Number Parsing
 
@@ -31,21 +37,21 @@ This roadmap outlines the planned improvements and current status of the Baa lan
 - [x] Arabic-Indic digit support
 - [x] Scientific notation support
 - [x] Binary and hexadecimal literals
-- [x] Underscore in number literals (e.g., 1_000_000)
+- [ ] Underscore in number literals (e.g., 1_000_000)
 
 ## String Handling
 
-- [x] Basic string literal support
-- [x] Character literal support
-- [x] Escape sequences in strings (\n, \t, etc.)
-- [x] Unicode escape sequences
+- [x] Basic string literal support (double quotes)
+- [ ] Character literal support (single quotes - defined but not scanned)
+- [x] Basic escape sequences in strings (\n, \t, \\, \")
+- [ ] Unicode escape sequences (\uXXXX)
 - [ ] Multiline strings
 - [ ] Raw string literals
 
 ## Comment Support
 
-- [x] Single line comments
-- [x] Multi-line comments
+- [x] Single line comments (`#` style)
+- [ ] Multi-line comments (`/* ... */`)
 - [ ] Documentation comments
 
 ## Arabic Language Support
@@ -54,7 +60,7 @@ This roadmap outlines the planned improvements and current status of the Baa lan
 - [x] Arabic-Indic digit support
 - [x] Arabic keyword recognition
 - [ ] Right-to-left text handling improvements
-- [ ] Arabic error messages
+- [ ] Arabic error messages (Only number parser errors are currently Arabic)
 - [ ] Arabic language directives
 
 ## Preprocessing
@@ -94,34 +100,32 @@ This roadmap outlines the planned improvements and current status of the Baa lan
 - [x] File size determination
 - [ ] Streaming large files
 - [ ] Input source abstraction (file, string, stdin)
-- [ ] UTF-8 to UTF-16 conversion
+- [ ] UTF-8 to UTF-16 conversion (Currently assumes UTF-16LE input)
 
-## Implementation Priorities
+## Implementation Priorities (Revised after recent updates)
 
-1. ~~Complete string handling (escape sequences, Unicode)~~ ✓ Completed!
-2. ~~Add comment support (single line, multi-line)~~ ✓ Completed!
-3. ~~Implement advanced operators (++, --, +=, -=, etc.)~~ ✓ Completed!
-4. ~~Add support for Boolean literals (true/false - صحيح/خطأ)~~ ✓ Completed!
-5. ~~Add support for additional number formats:~~ ✓ Completed!
-   - ~~Scientific notation for numbers~~ ✓ Completed!
-   - ~~Binary and hexadecimal numbers~~ ✓ Completed!
-6. Enhance error reporting and recovery:
-   - Line/column information for errors
-   - Improved error messages
-   - Error recovery to continue lexing after errors
-7. Add support for preprocessing directives
-   - File inclusion
-   - Conditional compilation
-   - Macros
-8. Implement more advanced language features:
-   - Specialized documentation comments
-   - Template/generic support tokens
-   - Custom operators or syntax extensions
-9. Performance optimizations:
-   - Token interning
-   - Lexer state caching
-   - Optimized character handling
-10. Unit and integration testing:
-    - Test suite for lexer functionality
-    - Benchmarking and performance testing
-    - Edge case handling tests
+1. **Complete Basic Literal Scanning:**
+    - Distinguish float literals (`BAA_TOKEN_FLOAT_LIT`) during scanning (currently only `BAA_TOKEN_INT_LIT` is produced initially).
+2. **Enhance String Handling:**
+   - Implement remaining escape sequences in strings and chars (`\uXXXX`).
+
+3. **Add Comment Support:**
+    - Implement multi-line comments (`/* ... */`).
+    - Consider other styles like `//`.
+4. **Enhance Error Reporting and Recovery:**
+    - Provide more detailed error messages with context.
+    - Implement basic error recovery to continue lexing after simple errors.
+5. **Add Preprocessing Directives:**
+    - File inclusion (`#تضمين` or similar).
+    - Conditional compilation (`#إذا_عرف`, etc.).
+    - Macros (`#تعريف`).
+6. **Testing:**
+    - Develop comprehensive unit tests for lexer functionality.
+    - Add integration tests with the parser.
+7. **Advanced Features:**
+    - Underscores in number literals (`1_000`).
+    - Multiline strings / Raw strings.
+    - Documentation comments.
+8. **Performance Optimizations:**
+    - Keyword lookup optimization.
+    - String interning.
