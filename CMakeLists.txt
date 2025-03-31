@@ -45,7 +45,7 @@ if(NOT LLVM_FOUND)
     # Try to find LLVM in the hint paths
     foreach(HINT_PATH ${LLVM_HINT_PATHS})
         message(STATUS "Checking for LLVM in: ${HINT_PATH}")
-        
+
         if(EXISTS "${HINT_PATH}/lib/cmake/llvm/LLVMConfig.cmake")
             set(LLVM_DIR "${HINT_PATH}/lib/cmake/llvm")
             find_package(LLVM CONFIG)
@@ -104,7 +104,7 @@ add_subdirectory(src/parser)
 add_subdirectory(src/operators)
 add_subdirectory(src/ast)
 add_subdirectory(src/codegen)
-add_subdirectory(src/control_flow)
+add_subdirectory(src/analysis)
 
 # تفعيل الاختبارات
 enable_testing()
@@ -130,5 +130,5 @@ target_link_libraries(baa
         baa_operators
         baa_ast
         baa_codegen
-        baa_control_flow
+        baa_flow_analysis
 )
