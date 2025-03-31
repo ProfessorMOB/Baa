@@ -73,7 +73,7 @@ For detailed information about Arabic support, see [Arabic Support Documentation
 
 - **Arabic Support**: RTL text handling, more comprehensive error messages
 - **Error Handling**: More detailed messages, better recovery mechanisms
-- **Documentation**: Some parts outdated compared to implementation
+- **Documentation**: Generally updated and consolidated. Specific component details may need further review.
 - **Build System**: Cross-platform support, dependency management
 
 #### What Needs Fixing
@@ -131,12 +131,8 @@ For detailed information about Arabic support, see [Arabic Support Documentation
 
 **Short-term Goals (0.2.0):**
 
-- Complete control flow parsing (إذا, وإلا, طالما)
-- Restore decimal number parsing
-- Full operator precedence handling
-- Implement basic code generation for expressions and statements
-- Enhance error recovery in parser
-- Improve Arabic character support in lexer
+- Focus on Parser Enhancements, Code Generation, Lexer Enhancements, and AST Improvements.
+- *See [docs/roadmap.md](docs/roadmap.md) for the high-level plan and component-specific roadmaps (e.g., `docs/LEXER_ROADMAP.md`) for details.*
 
 ### Project Structure
 
@@ -162,15 +158,21 @@ baa/
 ├── tests/
 │   ├── unit/         # Unit tests (limited)
 │   └── integration/  # Integration tests (placeholder)
-└── docs/
-    ├── architecture.md  # System architecture
-    ├── components.md    # Component details
-    ├── development.md   # Developer guide
-    ├── language.md      # Language specification
-    ├── arabic_support.md # Arabic support documentation
-    ├── roadmap.md       # Development roadmap
-    ├── test_plan.md     # Testing strategy
-    └── test_organization.md # Test organization
+└── docs/             # Documentation
+    ├── architecture.md     # System architecture overview & component status
+    ├── language.md         # Language specification
+    ├── project_structure.md # Detailed directory layout (Arabic)
+    ├── roadmap.md          # High-level development roadmap
+    ├── lexer.md            # Lexer structure & usage
+    ├── LEXER_ROADMAP.md    # Detailed Lexer roadmap
+    ├── AST_STRUCTURE.md    # AST structure details
+    ├── AST_ROADMAP.md      # Detailed AST roadmap
+    ├── PARSER_STRUCTURE.md # Parser structure details
+    ├── PARSER_ROADMAP.md   # Detailed Parser roadmap
+    ├── arabic_support.md   # Arabic support details
+    ├── c_comparison.md     # Comparison with C
+    ├── development.md      # Developer guide
+    └── ...                 # Other specific docs
 ```
 
 ## Building from Source
