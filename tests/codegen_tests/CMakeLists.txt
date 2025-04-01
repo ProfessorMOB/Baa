@@ -4,12 +4,12 @@ add_executable(test_codegen
 
 # Add LLVM test
 add_executable(test_llvm_codegen
-    ../llvm_test.c
+    llvm_test.c
 )
 
 # Add literal system test for LLVM
 add_executable(test_llvm_literals
-    ../llvm_codegen_test.c
+    llvm_codegen_test.c
 )
 
 target_include_directories(test_codegen
@@ -36,7 +36,6 @@ target_link_libraries(test_codegen
         baa_operators
         baa_ast
         baa_codegen
-        baa_control_flow
         test_framework
 )
 
@@ -62,12 +61,12 @@ if(LLVM_AVAILABLE)
         NAME test_codegen
         COMMAND test_codegen
     )
-    
+
     add_test(
         NAME test_llvm_codegen
         COMMAND test_llvm_codegen
     )
-    
+
     add_test(
         NAME test_llvm_literals
         COMMAND test_llvm_literals

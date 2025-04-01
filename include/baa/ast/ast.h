@@ -23,14 +23,22 @@ typedef enum
     BAA_NODE_EXPR      // Expression node
 } BaaNodeKind;
 
+typedef struct
+{
+    const wchar_t *file; // Optional: filename
+    size_t line;
+    size_t column;
+} BaaSourceLocation;
+
 // Node structure
 struct BaaNode
 {
-    BaaNodeKind kind; // Type of node
-    void *data;       // Points to the struct for this specific node type
-    BaaNode *parent;  // Parent node, can be NULL for root nodes
-    size_t line;      // Line where this node appears in source
-    size_t column;    // Column where this node appears in source
+    BaaNodeKind kind;           // Type of node
+    void *data;                 // Points to the struct for this specific node type
+    BaaNode *parent;            // Parent node, can be NULL for root nodes
+    size_t line;                // Line where this node appears in source
+    size_t column;              // Column where this node appears in source
+    BaaSourceLocation location; // Add location struct
 };
 
 // Function parameter structure
@@ -74,7 +82,7 @@ struct BaaProgram
 
 // Node creation
 BaaNode *baa_create_node(BaaNodeKind kind, void *data);
-void baa_set_node_location(BaaNode *node, size_t line, size_t column);
+void baa_set_node_location(BaaNode *node, size_t line, size_t column, BaaSourceLocation location);
 void baa_add_child_node(BaaNode *parent, BaaNode *child);
 
 // Program management

@@ -27,7 +27,7 @@ BaaFunction* baa_parse_function(BaaParser* parser);
 
 // Statement parsing
 BaaStmt* baa_parse_statement(BaaParser* parser);
-BaaBlock* baa_parse_block(BaaParser* parser);
+BaaStmt* baa_parse_block(BaaParser* parser); // Changed return type to BaaStmt*
 BaaStmt* baa_parse_if_statement(BaaParser* parser);
 BaaStmt* baa_parse_while_statement(BaaParser* parser);
 BaaStmt* baa_parse_return_statement(BaaParser* parser);

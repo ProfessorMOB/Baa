@@ -22,7 +22,6 @@ if(NOT SKIP_PARSER)
         baa_utils
         baa_operators
         baa_lexer
-        baa_control_flow
     )
 
     # Install header files

@@ -18,24 +18,26 @@ static BaaNode *parse_block(BaaParser *parser);
 static BaaNode *parse_statement(BaaParser *parser);
 static BaaNode *parse_import_directive(BaaParser *parser);
 void baa_set_parser_error(BaaParser *parser, const wchar_t *message);
-static void baa_add_node_to_program(BaaProgram* program, BaaNode* node);
+static void baa_add_node_to_program(BaaProgram *program, BaaNode *node);
 static void advance(BaaParser *parser);
 
 // External declarations from expression_parser.c
-extern BaaExpr* baa_parse_expression(BaaParser* parser);
-extern void baa_free_expression(BaaExpr* expr);
+extern BaaExpr *baa_parse_expression(BaaParser *parser);
+extern void baa_free_expression(BaaExpr *expr);
 
 // Forward declarations for functions not yet defined in headers
-static void baa_add_child(BaaNode* parent, BaaNode* child);
-static BaaBlock* baa_create_block(void);
+static void baa_add_child(BaaNode *parent, BaaNode *child);
+static BaaBlock *baa_create_block(void);
 
 // Implementation of baa_token_next for expression_parser.c
-void baa_token_next(BaaParser *parser) {
+void baa_token_next(BaaParser *parser)
+{
     advance(parser);
 }
 
 // Implementation of baa_unexpected_token_error for parser_helper.h
-void baa_unexpected_token_error(BaaParser *parser, const wchar_t *expected) {
+void baa_unexpected_token_error(BaaParser *parser, const wchar_t *expected)
+{
     wchar_t message[256];
     swprintf(message, 256, L"توقعت '%ls'، وجدت '%ls'",
              expected, parser->current_token.lexeme);
@@ -118,23 +120,50 @@ static wchar_t peek_next(BaaParser *parser)
 static void advance(BaaParser *parser)
 {
     // Store the current token as previous
+    // *** POTENTIAL MEMORY LEAK/DANGLING POINTER ***
+    // If previous_token.lexeme pointed to dynamically allocated memory
+    // from the *previous* advance call, it needs to be freed here *before* overwriting.
+    // Let's assume for now that previous_token.lexeme is either NULL or static,
+    // or that the ownership model guarantees it's freed elsewhere.
+    // A safer approach is needed if lexemes are consistently dynamic.
+
+    // Free the *lexeme* of the *previous* current token, as we're about to replace it.
+    // Only free if it's not an ERROR token (which uses static messages)
+    // and if the lexeme pointer is not NULL.
+    if (parser->current_token.type != BAA_TOKEN_ERROR && parser->current_token.lexeme != NULL)
+    {
+        free((void *)parser->current_token.lexeme); // Cast needed due to const
+        parser->current_token.lexeme = NULL;        // Avoid double free
+    }
+
     parser->previous_token = parser->current_token;
 
     // Get the next token from the lexer
-    BaaToken* token = baa_lexer_next_token(parser->lexer);
-    if (token) {
+    BaaToken *token = baa_lexer_next_token(parser->lexer);
+    if (token)
+    {
         // Copy token data to the parser's current_token
         parser->current_token.type = token->type;
+        // Transfer ownership of the new lexeme pointer
         parser->current_token.lexeme = token->lexeme;
         parser->current_token.length = token->length;
         parser->current_token.line = token->line;
         parser->current_token.column = token->column;
 
-        // We don't free token->lexeme as it's now owned by parser->current_token
+        // Free the container, but NOT the lexeme it points to
         baa_free(token);
     }
+    else
+    {
+        // Handle case where lexer returns NULL (e.g., internal lexer error)
+        // Set current token to EOF or an error state?
+        parser->current_token.type = BAA_TOKEN_EOF; // Or maybe a special parser error token?
+        parser->current_token.lexeme = NULL;
+        parser->current_token.length = 0;
+        // Keep line/column from previous token for error reporting location
+    }
 
-    // Update location
+    // Update location (likely based on the *new* current_token)
     parser->location = baa_get_current_location(parser);
 }
 
@@ -182,10 +211,12 @@ static void skip_comment(BaaParser *parser)
 static bool match_keyword(BaaParser *parser, const wchar_t *keyword)
 {
     // Check if the current token is the keyword we're looking for
-    if (parser->current_token.type == BAA_TOKEN_IDENTIFIER) {
+    if (parser->current_token.type == BAA_TOKEN_IDENTIFIER)
+    {
         size_t len = wcslen(keyword);
         if (parser->current_token.length == len &&
-            wcsncmp(parser->current_token.lexeme, keyword, len) == 0) {
+            wcsncmp(parser->current_token.lexeme, keyword, len) == 0)
+        {
             // Consume the token
             advance(parser);
             return true;
@@ -196,7 +227,8 @@ static bool match_keyword(BaaParser *parser, const wchar_t *keyword)
 
 static wchar_t *parse_identifier(BaaParser *parser)
 {
-    if (parser->current_token.type != BAA_TOKEN_IDENTIFIER) {
+    if (parser->current_token.type != BAA_TOKEN_IDENTIFIER)
+    {
         return NULL;
     }
 
@@ -225,7 +257,7 @@ static bool expect_char(BaaParser *parser, wchar_t expected)
 }
 
 // Type parsing
-static BaaType* parse_type(BaaParser *parser)
+static BaaType *parse_type(BaaParser *parser)
 {
     if (match_keyword(parser, L"عدد_صحيح"))
     {
@@ -247,9 +279,9 @@ static BaaType* parse_type(BaaParser *parser)
 }
 
 // Parser implementation
-void baa_init_parser(BaaParser *parser, BaaLexer* lexer)
+void baa_init_parser(BaaParser *parser, BaaLexer *lexer)
 {
-    parser->lexer = lexer;
+    parser->lexer = lexer; // Stores a pointer to the lexer instance
     parser->had_error = false;
     parser->error_message = NULL;
 
@@ -257,18 +289,27 @@ void baa_init_parser(BaaParser *parser, BaaLexer* lexer)
     memset(&parser->current_token, 0, sizeof(BaaToken));
     memset(&parser->previous_token, 0, sizeof(BaaToken));
 
-    // Get the first token
-    BaaToken* token = baa_lexer_next_token(lexer);
-    if (token) {
+    // Get the first token to prime the pump
+    BaaToken *token = baa_lexer_next_token(lexer);
+    if (token)
+    {
         // Copy token data to the parser's current_token
         parser->current_token.type = token->type;
+        // IMPORTANT: Transfer ownership of lexeme pointer
         parser->current_token.lexeme = token->lexeme;
         parser->current_token.length = token->length;
         parser->current_token.line = token->line;
         parser->current_token.column = token->column;
 
-        // We don't free token->lexeme as it's now owned by parser->current_token
+        // Free the container, but NOT the lexeme it points to
         baa_free(token);
+    }
+    // Note: Should probably handle the case where the *first* token is NULL (e.g., lexer memory error)
+
+    if (!token)
+    {
+        baa_set_parser_error(parser, L"Lexer returned NULL token");
+        return;
     }
 }
 
@@ -300,7 +341,7 @@ void baa_set_parser_error(BaaParser *parser, const wchar_t *message)
     }
 }
 
-const wchar_t* baa_get_parser_error(BaaParser *parser)
+const wchar_t *baa_get_parser_error(BaaParser *parser)
 {
     return parser->error_message;
 }
@@ -409,7 +450,7 @@ static BaaNode *parse_declaration(BaaParser *parser)
             return NULL;
         }
 
-        baa_add_child(decl, (BaaNode*)size);
+        baa_add_child(decl, (BaaNode *)size);
     }
 
     skip_whitespace(parser);
@@ -429,7 +470,7 @@ static BaaNode *parse_declaration(BaaParser *parser)
             return NULL;
         }
 
-        baa_add_child(decl, (BaaNode*)init);
+        baa_add_child(decl, (BaaNode *)init);
     }
 
     skip_whitespace(parser);
@@ -447,33 +488,36 @@ static BaaNode *parse_declaration(BaaParser *parser)
 static BaaNode *parse_block(BaaParser *parser)
 {
     BaaSourceLocation loc = baa_get_current_location(parser);
-    
+
     // Create a block statement with the standardized structure
-    BaaStmt* block_stmt = baa_create_stmt(BAA_STMT_BLOCK, loc);
-    if (!block_stmt) {
+    BaaStmt *block_stmt = baa_create_stmt(BAA_STMT_BLOCK, loc);
+    if (!block_stmt)
+    {
         return NULL;
     }
-    
+
     // Create the actual block data
-    BaaBlock* block = baa_create_block();
-    if (!block) {
+    BaaBlock *block = baa_create_block();
+    if (!block)
+    {
         baa_free_stmt(block_stmt);
         return NULL;
     }
-    
+
     // Connect the block data to the statement
     block_stmt->data = block;
-    
+
     // Create a node to hold this statement
-    BaaNode* node = baa_create_node(BAA_NODE_STATEMENT, loc);
-    if (!node) {
+    BaaNode *node = baa_create_node(BAA_NODE_STATEMENT, loc);
+    if (!node)
+    {
         baa_free_stmt(block_stmt); // This will also free the block
         return NULL;
     }
-    
+
     // Connect the statement to the node
     node->data = block_stmt;
-    
+
     while (peek(parser) && peek(parser) != L'}')
     {
         skip_whitespace(parser);
@@ -485,12 +529,13 @@ static BaaNode *parse_block(BaaParser *parser)
             baa_free_node(node);
             return NULL;
         }
-        
+
         // Extract the statement from the node
-        BaaStmt* stmt = (BaaStmt*)stmt_node->data;
-        
+        BaaStmt *stmt = (BaaStmt *)stmt_node->data;
+
         // Add the statement to the block
-        if (!baa_block_add_statement(block, stmt)) {
+        if (!baa_block_add_statement(block, stmt))
+        {
             baa_free_node(stmt_node);
             baa_free_node(node);
             return NULL;
@@ -644,7 +689,7 @@ static BaaNode *parse_statement(BaaParser *parser)
             return NULL;
         }
 
-        baa_add_child(while_stmt, (BaaNode*)condition);
+        baa_add_child(while_stmt, (BaaNode *)condition);
         baa_add_child(while_stmt, body);
 
         if (!expect_char(parser, L'.'))
@@ -665,7 +710,7 @@ static BaaNode *parse_statement(BaaParser *parser)
             baa_free_expression(expr);
             return NULL;
         }
-        return (BaaNode*)expr;
+        return (BaaNode *)expr;
     }
 
     return NULL;
@@ -781,24 +826,30 @@ static BaaNode *parse_import_directive(BaaParser *parser)
 
     // Check for < or "
     bool is_system = false;
-    if (parser->current_token.type == BAA_TOKEN_LESS) {
+    if (parser->current_token.type == BAA_TOKEN_LESS)
+    {
         is_system = true;
         advance(parser);
     }
-    else if (parser->current_token.type == BAA_TOKEN_STRING_LIT) {
+    else if (parser->current_token.type == BAA_TOKEN_STRING_LIT)
+    {
         // String literal already includes the quotes
-        const wchar_t* path = parser->current_token.lexeme;
+        const wchar_t *path = parser->current_token.lexeme;
         size_t path_len = parser->current_token.length;
 
         // Remove the quotes from the path
-        wchar_t* clean_path = NULL;
-        if (path_len > 2) {
+        wchar_t *clean_path = NULL;
+        if (path_len > 2)
+        {
             clean_path = baa_strndup(path + 1, path_len - 2);
-        } else {
+        }
+        else
+        {
             clean_path = baa_strdup(L"");
         }
 
-        if (!clean_path) {
+        if (!clean_path)
+        {
             baa_set_parser_error(parser, L"Failed to allocate memory for import path");
             return NULL;
         }
@@ -809,13 +860,15 @@ static BaaNode *parse_import_directive(BaaParser *parser)
         BaaNode *import = baa_create_node(BAA_NODE_STATEMENT, loc);
         baa_free(clean_path);
 
-        if (!import) {
+        if (!import)
+        {
             baa_set_parser_error(parser, L"Failed to create import node");
             return NULL;
         }
 
         skip_whitespace(parser);
-        if (parser->current_token.type != BAA_TOKEN_DOT) {
+        if (parser->current_token.type != BAA_TOKEN_DOT)
+        {
             baa_set_parser_error(parser, L"Expected '.' after import path");
             baa_free_node(import);
             return NULL;
@@ -824,36 +877,43 @@ static BaaNode *parse_import_directive(BaaParser *parser)
 
         return import;
     }
-    else {
+    else
+    {
         baa_set_parser_error(parser, L"Expected '<' or '\"' after #تضمين");
         return NULL;
     }
 
     // For system imports with < >
-    wchar_t* path = NULL;
+    wchar_t *path = NULL;
     // Read until we find a '>'
     while (parser->current_token.type != BAA_TOKEN_GREATER &&
-           parser->current_token.type != BAA_TOKEN_EOF) {
+           parser->current_token.type != BAA_TOKEN_EOF)
+    {
         // Append current token to path
-        const wchar_t* token_text = parser->current_token.lexeme;
+        const wchar_t *token_text = parser->current_token.lexeme;
         size_t token_len = parser->current_token.length;
 
-        wchar_t* new_path = NULL;
-        if (path) {
+        wchar_t *new_path = NULL;
+        if (path)
+        {
             size_t path_len = wcslen(path);
             new_path = baa_malloc((path_len + token_len + 1) * sizeof(wchar_t));
-            if (new_path) {
+            if (new_path)
+            {
                 wcscpy(new_path, path);
                 wcsncat(new_path, token_text, token_len);
                 new_path[path_len + token_len] = L'\0';
             }
             baa_free(path);
-        } else {
+        }
+        else
+        {
             new_path = baa_strndup(token_text, token_len);
         }
 
         path = new_path;
-        if (!path) {
+        if (!path)
+        {
             baa_set_parser_error(parser, L"Failed to allocate memory for import path");
             return NULL;
         }
@@ -861,7 +921,8 @@ static BaaNode *parse_import_directive(BaaParser *parser)
         advance(parser);
     }
 
-    if (parser->current_token.type != BAA_TOKEN_GREATER) {
+    if (parser->current_token.type != BAA_TOKEN_GREATER)
+    {
         baa_set_parser_error(parser, L"Expected '>' to close system import");
         baa_free(path);
         return NULL;
@@ -872,7 +933,8 @@ static BaaNode *parse_import_directive(BaaParser *parser)
     BaaNode *import = baa_create_node(BAA_NODE_STATEMENT, loc);
     baa_free(path);
 
-    if (!import) {
+    if (!import)
+    {
         baa_set_parser_error(parser, L"Failed to create import node");
         return NULL;
     }
@@ -882,7 +944,8 @@ static BaaNode *parse_import_directive(BaaParser *parser)
     // import->flags |= NODE_FLAG_SYSTEM_IMPORT;
 
     skip_whitespace(parser);
-    if (parser->current_token.type != BAA_TOKEN_DOT) {
+    if (parser->current_token.type != BAA_TOKEN_DOT)
+    {
         baa_set_parser_error(parser, L"Expected '.' after import path");
         baa_free_node(import);
         return NULL;
@@ -957,7 +1020,7 @@ const wchar_t *baa_parser_error_message(const BaaParser *parser)
     return parser->error_message;
 }
 
-BaaStmt* baa_parse_statement(BaaParser *parser)
+BaaStmt *baa_parse_statement(BaaParser *parser)
 {
     skip_whitespace(parser);
 
@@ -1063,21 +1126,24 @@ BaaStmt* baa_parse_statement(BaaParser *parser)
     return NULL;
 }
 
-BaaParser* baa_create_parser(const wchar_t* source, size_t source_len)
+BaaParser *baa_create_parser(const wchar_t *source, size_t source_len)
 {
-    if (!source) {
+    if (!source)
+    {
         return NULL;
     }
 
     // Allocate memory for the parser
-    BaaParser* parser = (BaaParser*)baa_malloc(sizeof(BaaParser));
-    if (!parser) {
+    BaaParser *parser = (BaaParser *)baa_malloc(sizeof(BaaParser));
+    if (!parser)
+    {
         return NULL;
     }
 
     // Create the lexer
-    BaaLexer* lexer = baa_create_lexer(source);
-    if (!lexer) {
+    BaaLexer *lexer = baa_create_lexer(source);
+    if (!lexer)
+    {
         baa_free(parser);
         return NULL;
     }
@@ -1089,8 +1155,10 @@ BaaParser* baa_create_parser(const wchar_t* source, size_t source_len)
 }
 
 // Implementation of missing functions
-static void baa_add_child(BaaNode* parent, BaaNode* child) {
-    if (!parent || !child) {
+static void baa_add_child(BaaNode *parent, BaaNode *child)
+{
+    if (!parent || !child)
+    {
         return;
     }
 
@@ -1102,9 +1170,11 @@ static void baa_add_child(BaaNode* parent, BaaNode* child) {
     // For now, we're just setting the parent-child relationship.
 }
 
-static BaaBlock* baa_create_block(void) {
-    BaaBlock* block = (BaaBlock*)baa_malloc(sizeof(BaaBlock));
-    if (!block) {
+static BaaBlock *baa_create_block(void)
+{
+    BaaBlock *block = (BaaBlock *)baa_malloc(sizeof(BaaBlock));
+    if (!block)
+    {
         return NULL;
     }
 
@@ -1117,7 +1187,8 @@ static BaaBlock* baa_create_block(void) {
     BaaSourceLocation loc = baa_create_source_location(0, 0, L"block");
     block->ast_node = baa_create_node(BAA_NODE_STATEMENT, loc);
 
-    if (!block->ast_node) {
+    if (!block->ast_node)
+    {
         baa_free(block);
         return NULL;
     }
@@ -1126,8 +1197,10 @@ static BaaBlock* baa_create_block(void) {
 }
 
 // Helper to add a node to a program
-static void baa_add_node_to_program(BaaProgram* program, BaaNode* node) {
-    if (!program || !node) {
+static void baa_add_node_to_program(BaaProgram *program, BaaNode *node)
+{
+    if (!program || !node)
+    {
         return;
     }
 
@@ -1139,8 +1212,10 @@ static void baa_add_node_to_program(BaaProgram* program, BaaNode* node) {
 }
 
 // Helper function to free a program properly
-static void baa_free_program_wrapper(BaaProgram* program) {
-    if (program) {
+static void baa_free_program_wrapper(BaaProgram *program)
+{
+    if (program)
+    {
         baa_free_program(program);
     }
 }
