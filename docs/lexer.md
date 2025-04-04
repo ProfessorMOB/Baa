@@ -13,7 +13,7 @@ The Baa lexer processes source code written in the Baa language, which includes 
 - Recognizes Arabic keywords (e.g., `دالة`, `إذا`).
 - Supports Arabic characters within string literals.
 - Note: Bidirectional text display is dependent on the terminal/editor, not explicitly managed by the lexer logic itself.
-- Note: Only `#` style comments are currently supported.
+- Note: Standard C-style comments (`//`, `/* */`) and legacy `#` comments are supported.
 
 ### Token Types
 
@@ -29,7 +29,7 @@ The lexer identifies the following categories of tokens:
 - Type Names (أسماء الأنواع - e.g., `عدد_صحيح`, `منطقي` scanned as specific `BAA_TOKEN_TYPE_*`)
 - Operators (عوامل - e.g., `+`, `==`, `+=`, `&&`, `++`)
 - Delimiters (فواصل - e.g., `(`, `;`, `{`)
-- Comments (تعليقات - `#` style comments are skipped, not tokenized)
+- Comments (تعليقات - `//`, `/* */`, `#` style comments are skipped, not tokenized)
 
 ### Source Location Tracking
 
@@ -39,7 +39,7 @@ The lexer identifies the following categories of tokens:
 
 ### Error Handling
 
-- Returns a `BAA_TOKEN_ERROR` token when an issue is encountered (e.g., unexpected character, unterminated string/char literal, invalid escape sequence).
+- Returns a `BAA_TOKEN_ERROR` token when an issue is encountered (e.g., unexpected character, unterminated string/char/comment literal, invalid escape sequence).
 - The `lexeme` field of the error token contains a descriptive message (currently mostly in English, except for number parsing errors).
 - Invalid character detection.
 - Malformed token reporting (e.g., unterminated strings, invalid escape sequences).
@@ -209,6 +209,7 @@ The number parser supports:
     -   Binary integers (with `0b` or `0B` prefix): `0b1010`, `0B1100`
     -   Hexadecimal integers (with `0x` or `0X` prefix): `0x1a3f`, `0XFF`
     -   Support for Arabic-Indic digits: `١٢٣`, `٤٢`
+    -   Underscores for readability (e.g., `1_000_000`, `0xFF_FF`) - *[In Progress]*
 
 2.  **Floating-Point Literals**:
     -   Regular decimal floats: `3.14`, `0.5`
@@ -261,15 +262,19 @@ The lexer supports a wide range of operators, tokenized with corresponding types
 
 ## String and Character Handling
 
-- **String Literals**: Delimited by double quotes (`"..."`). Support basic escapes (`\n`, `\t`, `\\`, `\"`). Tokenized as `BAA_TOKEN_STRING_LIT`.
-- **Character Literals**: Delimited by single quotes (`'...'`). Support basic escapes (`\n`, `\t`, `\\`, `\'`, `\r`, `\0`). Tokenized as `BAA_TOKEN_CHAR_LIT`. Empty (`''`) and multi-character (`'ab'`) literals are errors.
-- *Note: Unicode escape sequences (`\uXXXX`) are not currently implemented.*
+- [x] Basic string literal support (double quotes)
+- [x] Character literal support (single quotes)
+- [x] Basic escape sequences in strings/chars (\n, \t, \\, \", \', \r, \0)
+- [x] Unicode escape sequences (\uXXXX)
+- [ ] Multiline strings
+- [ ] Raw string literals
 
 ## Comment Support
 
-- Only single-line comments starting with `#` are supported.
-- These comments are skipped by the lexer and not turned into tokens.
-- Other styles (`//`, `/* ... */`) are not recognized.
+- Single line comments (`#` style - Skipped, not tokenized)
+- Single line comments (`//` style - Skipped, not tokenized)
+- Multi-line comments (`/* ... */` - Skipped, not tokenized)
+- Documentation comments (e.g., `/** ... */` or other syntax TBD)
 
 ## Usage
 
@@ -378,3 +383,7 @@ The lexer uses several internal helper functions:
 - Extended Unicode range support
 - Implement multi-line comments (`/* ... */`)
 - Implement remaining escape sequences (`\uXXXX`)
+
+*   **Handle Basic Escape Sequences:**
+    *   String literals: `\n`, `\t`, `\"`, `\\`, `\r`, `\0`. *[Done]*
+    *   Character literals: `\n`, `\t`, `\'`, `\\`, `\r`, `\0`. *[Done]*

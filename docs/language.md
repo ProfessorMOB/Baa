@@ -100,8 +100,9 @@ This section describes the low-level building blocks of Baa programs. Baa source
 
 Baa supports standard C/C++ style comments:
 
-*   **Single-line:** Begins with `//` and continues to the end of the line. *[Note: The original implementation also skipped lines starting with `#`, treating them like comments. This behaviour might be deprecated in favour of standard `//`]*
-*   **Multi-line:** Begins with `/*` and ends with `*/`. *[Status: Multi-line comment lexing is `[Planned]` according to `LEXER_ROADMAP.md`, the lexer might not handle them correctly yet.]*
+*   **Single-line:** Begins with `//` and continues to the end of the line. - *[Implemented]*
+*   **Multi-line:** Begins with `/*` and ends with `*/`. These comments can span multiple lines. - *[Implemented]*
+*   **Legacy `#` Comments:** Lines starting with `#` are also skipped like single-line comments. *[Note: This style might be deprecated in favour of standard `//`]* - *[Implemented]*
 
 ```baa
 // هذا تعليق سطر واحد.
@@ -109,7 +110,7 @@ Baa supports standard C/C++ style comments:
   هذا تعليق
   متعدد الأسطر.
 */
-// # نمط التعليق القديم (قد يتم إزالته).
+# نمط التعليق القديم.
 ```
 
 ### 2.2 Identifiers
@@ -157,7 +158,7 @@ Literals represent fixed values in the source code.
     *   Arabic-Indic Decimal: `١٢٣`, `٠`, `٤٥٦` - *[Implemented]*
     *   Hexadecimal (prefix `0x` or `0X`): `0xFF`, `0x1a` - *[Implemented in `number_parser`]*
     *   Binary (prefix `0b` or `0B`): `0b1010`, `0B11` - *[Implemented in `number_parser`]*
-    *   *Planned:* Underscores for readability (`1_000_000`).
+    *   Underscores for readability (`1_000_000`, `0xAB_CD`) - *[In Progress]*
 *   **Floating-Point Literals (`عدد_حقيقي`):** Represent numbers with a fractional part.
     *   Decimal: `12.34`, `0.5`, `10.` - *[Implemented in `number_parser`]*
     *   Arabic Decimal Separator (`٫`, U+066B): `١٢٫٣٤` - *[Implemented in `number_parser`]*
@@ -169,14 +170,15 @@ Literals represent fixed values in the source code.
 *   **Character Literals (`حرف`):** Represent single characters enclosed in single quotes (`'`).
     *   `'a'`, `'أ'`, `'#'`, `'١'` - *[Implemented]*
     *   Escape Sequences:
-        *   `'\\n'` (newline), `'\\t'` (tab), `'\\\\'` (backslash), `'\\''` (single quote) - *[Implemented]*
-        *   `'\\"'` (double quote) - *[Implemented? Check `scan_char_literal`]*
-        *   `'\\r'` (carriage return), `'\\0'` (null char) - *[Implemented? Check `scan_char_literal`]*
-        *   `'\\uXXXX'` (Unicode escape) - *[Planned]*
+        *   `'\n'` (newline), `'\t'` (tab), `'\\'` (backslash), `'\''` (single quote) - *[Implemented]*
+        *   `'\"'` (double quote) - *[Implemented]*
+        *   `'\r'` (carriage return), `'\0'` (null char) - *[Implemented]*
+        *   `'\uXXXX'` (Unicode escape, where XXXX are four hex digits) - *[Implemented]*
 *   **String Literals (`نص` - inferred type):** Represent sequences of characters enclosed in double quotes (`"`). Uses UTF-16LE encoding internally.
     *   `"مرحباً"` - *[Implemented]*
     *   `"Hello, World!"` - *[Implemented]*
-    *   Escape Sequences: Similar to characters, `\\n`, `\\t`, `\\\"`, `\\\\` are implemented. Unicode escapes `\\uXXXX` are planned. Multiline/raw strings are planned.
+    *   Escape Sequences: Similar to characters: `\n`, `\t`, `\"`, `\\`, `\r`, `\0`, `\uXXXX` are implemented. - *[Implemented]*
+    *   *Planned:* Multiline/raw strings.
 
 ### 2.5 Operators
 

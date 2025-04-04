@@ -18,8 +18,8 @@ This roadmap outlines the planned improvements and current status of the Baa lan
 - [x] Literals (Identifier - Basic Arabic/ASCII support)
 - [x] Literals (Int - `BAA_TOKEN_INT_LIT`)
 - [ ] Literals (Float - Defined `BAA_TOKEN_FLOAT_LIT`, but lexer currently only makes `INT_LIT`; number parser handles float details post-lexing)
-- [x] Literals (Char - Defined `BAA_TOKEN_CHAR_LIT`, scanned with basic escapes `\n, \t, \\, \'`)
-- [x] Literals (String - `BAA_TOKEN_STRING_LIT`, scanned with basic escapes `\n, \t, \\, \"`)
+- [x] Literals (Char - Defined `BAA_TOKEN_CHAR_LIT`, scanned with escapes `\n, \t, \\, \', \", \r, \0, \uXXXX`)
+- [x] Literals (String - `BAA_TOKEN_STRING_LIT`, scanned with escapes `\n, \t, \\, \", \uXXXX`)
 - [x] Literals (Boolean - Defined `BAA_TOKEN_BOOL_LIT`, keywords `صحيح`/`خطأ` scanned)
 - [x] Keywords (FUNC, RETURN, IF, ELSE, WHILE, FOR, DO, SWITCH, CASE, BREAK, CONTINUE - Present in `lexer.c` keyword list)
 - [x] Keywords (VAR, CONST - Defined and added to `lexer.c` keyword list)
@@ -43,17 +43,18 @@ This roadmap outlines the planned improvements and current status of the Baa lan
 ## String Handling
 
 - [x] Basic string literal support (double quotes)
-- [ ] Character literal support (single quotes - defined but not scanned)
-- [x] Basic escape sequences in strings (\n, \t, \\, \")
-- [ ] Unicode escape sequences (\uXXXX)
+- [x] Character literal support (single quotes)
+- [x] Basic escape sequences in strings/chars (\n, \t, \\, \", \', \r, \0)
+- [x] Unicode escape sequences (\uXXXX)
 - [ ] Multiline strings
 - [ ] Raw string literals
 
 ## Comment Support
 
 - [x] Single line comments (`#` style - Skipped, not tokenized)
-- [ ] Multi-line comments (`/* ... */` - Tokenize or skip)
-- [ ] Documentation comments (e.g., `/** ... */` or `###`)
+- [x] Single line comments (`//` style - Skipped, not tokenized)
+- [x] Multi-line comments (`/* ... */` - Skipped, not tokenized)
+- [ ] Documentation comments (e.g., `/** ... */` or other syntax TBD)
 
 ## Arabic Language Support
 
@@ -109,28 +110,24 @@ This roadmap outlines the planned improvements and current status of the Baa lan
 
 ## Implementation Priorities (Revised after recent updates)
 
-1. **Complete Basic Literal Scanning:**
-    - Distinguish float literals (`BAA_TOKEN_FLOAT_LIT`) during scanning (currently only `BAA_TOKEN_INT_LIT` is produced initially).
-2. **Enhance String Handling:**
-   - Implement remaining escape sequences in strings and chars (`\uXXXX`).
-
-3. **Add Comment Support:**
-    - Implement multi-line comments (`/* ... */`).
-    - Consider other styles like `//`.
-4. **Enhance Error Reporting and Recovery:**
+1. **Enhance Error Reporting and Recovery:**
     - Provide more detailed error messages with context.
     - Implement basic error recovery to continue lexing after simple errors.
-5. **Add Preprocessing Directives:**
+2. **Add Preprocessing Directives:**
     - File inclusion (`#تضمين` or similar).
     - Conditional compilation (`#إذا_عرف`, etc.).
     - Macros (`#تعريف`).
-6. **Testing:**
+3. **Testing:**
     - Develop comprehensive unit tests for lexer functionality.
     - Add integration tests with the parser.
-7. **Advanced Features:**
+4. **Advanced Features:**
     - Underscores in number literals (`1_000`).
     - Multiline strings / Raw strings.
     - Documentation comments.
-8. **Performance Optimizations:**
+5. **Performance Optimizations:**
     - Keyword lookup optimization.
     - String interning.
+
+6.  **[Misc]** Implement remaining basic escape sequences (`\r`, `\0` in strings, `\"` in chars). *[Done]*
+7.  **[Feature]** Implement underscores in number literals (`1_000_000`).
+

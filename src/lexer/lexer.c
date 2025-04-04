@@ -5,9 +5,10 @@
 #include <stdio.h> // For error messages
 #include <string.h>
 #include <wctype.h>
+#include <stdarg.h> // Needed for va_list, etc.
 
 // Forward declaration for error token creation
-static BaaToken *make_error_token(BaaLexer *lexer, const wchar_t *message);
+static BaaToken *make_error_token(BaaLexer *lexer, const wchar_t *format, ...);
 static BaaToken *scan_identifier(BaaLexer *lexer);
 static BaaToken *scan_number(BaaLexer *lexer);
 static BaaToken *scan_string(BaaLexer *lexer);
@@ -140,18 +141,90 @@ static BaaToken *make_token(BaaLexer *lexer, BaaTokenType type)
     return token;
 }
 
-// Creates an error token with a specific message
-static BaaToken *make_error_token(BaaLexer *lexer, const wchar_t *message)
+// Creates an error token with a formatted message (dynamically allocated)
+static BaaToken *make_error_token(BaaLexer *lexer, const wchar_t *format, ...)
 {
     BaaToken *token = malloc(sizeof(BaaToken));
     if (!token)
     {
-        fprintf(stderr, "FATAL: Failed to allocate memory for error token.\n");
+        fprintf(stderr, "FATAL: Failed to allocate memory for error token struct.\n");
         return NULL;
     }
+
+    wchar_t* buffer = NULL;
+    size_t buffer_size = 0;
+    va_list args, args_copy;
+
+    va_start(args, format);
+    va_copy(args_copy, args); // Copy va_list for the size calculation
+
+    // Calculate required buffer size using vswprintf with NULL buffer
+    // On Windows, _vsnwprintf returns -1 if buffer is too small.
+    // On POSIX, vsnwprintf returns the number of chars that *would* have been written.
+    // We need a portable approach or platform checks.
+    // Let's assume a reasonable initial size and reallocate if needed (safer).
+
+    size_t initial_size = 256;
+    buffer = malloc(initial_size * sizeof(wchar_t));
+    if (!buffer) {
+         fprintf(stderr, "FATAL: Failed to allocate initial memory for error message.\n");
+         va_end(args_copy);
+         va_end(args);
+         free(token);
+         return NULL;
+    }
+
+    // Use vsnwprintf (or _vsnwprintf on Windows) which is safer
+#ifdef _WIN32
+    int needed = _vsnwprintf(buffer, initial_size, format, args);
+    // If -1, it means buffer was too small (or other error). We won't handle resizing for simplicity here.
+    if (needed < 0) {
+         // Fallback or error
+         wcscpy(buffer, L"خطأ غير معروف في تنسيق رسالة الخطأ الداخلية."); // Fallback message
+         needed = wcslen(buffer);
+    }
+#else
+    int needed = vswprintf(buffer, initial_size, format, args);
+    // If needed >= initial_size, buffer was too small. Reallocate.
+    if (needed < 0 || (size_t)needed >= initial_size) {
+        // Need to calculate the *actual* required size now
+        va_end(args); // End the first va_list
+        needed = vswprintf(NULL, 0, format, args_copy); // POSIX way to get size
+        va_end(args_copy); // End the copied va_list
+
+        if (needed < 0) { // Error during size calculation
+             wcscpy(buffer, L"خطأ غير معروف في تنسيق رسالة الخطأ الداخلية."); // Fallback message
+             needed = wcslen(buffer);
+        } else {
+            buffer_size = (size_t)needed + 1; // +1 for null terminator
+            wchar_t* new_buffer = realloc(buffer, buffer_size * sizeof(wchar_t));
+            if (!new_buffer) {
+                fprintf(stderr, "FATAL: Failed to reallocate memory for error message.\n");
+                free(buffer);
+                free(token);
+                return NULL;
+            }
+            buffer = new_buffer;
+            // Try formatting again with the correct size
+            va_start(args, format); // Need to restart the va_list
+            needed = vswprintf(buffer, buffer_size, format, args);
+            va_end(args);
+            // If it still fails here, something is very wrong
+            if (needed < 0) {
+                 wcscpy(buffer, L"خطأ فادح في تنسيق رسالة الخطأ الداخلية."); // Final fallback
+                 needed = wcslen(buffer);
+            }
+        }
+    } else {
+         va_end(args_copy); // End the copied va_list if not used
+         va_end(args); // End the va_list used for formatting
+    }
+#endif
+
     token->type = BAA_TOKEN_ERROR;
-    token->lexeme = message; // Use the static message directly, DO NOT FREE LATER
-    token->length = wcslen(message);
+    // IMPORTANT: The caller of baa_free_token MUST now free this lexeme
+    token->lexeme = buffer;
+    token->length = wcslen(buffer); // Use actual length
     token->line = lexer->line;
     token->column = lexer->column; // Error occurs at current position
     return token;
@@ -173,9 +246,42 @@ static void skip_whitespace(BaaLexer *lexer)
             advance(lexer);
             break;
         case L'#':
-            // Skip single-line comments
+            // Skip single-line #-style comments
             while (peek(lexer) != L'\n' && !is_at_end(lexer))
                 advance(lexer);
+            break;
+        case L'/':
+            if (peek_next(lexer) == L'*') { // Start of /* comment */
+                advance(lexer); // Consume '/'
+                advance(lexer); // Consume '*'
+                while (!(peek(lexer) == L'*' && peek_next(lexer) == L'/') && !is_at_end(lexer)) {
+                    // Need to handle newline increments within the comment
+                    if (peek(lexer) == L'\n') {
+                        // advance() handles line increment and column reset
+                        advance(lexer);
+                    } else {
+                        advance(lexer);
+                    }
+                }
+                if (!is_at_end(lexer)) {
+                    advance(lexer); // Consume '*'
+                    advance(lexer); // Consume '/'
+                } else {
+                    // Reached EOF without closing comment - error?
+                    // The next call to baa_lexer_next_token will return EOF or an error
+                    // based on where the comment started relative to useful tokens.
+                    // For skip_whitespace, we just stop skipping.
+                    return;
+                }
+            } else if (peek_next(lexer) == L'/') { // Start of // comment
+                 // Skip // style comments
+                 while (peek(lexer) != L'\n' && !is_at_end(lexer))
+                     advance(lexer);
+                 // No need to consume newline here, outer loop handles it.
+            } else {
+                 // Just a slash, not a comment start
+                 return;
+            }
             break;
         default:
             return;
@@ -273,11 +379,13 @@ void baa_free_token(BaaToken *token)
 {
     if (token)
     {
-        // Only free lexeme if it was dynamically allocated (e.g., by make_token or scan_string)
-        // Error tokens might use static strings, so check token type.
-        if (token->type != BAA_TOKEN_ERROR && token->lexeme)
+        // Error tokens now have dynamically allocated messages, so always try to free lexeme.
+        // make_token also dynamically allocates lexeme.
+        if (token->lexeme)
         {
             // Cast needed because lexeme is const in the struct, but we allocated it.
+            // Note: For original static error messages, this would be wrong, but
+            // make_error_token now always allocates.
             free((wchar_t *)token->lexeme);
         }
         free(token);
@@ -381,6 +489,29 @@ static BaaToken *scan_number(BaaLexer *lexer)
     return make_token(lexer, is_float ? BAA_TOKEN_FLOAT_LIT : BAA_TOKEN_INT_LIT);
 }
 
+// Helper function to scan exactly 'length' hexadecimal digits
+// Returns the integer value, or -1 if not enough digits or invalid digits found.
+static int scan_hex_escape(BaaLexer* lexer, int length) {
+    int value = 0;
+    for (int i = 0; i < length; i++) {
+        if (is_at_end(lexer)) return -1; // EOF
+        wchar_t c = peek(lexer);
+        int digit;
+        if (c >= L'0' && c <= L'9') {
+            digit = c - L'0';
+        } else if (c >= L'a' && c <= L'f') {
+            digit = 10 + (c - L'a');
+        } else if (c >= L'A' && c <= L'F') {
+            digit = 10 + (c - L'A');
+        } else {
+            return -1; // Not a hex digit
+        }
+        value = (value * 16) + digit;
+        advance(lexer);
+    }
+    return value;
+}
+
 // Helper to add character to dynamic buffer, resizing if needed
 static void append_char_to_buffer(wchar_t **buffer, size_t *len, size_t *capacity, wchar_t c)
 {
@@ -415,7 +546,7 @@ static BaaToken *scan_string(BaaLexer *lexer)
     if (!buffer)
     {
         // Handle allocation failure
-        return make_error_token(lexer, L"Memory allocation failed for string buffer");
+        return make_error_token(lexer, L"فشل في تخصيص ذاكرة لسلسلة نصية (السطر %zu)", lexer->line);
     }
 
     // Store start location for error reporting if unterminated
@@ -446,20 +577,33 @@ static BaaToken *scan_string(BaaLexer *lexer)
             case L'"':
                 append_char_to_buffer(&buffer, &buffer_len, &buffer_cap, L'"');
                 break;
-            // TODO: Add more escape sequences (\r, \0, \xNN, \uNNNN) ?
-            // TODO: Handle invalid escape sequences - error or literal?
+            case L'r': // Carriage Return
+                append_char_to_buffer(&buffer, &buffer_len, &buffer_cap, L'\r');
+                break;
+            case L'0': // Null Character
+                append_char_to_buffer(&buffer, &buffer_len, &buffer_cap, L'\0');
+                break;
+            case L'u': { // Handle Unicode escape \uXXXX
+                int value = scan_hex_escape(lexer, 4);
+                if (value == -1) {
+                    free(buffer);
+                    // Note: Using start_line/start_col for location where string started
+                    return make_error_token(lexer, L"تسلسل هروب يونيكود غير صالح (\uXXXX) في السطر %zu، العمود %zu", start_line, start_col);
+                }
+                // TODO: Check if value is a valid Unicode code point if necessary?
+                append_char_to_buffer(&buffer, &buffer_len, &buffer_cap, (wchar_t)value);
+                break;
+            }
+            // TODO: Add more escape sequences (\r, \0, \xNN) ?
             default:
                 // Invalid escape sequence
-                // Report error? Or treat literally? Let's return an error token.
-                // Free the partially built buffer first.
                 free(buffer);
-                // TODO: Create a more specific error message if desired
-                return make_error_token(lexer, L"Invalid escape sequence");
+                return make_error_token(lexer, L"تسلسل هروب غير صالح '\%lc' في سلسلة نصية (السطر %zu)", escaped_char, start_line);
             }
             // Check if append_char_to_buffer failed due to realloc error
             if (buffer == NULL)
             {
-                return make_error_token(lexer, L"Memory reallocation failed for string buffer");
+                return make_error_token(lexer, L"فشل في إعادة تخصيص ذاكرة لسلسلة نصية (السطر %zu)", start_line);
             }
         }
         else
@@ -473,7 +617,8 @@ static BaaToken *scan_string(BaaLexer *lexer)
             // Check if append_char_to_buffer failed due to realloc error
             if (buffer == NULL)
             {
-                return make_error_token(lexer, L"Memory reallocation failed for string buffer");
+                // Note: Returning error here prevents using buffer later, which is good.
+                return make_error_token(lexer, L"فشل في إعادة تخصيص ذاكرة لسلسلة نصية (السطر %zu)", start_line);
             }
             advance(lexer);
         }
@@ -483,7 +628,7 @@ static BaaToken *scan_string(BaaLexer *lexer)
     {
         // Unterminated string error
         free(buffer); // Clean up allocated buffer
-        return make_error_token(lexer, L"Unterminated string literal");
+        return make_error_token(lexer, L"سلسلة نصية غير منتهية (بدأت في السطر %zu، العمود %zu)", start_line, start_col);
     }
 
     // Consume the closing quote
@@ -494,8 +639,8 @@ static BaaToken *scan_string(BaaLexer *lexer)
     // Check if append_char_to_buffer failed due to realloc error
     if (buffer == NULL)
     {
-        // Error already printed by helper, just return NULL or error token
-        return make_error_token(lexer, L"Memory reallocation failed during string termination");
+        // Buffer is already freed by the helper in case of error
+        return make_error_token(lexer, L"فشل في إعادة تخصيص الذاكرة عند إنهاء السلسلة النصية (بدأت في السطر %zu)", start_line);
     }
 
     // Create the token using the interpreted buffer content
@@ -532,7 +677,7 @@ static BaaToken *scan_char_literal(BaaLexer *lexer)
     if (is_at_end(lexer))
     {
         // EOF right after opening '
-        return make_error_token(lexer, L"Unterminated character literal");
+        return make_error_token(lexer, L"قيمة حرفية غير منتهية (EOF بعد \' )" );
     }
 
     // Handle escape sequences
@@ -543,7 +688,7 @@ static BaaToken *scan_char_literal(BaaLexer *lexer)
         if (is_at_end(lexer))
         {
             // EOF after '\'
-            return make_error_token(lexer, L"Unterminated escape sequence in character literal");
+            return make_error_token(lexer, L"تسلسل هروب غير منته في قيمة حرفية (EOF بعد \'\\')");
         }
         wchar_t escape = advance(lexer); // Consume character after '\'
         switch (escape)
@@ -560,18 +705,28 @@ static BaaToken *scan_char_literal(BaaLexer *lexer)
         case L'\'':
             value_char = L'\'';
             break; // Escape sequence for single quote
-        // case L'\"': value_char = L'\"'; break; // \" is valid in C char literals
+        case L'\"': // Escape sequence for double quote
+            value_char = L'\"';
+            break;
         case L'r':
             value_char = L'\r';
             break; // Carriage return
         case L'0':
             value_char = L'\0';
             break; // Null character
-        // TODO: Add hex (\xNN), octal (\OOO), unicode (\uNNNN) later if needed
+        case L'u': { // Handle Unicode escape \uXXXX
+            int value = scan_hex_escape(lexer, 4);
+            if (value == -1) {
+                 return make_error_token(lexer, L"تسلسل هروب يونيكود غير صالح (\uXXXX) في قيمة حرفية (السطر %zu)", lexer->line);
+            }
+            // TODO: Check if value is a valid Unicode code point if necessary?
+            // TODO: Ensure the resulting wchar_t fits if wchar_t is smaller than the code point range?
+            value_char = (wchar_t)value;
+            break;
+        }
+        // TODO: Add hex (\xNN), octal (\OOO) later if needed
         default:
-            // Treat unrecognized escape sequences as an error
-            // (Alternatively, could treat as literal backslash + char)
-            return make_error_token(lexer, L"Invalid escape sequence in character literal");
+            return make_error_token(lexer, L"تسلسل هروب غير صالح '\%lc' في قيمة حرفية", escape);
         }
     }
     else
@@ -584,12 +739,12 @@ static BaaToken *scan_char_literal(BaaLexer *lexer)
         {
             // Advance consumed the newline, adjust position info back potentially?
             // Error message is sufficient for now.
-            return make_error_token(lexer, L"Newline in character literal");
+            return make_error_token(lexer, L"سطر جديد غير مسموح به في قيمة حرفية");
         }
         // Disallow closing quote immediately (empty literal '')
         if (value_char == L'\'')
         {
-            return make_error_token(lexer, L"Empty character literal");
+            return make_error_token(lexer, L"قيمة حرفية فارغة ('')");
         }
     }
 
@@ -609,13 +764,13 @@ static BaaToken *scan_char_literal(BaaLexer *lexer)
         // For now, a simple error is okay.
         if (is_at_end(lexer))
         {
-            return make_error_token(lexer, L"Unterminated character literal (missing closing ')");
+            return make_error_token(lexer, L"قيمة حرفية غير منتهية (علامة اقتباس أحادية ' مفقودة)");
         }
         else
         {
             // Found something other than ' after the first char/escape
             // Advance to include the problematic char in the error reporting span? No, keep it simple.
-            return make_error_token(lexer, L"Invalid character literal (missing or misplaced closing '? Multi-character?)");
+            return make_error_token(lexer, L"قيمة حرفية غير صالحة (علامة اقتباس أحادية ' مفقودة أو في غير محلها؟ متعددة الأحرف؟)");
         }
     }
 }
@@ -702,31 +857,19 @@ BaaToken *baa_lexer_next_token(BaaLexer *lexer)
 
         // Added other operators like &&, || from header
     case L'&':
-        if (match(lexer, L'&'))
-        {
-            return make_token(lexer, BAA_TOKEN_AND);
+        if (!match(lexer, L'&')) {
+            return make_error_token(lexer, L"عامل غير صالح: علامة '&' مفردة (هل تقصد '&&'؟)");
         }
-        else
-        {
-            // Return an error for single '&' as it's likely a typo for '&&'
-            // Or, if single '&' becomes a valid operator later (e.g., bitwise AND), change this.
-            return make_error_token(lexer, L"Unexpected character '&'. Did you mean '&&'?");
-        }
+        return make_token(lexer, BAA_TOKEN_AND);
     case L'|':
-        if (match(lexer, L'|'))
-        {
-            return make_token(lexer, BAA_TOKEN_OR);
+        if (!match(lexer, L'|')) {
+            return make_error_token(lexer, L"عامل غير صالح: علامة '|' مفردة (هل تقصد '||'؟)");
         }
-        else
-        {
-            // Return an error for single '|' as it's likely a typo for '||'
-            // Or, if single '|' becomes a valid operator later (e.g., bitwise OR), change this.
-            return make_error_token(lexer, L"Unexpected character '|'. Did you mean '||'?");
-        }
+        return make_token(lexer, BAA_TOKEN_OR);
     }
 
     // If no case matched, it's an unexpected character
-    return make_error_token(lexer, L"Unexpected character.");
+    return make_error_token(lexer, L"حرف غير متوقع: '%lc'", c);
 }
 
 // Remove baa_lexer_had_error as errors are now handled via BAA_TOKEN_ERROR
