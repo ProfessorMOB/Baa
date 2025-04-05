@@ -248,7 +248,8 @@ static BaaToken *make_error_token(BaaLexer *lexer, const wchar_t *format, ...)
     return token;
 }
 
-static void skip_whitespace(BaaLexer *lexer)
+// Returns an error token if an unterminated /* comment is found, otherwise NULL.
+static BaaToken* skip_whitespace(BaaLexer *lexer)
 {
     for (;;)
     {
@@ -270,6 +271,8 @@ static void skip_whitespace(BaaLexer *lexer)
             break;
         case L'/':
             if (peek_next(lexer) == L'*') { // Start of /* comment */
+                size_t start_line = lexer->line;
+                size_t start_col = lexer->column;
                 advance(lexer); // Consume '/'
                 advance(lexer); // Consume '*'
                 while (!(peek(lexer) == L'*' && peek_next(lexer) == L'/') && !is_at_end(lexer)) {
@@ -285,11 +288,11 @@ static void skip_whitespace(BaaLexer *lexer)
                     advance(lexer); // Consume '*'
                     advance(lexer); // Consume '/'
                 } else {
-                    // Reached EOF without closing comment - error?
-                    // The next call to baa_lexer_next_token will return EOF or an error
-                    // based on where the comment started relative to useful tokens.
-                    // For skip_whitespace, we just stop skipping.
-                    return;
+                    // Reached EOF without closing comment - error!
+                    BaaToken* error_token = make_error_token(lexer, L"تعليق متعدد الأسطر غير منتهٍ (بدأ في السطر %zu، العمود %zu)",
+                                                             start_line, start_col);
+                    // No synchronization needed at EOF
+                    return error_token;
                 }
             } else if (peek_next(lexer) == L'/') { // Start of // comment
                  // Skip // style comments
@@ -298,11 +301,11 @@ static void skip_whitespace(BaaLexer *lexer)
                  // No need to consume newline here, outer loop handles it.
             } else {
                  // Just a slash, not a comment start
-                 return;
+                 return NULL; // Finished skipping whitespace/comments
             }
             break;
         default:
-            return;
+            return NULL; // Finished skipping whitespace/comments
         }
     }
 }
@@ -456,7 +459,9 @@ static BaaToken *scan_number(BaaLexer *lexer)
             number_start_index = lexer->current;
             // Must have at least one hex digit after 0x/0X
             if (!is_valid_digit(peek(lexer))) {
-                 return make_error_token(lexer, L"عدد سداسي عشر غير صالح: يجب أن يتبع البادئة 0x/0X رقم سداسي عشري واحد على الأقل (السطر %zu، العمود %zu)", lexer->line, lexer->column);
+                 BaaToken* error_token = make_error_token(lexer, L"عدد سداسي عشر غير صالح: يجب أن يتبع البادئة 0x/0X رقم سداسي عشري واحد على الأقل (السطر %zu، العمود %zu)", lexer->line, lexer->column);
+                 synchronize(lexer);
+                 return error_token;
             }
         }
         else if (next == L'b' || next == L'B')
@@ -468,7 +473,9 @@ static BaaToken *scan_number(BaaLexer *lexer)
             number_start_index = lexer->current;
             // Must have at least one binary digit after 0b/0B
              if (!is_valid_digit(peek(lexer))) {
-                 return make_error_token(lexer, L"عدد ثنائي غير صالح: يجب أن يتبع البادئة 0b/0B رقم ثنائي واحد على الأقل (السطر %zu، العمود %zu)", lexer->line, lexer->column);
+                 BaaToken* error_token = make_error_token(lexer, L"عدد ثنائي غير صالح: يجب أن يتبع البادئة 0b/0B رقم ثنائي واحد على الأقل (السطر %zu، العمود %zu)", lexer->line, lexer->column);
+                 synchronize(lexer);
+                 return error_token;
             }
         }
         // If just '0' followed by non-prefix char, it's treated as decimal 0
@@ -483,7 +490,9 @@ static BaaToken *scan_number(BaaLexer *lexer)
         {
             if (last_char_was_underscore || lexer->current == number_start_index) {
                 // Error: Consecutive underscores or underscore at the very start (after prefix)
-                return make_error_token(lexer, L"شرطة سفلية غير صالحة في العدد (السطر %zu، العمود %zu): لا يمكن أن تكون متتالية أو في بداية الرقم بعد البادئة.", lexer->line, lexer->column);
+                BaaToken* error_token = make_error_token(lexer, L"شرطة سفلية غير صالحة في العدد (السطر %zu، العمود %zu): لا يمكن أن تكون متتالية أو في بداية الرقم بعد البادئة.", lexer->line, lexer->column);
+                synchronize(lexer);
+                return error_token;
             }
             last_char_was_underscore = true;
         }
@@ -503,7 +512,9 @@ static BaaToken *scan_number(BaaLexer *lexer)
     // Error if number ends with an underscore
     if (last_char_was_underscore)
     {
-        return make_error_token(lexer, L"شرطة سفلية غير صالحة في العدد (السطر %zu، العمود %zu): لا يمكن أن تكون في نهاية الرقم.", lexer->line, lexer->column - 1); // Column of the underscore
+        BaaToken* error_token = make_error_token(lexer, L"شرطة سفلية غير صالحة في العدد (السطر %zu، العمود %zu): لا يمكن أن تكون في نهاية الرقم.", lexer->line, lexer->column - 1); // Column of the underscore
+        synchronize(lexer);
+        return error_token;
     }
 
     // 3. Check for fractional part (only for decimal numbers)
@@ -513,7 +524,9 @@ static BaaToken *scan_number(BaaLexer *lexer)
         wchar_t next_peek = peek_next(lexer);
         // Underscore not allowed immediately after dot
         if (next_peek == L'_') {
-            return make_error_token(lexer, L"شرطة سفلية غير صالحة في العدد (السطر %zu، العمود %zu): لا يمكن أن تتبع الفاصلة العشرية مباشرة.", lexer->line, lexer->column + 1);
+            BaaToken* error_token = make_error_token(lexer, L"شرطة سفلية غير صالحة في العدد (السطر %zu، العمود %zu): لا يمكن أن تتبع الفاصلة العشرية مباشرة.", lexer->line, lexer->column + 1);
+            synchronize(lexer);
+            return error_token;
         }
 
         // Check if there is a digit *after* the decimal point
@@ -529,7 +542,9 @@ static BaaToken *scan_number(BaaLexer *lexer)
                  if (peek(lexer) == L'_')
                  {
                      if (last_char_was_underscore) {
-                         return make_error_token(lexer, L"شرطة سفلية غير صالحة في العدد (السطر %zu، العمود %zu): لا يمكن أن تكون متتالية.", lexer->line, lexer->column);
+                         BaaToken* error_token = make_error_token(lexer, L"شرطة سفلية غير صالحة في العدد (السطر %zu، العمود %zu): لا يمكن أن تكون متتالية.", lexer->line, lexer->column);
+                         synchronize(lexer);
+                         return error_token;
                      }
                      // Also check if underscore is the very first char after the dot (already handled above)
                      last_char_was_underscore = true;
@@ -544,7 +559,9 @@ static BaaToken *scan_number(BaaLexer *lexer)
              // Error if fractional part ends with an underscore
             if (last_char_was_underscore)
             {
-                return make_error_token(lexer, L"شرطة سفلية غير صالحة في العدد (السطر %zu، العمود %zu): لا يمكن أن تكون في نهاية الجزء الكسري.", lexer->line, lexer->column - 1);
+                BaaToken* error_token = make_error_token(lexer, L"شرطة سفلية غير صالحة في العدد (السطر %zu، العمود %zu): لا يمكن أن تكون في نهاية الجزء الكسري.", lexer->line, lexer->column - 1);
+                synchronize(lexer);
+                return error_token;
             }
         }
         // If it's just a dot not followed by a digit, it might be the dot operator.
@@ -559,7 +576,9 @@ static BaaToken *scan_number(BaaLexer *lexer)
 
         // Underscore not allowed immediately after 'e'/'E'
         if (next_peek_exp == L'_') {
-             return make_error_token(lexer, L"شرطة سفلية غير صالحة في العدد (السطر %zu، العمود %zu): لا يمكن أن تتبع علامة الأس 'e'/'E' مباشرة.", lexer->line, lexer->column + 1);
+             BaaToken* error_token = make_error_token(lexer, L"شرطة سفلية غير صالحة في العدد (السطر %zu، العمود %zu): لا يمكن أن تتبع علامة الأس 'e'/'E' مباشرة.", lexer->line, lexer->column + 1);
+             synchronize(lexer);
+             return error_token;
         }
 
         // Check if there's something valid after 'e'/'E' (digit or sign+digit)
@@ -570,7 +589,9 @@ static BaaToken *scan_number(BaaLexer *lexer)
             wchar_t after_sign_peek = lexer->source[lexer->current + 2]; // Peek two ahead
             // Underscore not allowed immediately after sign in exponent
             if (after_sign_peek == L'_') {
-                 return make_error_token(lexer, L"شرطة سفلية غير صالحة في العدد (السطر %zu، العمود %zu): لا يمكن أن تتبع علامة الأس (+/-) مباشرة.", lexer->line, lexer->column + 2);
+                 BaaToken* error_token = make_error_token(lexer, L"شرطة سفلية غير صالحة في العدد (السطر %zu، العمود %zu): لا يمكن أن تتبع علامة الأس (+/-) مباشرة.", lexer->line, lexer->column + 2);
+                 synchronize(lexer);
+                 return error_token;
             }
             if (is_baa_digit(after_sign_peek)) {
                  has_exponent_part = true;
@@ -597,7 +618,9 @@ static BaaToken *scan_number(BaaLexer *lexer)
                  // The lexer should have already decided based on has_exponent_part.
                  // If we reach here, it implies a logic error above or unexpected input.
                  // For safety, treat as error, though ideally unreachable.
-                  return make_error_token(lexer, L"تنسيق أس غير صالح بعد 'e' أو 'E' (السطر %zu، العمود %zu)", lexer->line, lexer->column);
+                  BaaToken* error_token = make_error_token(lexer, L"تنسيق أس غير صالح بعد 'e' أو 'E' (السطر %zu، العمود %zu)", lexer->line, lexer->column);
+                  synchronize(lexer);
+                  return error_token;
             }
 
             last_char_was_underscore = false; // Reset for exponent part
@@ -606,7 +629,9 @@ static BaaToken *scan_number(BaaLexer *lexer)
                  if (peek(lexer) == L'_')
                  {
                       if (last_char_was_underscore) {
-                         return make_error_token(lexer, L"شرطة سفلية غير صالحة في العدد (السطر %zu، العمود %zu): لا يمكن أن تكون متتالية في الأس.", lexer->line, lexer->column);
+                         BaaToken* error_token = make_error_token(lexer, L"شرطة سفلية غير صالحة في العدد (السطر %zu، العمود %zu): لا يمكن أن تكون متتالية في الأس.", lexer->line, lexer->column);
+                         synchronize(lexer);
+                         return error_token;
                      }
                      // Check if underscore is first char after e/E or sign (already handled above)
                      last_char_was_underscore = true;
@@ -621,7 +646,9 @@ static BaaToken *scan_number(BaaLexer *lexer)
              // Error if exponent part ends with an underscore
             if (last_char_was_underscore)
             {
-                return make_error_token(lexer, L"شرطة سفلية غير صالحة في العدد (السطر %zu، العمود %zu): لا يمكن أن تكون في نهاية الأس.", lexer->line, lexer->column - 1);
+                BaaToken* error_token = make_error_token(lexer, L"شرطة سفلية غير صالحة في العدد (السطر %zu، العمود %zu): لا يمكن أن تكون في نهاية الأس.", lexer->line, lexer->column - 1);
+                synchronize(lexer);
+                return error_token;
             }
         }
         // If 'e'/'E' is not followed by a valid exponent part, treat 'e'/'E' as separate char (likely identifier)
@@ -631,7 +658,9 @@ static BaaToken *scan_number(BaaLexer *lexer)
     // Hex and binary literals cannot be floats
     if (base_prefix != 0 && is_float) {
          // This state should not be reachable due to checks above, but include for safety.
-         return make_error_token(lexer, L"الأعداد السداسية عشرية والثنائية لا يمكن أن تكون أعدادًا حقيقية (لا يمكن أن تحتوي على '.' أو 'e') (السطر %zu، العمود %zu)", lexer->line, number_start_index);
+         BaaToken* error_token = make_error_token(lexer, L"الأعداد السداسية عشرية والثنائية لا يمكن أن تكون أعدادًا حقيقية (لا يمكن أن تحتوي على '.' أو 'e') (السطر %zu، العمود %zu)", lexer->line, number_start_index);
+         synchronize(lexer);
+         return error_token;
     }
 
     return make_token(lexer, is_float ? BAA_TOKEN_FLOAT_LIT : BAA_TOKEN_INT_LIT);
@@ -694,6 +723,7 @@ static BaaToken *scan_string(BaaLexer *lexer)
     if (!buffer)
     {
         // Handle allocation failure
+        // No buffer to free, no synchronization needed as it's a fatal allocation error
         return make_error_token(lexer, L"فشل في تخصيص ذاكرة لسلسلة نصية (السطر %zu)", lexer->line);
     }
 
@@ -736,7 +766,9 @@ static BaaToken *scan_string(BaaLexer *lexer)
                 if (value == -1) {
                     free(buffer);
                     // Note: Using start_line/start_col for location where string started
-                    return make_error_token(lexer, L"تسلسل هروب يونيكود غير صالح (\uXXXX) في السطر %zu، العمود %zu", start_line, start_col);
+                    BaaToken* error_token = make_error_token(lexer, L"تسلسل هروب يونيكود غير صالح (\uXXXX) في السطر %zu، العمود %zu", start_line, start_col);
+                    synchronize(lexer);
+                    return error_token;
                 }
                 // TODO: Check if value is a valid Unicode code point if necessary?
                 append_char_to_buffer(&buffer, &buffer_len, &buffer_cap, (wchar_t)value);
@@ -746,11 +778,15 @@ static BaaToken *scan_string(BaaLexer *lexer)
             default:
                 // Invalid escape sequence
                 free(buffer);
-                return make_error_token(lexer, L"تسلسل هروب غير صالح '\%lc' في سلسلة نصية (السطر %zu)", escaped_char, start_line);
+                BaaToken* error_token = make_error_token(lexer, L"تسلسل هروب غير صالح '\%lc' في سلسلة نصية (السطر %zu)", escaped_char, start_line);
+                synchronize(lexer);
+                return error_token;
             }
             // Check if append_char_to_buffer failed due to realloc error
             if (buffer == NULL)
             {
+                // Buffer already freed by helper
+                // Fatal allocation error, no sync needed
                 return make_error_token(lexer, L"فشل في إعادة تخصيص ذاكرة لسلسلة نصية (السطر %zu)", start_line);
             }
         }
@@ -766,6 +802,8 @@ static BaaToken *scan_string(BaaLexer *lexer)
             if (buffer == NULL)
             {
                 // Note: Returning error here prevents using buffer later, which is good.
+                // Buffer already freed by helper
+                // Fatal allocation error, no sync needed
                 return make_error_token(lexer, L"فشل في إعادة تخصيص ذاكرة لسلسلة نصية (السطر %zu)", start_line);
             }
             advance(lexer);
@@ -776,7 +814,12 @@ static BaaToken *scan_string(BaaLexer *lexer)
     {
         // Unterminated string error
         free(buffer); // Clean up allocated buffer
-        return make_error_token(lexer, L"سلسلة نصية غير منتهية (بدأت في السطر %zu، العمود %zu)", start_line, start_col);
+        BaaToken* error_token = make_error_token(lexer, L"سلسلة نصية غير منتهية (بدأت في السطر %zu، العمود %zu)", start_line, start_col);
+        // Sync not needed if EOF caused the termination error
+        if (!is_at_end(lexer)) {
+             synchronize(lexer);
+        }
+        return error_token;
     }
 
     // Consume the closing quote
@@ -788,6 +831,7 @@ static BaaToken *scan_string(BaaLexer *lexer)
     if (buffer == NULL)
     {
         // Buffer is already freed by the helper in case of error
+        // Fatal allocation error, no sync needed
         return make_error_token(lexer, L"فشل في إعادة تخصيص الذاكرة عند إنهاء السلسلة النصية (بدأت في السطر %zu)", start_line);
     }
 
@@ -797,6 +841,7 @@ static BaaToken *scan_string(BaaLexer *lexer)
     {
         fprintf(stderr, "FATAL: Failed to allocate memory for string token.\n");
         free(buffer); // Free the interpreted string buffer
+        // Fatal allocation error, no sync needed
         return NULL;
     }
 
@@ -817,7 +862,13 @@ static BaaToken *scan_string(BaaLexer *lexer)
  */
 static BaaToken *scan_char_literal(BaaLexer *lexer)
 {
-    // lexer->start points to the opening quote (')
+    // lexer->start points to the character *after* the opening quote (')
+    // Store starting location for better error messages
+    size_t start_line = lexer->line;
+    // Column needs care: advance() consumed the opening ', so current column is start+1
+    // However, make_error_token uses current lexer line/col for error location.
+    // We want to report *where the literal started* in the message itself.
+    size_t start_col = lexer->column -1; // Column where the opening ' was
 
     wchar_t value_char; // To hold the interpreted value (though not stored in token directly here)
     bool had_escape = false;
@@ -825,7 +876,9 @@ static BaaToken *scan_char_literal(BaaLexer *lexer)
     if (is_at_end(lexer))
     {
         // EOF right after opening '
-        return make_error_token(lexer, L"قيمة حرفية غير منتهية (EOF بعد \' )" );
+        BaaToken* error_token = make_error_token(lexer, L"قيمة حرفية غير منتهية (EOF بعد \' )" );
+        // No sync needed at EOF
+        return error_token;
     }
 
     // Handle escape sequences
@@ -836,7 +889,9 @@ static BaaToken *scan_char_literal(BaaLexer *lexer)
         if (is_at_end(lexer))
         {
             // EOF after '\'
-            return make_error_token(lexer, L"تسلسل هروب غير منته في قيمة حرفية (EOF بعد \'\\')");
+            BaaToken* error_token = make_error_token(lexer, L"تسلسل هروب غير منته في قيمة حرفية (EOF بعد '\' في السطر %zu، العمود %zu)", start_line, start_col);
+             // No sync needed at EOF
+            return error_token;
         }
         wchar_t escape = advance(lexer); // Consume character after '\'
         switch (escape)
@@ -865,7 +920,9 @@ static BaaToken *scan_char_literal(BaaLexer *lexer)
         case L'u': { // Handle Unicode escape \uXXXX
             int value = scan_hex_escape(lexer, 4);
             if (value == -1) {
-                 return make_error_token(lexer, L"تسلسل هروب يونيكود غير صالح (\uXXXX) في قيمة حرفية (السطر %zu)", lexer->line);
+                 BaaToken* error_token = make_error_token(lexer, L"تسلسل هروب يونيكود غير صالح (\uXXXX) في قيمة حرفية (بدأت في السطر %zu، العمود %zu)", start_line, start_col);
+                 synchronize(lexer);
+                 return error_token;
             }
             // TODO: Check if value is a valid Unicode code point if necessary?
             // TODO: Ensure the resulting wchar_t fits if wchar_t is smaller than the code point range?
@@ -874,7 +931,9 @@ static BaaToken *scan_char_literal(BaaLexer *lexer)
         }
         // TODO: Add hex (\xNN), octal (\OOO) later if needed
         default:
-            return make_error_token(lexer, L"تسلسل هروب غير صالح '\%lc' في قيمة حرفية", escape);
+            BaaToken* error_token = make_error_token(lexer, L"تسلسل هروب غير صالح '\%lc' في قيمة حرفية (بدأت في السطر %zu، العمود %zu)", escape, start_line, start_col);
+            synchronize(lexer);
+            return error_token;
         }
     }
     else
@@ -885,14 +944,16 @@ static BaaToken *scan_char_literal(BaaLexer *lexer)
         // Disallow newline directly within char literal (must use \n)
         if (value_char == L'\n')
         {
-            // Advance consumed the newline, adjust position info back potentially?
-            // Error message is sufficient for now.
-            return make_error_token(lexer, L"سطر جديد غير مسموح به في قيمة حرفية");
+            BaaToken* error_token = make_error_token(lexer, L"سطر جديد غير مسموح به في قيمة حرفية (بدأت في السطر %zu، العمود %zu)", start_line, start_col);
+            synchronize(lexer);
+            return error_token;
         }
         // Disallow closing quote immediately (empty literal '')
         if (value_char == L'\'')
         {
-            return make_error_token(lexer, L"قيمة حرفية فارغة ('')");
+            BaaToken* error_token = make_error_token(lexer, L"قيمة حرفية فارغة ('') (بدأت في السطر %zu، العمود %zu)", start_line, start_col);
+            synchronize(lexer);
+            return error_token;
         }
     }
 
@@ -912,21 +973,83 @@ static BaaToken *scan_char_literal(BaaLexer *lexer)
         // For now, a simple error is okay.
         if (is_at_end(lexer))
         {
-            return make_error_token(lexer, L"قيمة حرفية غير منتهية (علامة اقتباس أحادية ' مفقودة)");
+            BaaToken* error_token = make_error_token(lexer, L"قيمة حرفية غير منتهية (علامة اقتباس أحادية ' مفقودة، بدأت في السطر %zu، العمود %zu)", start_line, start_col);
+             // No sync needed at EOF
+            return error_token;
         }
         else
         {
             // Found something other than ' after the first char/escape
-            // Advance to include the problematic char in the error reporting span? No, keep it simple.
-            return make_error_token(lexer, L"قيمة حرفية غير صالحة (علامة اقتباس أحادية ' مفقودة أو في غير محلها؟ متعددة الأحرف؟)");
+            BaaToken* error_token = make_error_token(lexer, L"قيمة حرفية غير صالحة (متعددة الأحرف أو علامة اقتباس مفقودة؟ بدأت في السطر %zu، العمود %zu)", start_line, start_col);
+            synchronize(lexer);
+            return error_token;
         }
+    }
+}
+
+// Attempts to discard characters until it finds a likely synchronization point.
+static void synchronize(BaaLexer *lexer)
+{
+    while (!is_at_end(lexer))
+    {
+        // 1. Check for end of the previous token/statement boundary.
+        //    The dot '.' is our statement terminator.
+        //    If we just consumed a dot before entering synchronize, we are likely good.
+        //    However, the error might have happened *before* the dot.
+        //    Let's advance past the current error character first.
+        //    No, the error token was generated, advance() happened before that.
+        //    So, peek() looks at the char *after* the error location.
+
+        // If the *previous* character was a statement terminator, we are likely synchronized.
+        // Need to check lexer->source[lexer->current - 1], handle boundary conditions.
+        // Simpler: just advance until a good starting point is found.
+        // Stop if we hit a statement terminator (dot).
+        if (peek(lexer) == L'.') {
+            advance(lexer); // Consume the dot
+            return;         // Likely end of statement, good sync point
+        }
+
+        // Stop synchronization if the *next* token looks like it could start a new statement/declaration.
+        // Keywords are good indicators.
+        switch (peek(lexer))
+        {
+            // Keywords often start new declarations/statements
+            case L'د': // دالة (func)
+            case L'إ': // إرجع (return), إذا (if), إلا (else)
+            case L'ط': // طالما (while)
+            case L'ل': // لأجل (for)
+            case L'ا': // افعل (do), اختر (switch)
+            case L'ح': // حالة (case)
+            case L'ت': // توقف (break)
+            case L'س': // استمر (continue)
+            case L'م': // متغير (var)
+            case L'ث': // ثابت (const)
+            case L'#': // Preprocessor directive (future)
+            // Delimiters that often start compound statements or expressions
+            case L'{':
+            case L'(':
+                return; // Don't consume the start of the next likely token
+
+            // Consider newline as a weak synchronization point - often separates things
+            // but doesn't guarantee recovery. Let's advance past it.
+            case L'\n':
+                 advance(lexer); // Consume newline and continue synchronizing
+                 break; // Continue the while loop
+        }
+
+        // Otherwise, consume the current character and continue scanning.
+        advance(lexer);
     }
 }
 
 // Corresponds to baa_lexer_next_token in header
 BaaToken *baa_lexer_next_token(BaaLexer *lexer)
 {
-    skip_whitespace(lexer);
+    // Skip whitespace and check for errors (like unterminated comments)
+    BaaToken* whitespace_error = skip_whitespace(lexer);
+    if (whitespace_error != NULL) {
+        return whitespace_error;
+    }
 
     lexer->start = lexer->current; // Set start for every token attempt
 
@@ -1006,18 +1129,27 @@ BaaToken *baa_lexer_next_token(BaaLexer *lexer)
         // Added other operators like &&, || from header
     case L'&':
         if (!match(lexer, L'&')) {
-            return make_error_token(lexer, L"عامل غير صالح: علامة '&' مفردة (هل تقصد '&&'؟)");
+            BaaToken* error_token = make_error_token(lexer, L"عامل غير صالح: علامة '&' مفردة (هل تقصد '&&'؟)");
+            synchronize(lexer);
+            return error_token;
         }
         return make_token(lexer, BAA_TOKEN_AND);
     case L'|':
         if (!match(lexer, L'|')) {
-            return make_error_token(lexer, L"عامل غير صالح: علامة '|' مفردة (هل تقصد '||'؟)");
+            BaaToken* error_token = make_error_token(lexer, L"عامل غير صالح: علامة '|' مفردة (هل تقصد '||'؟)");
+            synchronize(lexer);
+            return error_token;
         }
         return make_token(lexer, BAA_TOKEN_OR);
     }
 
     // If no case matched, it's an unexpected character
-    return make_error_token(lexer, L"حرف غير متوقع: '%lc'", c);
+    // Provide the character in the error message.
+    // Note: The character 'c' was already consumed by advance() before the switch.
+    BaaToken* error_token = make_error_token(lexer, L"حرف غير متوقع: '%lc' (الكود: %u) في السطر %zu، العمود %zu",
+                                           c, (unsigned int)c, lexer->line, lexer->column);
+    synchronize(lexer);
+    return error_token;
 }
 
 // Remove baa_lexer_had_error as errors are now handled via BAA_TOKEN_ERROR
