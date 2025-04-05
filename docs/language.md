@@ -6,16 +6,20 @@
 
 *(Note: See subsequent sections for detailed definitions)*
 
-### 1.1 Imports
+### 1.1 Preprocessor Directives
 
-Imports use the `#تضمين` directive:
+Baa supports a preprocessor step that handles directives starting with `#` before lexical analysis.
+
+*   **Include:** `#تضمين` is used to include the content of other files. - *[Implemented]*
+    *   `#تضمين "مسار/ملف/نسبي.ب"` : Includes a file relative to the current file's path.
+    *   `#تضمين <مكتبة_قياسية>` : Includes a file found in standard library include paths.
 
 ```baa
-#تضمين <مكتبة_طباعة>.
-#تضمين "ملف_محلي.ب".
+#تضمين "my_definitions.b" // Include a local file
+#تضمين <standard_io>      // Include a standard library
 ```
-
-*([Status: Partial] - Basic import parsed directly. Full preprocessing planned).*
+*   **Macros:** `#تعريف` - *[Planned]*
+*   **Conditional Compilation:** `#إذا_عرف`, `#إلا`, `#انتهى_إذا` - *[Planned]*
 
 ### 1.2 Statement Termination
 
@@ -94,7 +98,7 @@ Control structures use Arabic keywords and dot termination.
 
 ## 2. Lexical Structure
 
-This section describes the low-level building blocks of Baa programs. Baa source files are expected to be encoded in **UTF-16LE**.
+This section describes the low-level building blocks of Baa programs **after** preprocessing. Baa source files are expected to be encoded in **UTF-16LE**.
 
 ### 2.1 Comments
 
@@ -103,6 +107,7 @@ Baa supports standard C/C++ style comments:
 *   **Single-line:** Begins with `//` and continues to the end of the line. - *[Implemented]*
 *   **Multi-line:** Begins with `/*` and ends with `*/`. These comments can span multiple lines. - *[Implemented]*
 *   **Legacy `#` Comments:** Lines starting with `#` are also skipped like single-line comments. *[Note: This style might be deprecated in favour of standard `//`]* - *[Implemented]*
+*   **Preprocessor Directives:** Lines starting with `#` are handled entirely by the preprocessor and are typically removed before the lexer sees the code (except in certain cases like conditional compilation). - *[Implemented for `#تضمين`]*
 
 ```baa
 // هذا تعليق سطر واحد.
