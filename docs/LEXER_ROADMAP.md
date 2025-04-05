@@ -116,6 +116,7 @@ This roadmap outlines the planned improvements and current status of the Baa lan
 2. **Add Preprocessing Directives:** *[Next]*
     - File inclusion (`#تضمين` or similar).
     - Conditional compilation (`#إذا_عرف`, etc.).
+    - Macros (`#تعريف`).
 3. **Testing:**
     - Develop comprehensive unit tests for lexer functionality.
     - Add integration tests with the parser.
