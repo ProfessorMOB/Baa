@@ -156,14 +156,15 @@ Literals represent fixed values in the source code.
 *   **Integer Literals (`عدد_صحيح`):** Represent whole numbers.
     *   Decimal: `123`, `0`, `456` - *[Implemented]*
     *   Arabic-Indic Decimal: `١٢٣`, `٠`, `٤٥٦` - *[Implemented]*
-    *   Hexadecimal (prefix `0x` or `0X`): `0xFF`, `0x1a` - *[Implemented in `number_parser`]*
-    *   Binary (prefix `0b` or `0B`): `0b1010`, `0B11` - *[Implemented in `number_parser`]*
-    *   Underscores for readability (`1_000_000`, `0xAB_CD`) - *[In Progress]*
+    *   Hexadecimal (prefix `0x` or `0X`): `0xFF`, `0x1a` - *[Implemented in `number_parser`, lexer recognizes prefix]*
+    *   Binary (prefix `0b` or `0B`): `0b1010`, `0B11` - *[Implemented in `number_parser`, lexer recognizes prefix]*
+    *   Underscores for readability (`1_000_000`, `0xAB_CD`, `0b10_10`) - *[Implemented]*
 *   **Floating-Point Literals (`عدد_حقيقي`):** Represent numbers with a fractional part.
     *   Decimal: `12.34`, `0.5`, `10.` - *[Implemented in `number_parser`]*
     *   Arabic Decimal Separator (`٫`, U+066B): `١٢٫٣٤` - *[Implemented in `number_parser`]*
     *   Scientific Notation (`e` or `E`): `1.23e4`, `5E-2` - *[Implemented in `number_parser`]*
-    *   *Note:* Lexer currently produces `BAA_TOKEN_INT_LIT`; distinction happens later or needs lexer enhancement.
+    *   Underscores for readability (e.g., `1_234.56_78`, `1.2e+1_0`) - *[Implemented]*
+    *   *Note:* Lexer produces `BAA_TOKEN_FLOAT_LIT`; detailed parsing happens later.
 *   **Boolean Literals (`منطقي`):**
     *   `صحيح` (true) - *[Implemented]*
     *   `خطأ` (false) - *[Implemented]*
@@ -484,3 +485,6 @@ my_module.ب
 *   Use clear and descriptive names in Arabic or English.
 *   Follow consistent casing (e.g., `snake_case` or `camelCase`).
 *   Avoid overly short or ambiguous names.
+
+```
+```

@@ -54,6 +54,24 @@ static bool is_arabic_digit(wchar_t c)
     return (c >= 0x0660 && c <= 0x0669); // Arabic-Indic digits
 }
 
+// Helper to check if a character is a valid digit (ASCII or Arabic-Indic)
+static inline bool is_baa_digit(wchar_t c)
+{
+    return iswdigit(c) || is_arabic_digit(c);
+}
+
+// Helper to check if a character is a valid binary digit ('0' or '1')
+static inline bool is_baa_bin_digit(wchar_t c)
+{
+    return c == L'0' || c == L'1';
+}
+
+// Helper to check if a character is a valid hexadecimal digit (0-9, a-f, A-F)
+static inline bool is_baa_hex_digit(wchar_t c)
+{
+    return (c >= L'0' && c <= L'9') || (c >= L'a' && c <= L'f') || (c >= L'A' && c <= L'F');
+}
+
 static bool is_arabic_punctuation(wchar_t c)
 {
     return (c == 0x060C) || // Arabic comma
@@ -421,44 +439,143 @@ static BaaToken *scan_number(BaaLexer *lexer)
 {
     // lexer->start is already set
     bool is_float = false;
+    wchar_t base_prefix = 0; // 0 for decimal, 'b' for binary, 'x' for hex
+    bool (*is_valid_digit)(wchar_t) = is_baa_digit; // Default to decimal/arabic
+    size_t number_start_index = lexer->current; // Where digits actually start
 
-    // Scan initial digits
-    while (iswdigit(peek(lexer)) || is_arabic_digit(peek(lexer)))
+    // 1. Check for base prefixes (0x, 0b)
+    if (peek(lexer) == L'0')
     {
+        wchar_t next = peek_next(lexer);
+        if (next == L'x' || next == L'X')
+        {
+            base_prefix = 'x';
+            is_valid_digit = is_baa_hex_digit;
+            advance(lexer); // Consume '0'
+            advance(lexer); // Consume 'x' or 'X'
+            number_start_index = lexer->current;
+            // Must have at least one hex digit after 0x/0X
+            if (!is_valid_digit(peek(lexer))) {
+                 return make_error_token(lexer, L"عدد سداسي عشر غير صالح: يجب أن يتبع البادئة 0x/0X رقم سداسي عشري واحد على الأقل (السطر %zu، العمود %zu)", lexer->line, lexer->column);
+            }
+        }
+        else if (next == L'b' || next == L'B')
+        {
+            base_prefix = 'b';
+            is_valid_digit = is_baa_bin_digit;
+            advance(lexer); // Consume '0'
+            advance(lexer); // Consume 'b' or 'B'
+            number_start_index = lexer->current;
+            // Must have at least one binary digit after 0b/0B
+             if (!is_valid_digit(peek(lexer))) {
+                 return make_error_token(lexer, L"عدد ثنائي غير صالح: يجب أن يتبع البادئة 0b/0B رقم ثنائي واحد على الأقل (السطر %zu، العمود %zu)", lexer->line, lexer->column);
+            }
+        }
+        // If just '0' followed by non-prefix char, it's treated as decimal 0
+        // (No octal support currently)
+    }
+
+    // 2. Scan the main part of the number (integer part before dot/exponent)
+    bool last_char_was_underscore = false;
+    while (is_valid_digit(peek(lexer)) || peek(lexer) == L'_')
+    {
+        if (peek(lexer) == L'_')
+        {
+            if (last_char_was_underscore || lexer->current == number_start_index) {
+                // Error: Consecutive underscores or underscore at the very start (after prefix)
+                return make_error_token(lexer, L"شرطة سفلية غير صالحة في العدد (السطر %zu، العمود %zu): لا يمكن أن تكون متتالية أو في بداية الرقم بعد البادئة.", lexer->line, lexer->column);
+            }
+            last_char_was_underscore = true;
+        }
+        else
+        {
+            // Must be a valid digit for the current base
+             if (!is_valid_digit(peek(lexer))) {
+                // This case should technically not be hit if the base is hex/binary due to the loop condition,
+                // but kept for robustness / if base is decimal.
+                 break; // Exit loop if it's not a digit or underscore
+             }
+            last_char_was_underscore = false;
+        }
         advance(lexer);
     }
 
-    // Check for fractional part (decimal point)
-    // Requires a digit *after* the decimal point for it to be considered part of the float literal
-    wchar_t current_peek = peek(lexer);
-    wchar_t next_peek = peek_next(lexer);
-    if ((current_peek == L'.' || current_peek == 0x066B /* Arabic Decimal Separator */) &&
-        (iswdigit(next_peek) || is_arabic_digit(next_peek)))
+    // Error if number ends with an underscore
+    if (last_char_was_underscore)
     {
-        is_float = true;
-        advance(lexer); // Consume the decimal point '.' or '٫'
-
-        // Consume digits after decimal point
-        while (iswdigit(peek(lexer)) || is_arabic_digit(peek(lexer)))
-        {
-            advance(lexer);
-        }
+        return make_error_token(lexer, L"شرطة سفلية غير صالحة في العدد (السطر %zu، العمود %zu): لا يمكن أن تكون في نهاية الرقم.", lexer->line, lexer->column - 1); // Column of the underscore
     }
 
-    // Check for exponent part ('e' or 'E')
-    current_peek = peek(lexer); // Re-peek after potentially consuming fractional part
-    if (current_peek == L'e' || current_peek == L'E')
+    // 3. Check for fractional part (only for decimal numbers)
+    wchar_t current_peek = peek(lexer);
+    if (base_prefix == 0 && (current_peek == L'.' || current_peek == 0x066B /* Arabic Decimal Separator */))
     {
-        // Check if there's something after 'e'/'E' (digit or sign+digit)
-        next_peek = peek_next(lexer);
+        wchar_t next_peek = peek_next(lexer);
+        // Underscore not allowed immediately after dot
+        if (next_peek == L'_') {
+            return make_error_token(lexer, L"شرطة سفلية غير صالحة في العدد (السطر %zu، العمود %zu): لا يمكن أن تتبع الفاصلة العشرية مباشرة.", lexer->line, lexer->column + 1);
+        }
+
+        // Check if there is a digit *after* the decimal point
+        if (is_baa_digit(next_peek))
+        {
+            is_float = true;
+            advance(lexer); // Consume the decimal point '.' or '٫'
+            last_char_was_underscore = false; // Reset for fractional part
+
+            // Consume digits after decimal point, allowing underscores
+            while (is_baa_digit(peek(lexer)) || peek(lexer) == L'_')
+            {
+                 if (peek(lexer) == L'_')
+                 {
+                     if (last_char_was_underscore) {
+                         return make_error_token(lexer, L"شرطة سفلية غير صالحة في العدد (السطر %zu، العمود %zu): لا يمكن أن تكون متتالية.", lexer->line, lexer->column);
+                     }
+                     // Also check if underscore is the very first char after the dot (already handled above)
+                     last_char_was_underscore = true;
+                 }
+                 else
+                 {
+                     if (!is_baa_digit(peek(lexer))) break; // Should only be digits here
+                     last_char_was_underscore = false;
+                 }
+                advance(lexer);
+            }
+             // Error if fractional part ends with an underscore
+            if (last_char_was_underscore)
+            {
+                return make_error_token(lexer, L"شرطة سفلية غير صالحة في العدد (السطر %zu، العمود %zu): لا يمكن أن تكون في نهاية الجزء الكسري.", lexer->line, lexer->column - 1);
+            }
+        }
+        // If it's just a dot not followed by a digit, it might be the dot operator.
+        // The lexer doesn't consume the dot here, letting the main loop handle it.
+    }
+
+    // 4. Check for exponent part (only for decimal numbers, can follow integer or float part)
+    current_peek = peek(lexer); // Re-peek after potentially consuming fractional part
+    if (base_prefix == 0 && (current_peek == L'e' || current_peek == L'E'))
+    {
+        wchar_t next_peek_exp = peek_next(lexer);
+
+        // Underscore not allowed immediately after 'e'/'E'
+        if (next_peek_exp == L'_') {
+             return make_error_token(lexer, L"شرطة سفلية غير صالحة في العدد (السطر %zu، العمود %zu): لا يمكن أن تتبع علامة الأس 'e'/'E' مباشرة.", lexer->line, lexer->column + 1);
+        }
+
+        // Check if there's something valid after 'e'/'E' (digit or sign+digit)
         bool has_exponent_part = false;
-        if (next_peek == L'+' || next_peek == L'-') {
-            // Check for digit after the sign
+        int sign_offset = 0;
+        if (next_peek_exp == L'+' || next_peek_exp == L'-') {
+            sign_offset = 1;
             wchar_t after_sign_peek = lexer->source[lexer->current + 2]; // Peek two ahead
-             if (iswdigit(after_sign_peek) || is_arabic_digit(after_sign_peek)) {
+            // Underscore not allowed immediately after sign in exponent
+            if (after_sign_peek == L'_') {
+                 return make_error_token(lexer, L"شرطة سفلية غير صالحة في العدد (السطر %zu، العمود %zu): لا يمكن أن تتبع علامة الأس (+/-) مباشرة.", lexer->line, lexer->column + 2);
+            }
+            if (is_baa_digit(after_sign_peek)) {
                  has_exponent_part = true;
-             }
-        } else if (iswdigit(next_peek) || is_arabic_digit(next_peek)) {
+            }
+        } else if (is_baa_digit(next_peek_exp)) {
             has_exponent_part = true;
         }
 
@@ -467,23 +584,54 @@ static BaaToken *scan_number(BaaLexer *lexer)
             advance(lexer); // Consume 'e' or 'E'
 
             // Consume optional sign
-            if (peek(lexer) == L'+' || peek(lexer) == L'-')
+            if (sign_offset == 1)
             {
-                advance(lexer);
+                advance(lexer); // Consume '+' or '-'
             }
 
-            // Consume exponent digits
-            // Need at least one digit after 'e'/'E' or sign
-            if (!(iswdigit(peek(lexer)) || is_arabic_digit(peek(lexer)))) {
-                 // This indicates an invalid format like "1e" or "1e+", but we've already decided it's a float pattern.
-                 // The detailed number parser should handle this error later.
-                 // For the lexer's purpose, the 'e'/'E' marks it as float-like.
+            // Consume exponent digits, allowing underscores
+            // Must have at least one digit after 'e'/'E' or sign
+            if (!is_baa_digit(peek(lexer))) {
+                 // Should have been caught by has_exponent_part logic, but belt-and-suspenders
+                 // This indicates an invalid format like "1e" or "1e+".
+                 // The lexer should have already decided based on has_exponent_part.
+                 // If we reach here, it implies a logic error above or unexpected input.
+                 // For safety, treat as error, though ideally unreachable.
+                  return make_error_token(lexer, L"تنسيق أس غير صالح بعد 'e' أو 'E' (السطر %zu، العمود %zu)", lexer->line, lexer->column);
             }
-            while (iswdigit(peek(lexer)) || is_arabic_digit(peek(lexer)))
+
+            last_char_was_underscore = false; // Reset for exponent part
+            while (is_baa_digit(peek(lexer)) || peek(lexer) == L'_')
             {
+                 if (peek(lexer) == L'_')
+                 {
+                      if (last_char_was_underscore) {
+                         return make_error_token(lexer, L"شرطة سفلية غير صالحة في العدد (السطر %zu، العمود %zu): لا يمكن أن تكون متتالية في الأس.", lexer->line, lexer->column);
+                     }
+                     // Check if underscore is first char after e/E or sign (already handled above)
+                     last_char_was_underscore = true;
+                 }
+                 else
+                 {
+                     if (!is_baa_digit(peek(lexer))) break; // Should only be digits here
+                     last_char_was_underscore = false;
+                 }
                 advance(lexer);
             }
+             // Error if exponent part ends with an underscore
+            if (last_char_was_underscore)
+            {
+                return make_error_token(lexer, L"شرطة سفلية غير صالحة في العدد (السطر %zu، العمود %zu): لا يمكن أن تكون في نهاية الأس.", lexer->line, lexer->column - 1);
+            }
         }
+        // If 'e'/'E' is not followed by a valid exponent part, treat 'e'/'E' as separate char (likely identifier)
+        // The lexer doesn't consume the 'e'/'E' here in that case.
+    }
+
+    // Hex and binary literals cannot be floats
+    if (base_prefix != 0 && is_float) {
+         // This state should not be reachable due to checks above, but include for safety.
+         return make_error_token(lexer, L"الأعداد السداسية عشرية والثنائية لا يمكن أن تكون أعدادًا حقيقية (لا يمكن أن تحتوي على '.' أو 'e') (السطر %zu، العمود %zu)", lexer->line, number_start_index);
     }
 
     return make_token(lexer, is_float ? BAA_TOKEN_FLOAT_LIT : BAA_TOKEN_INT_LIT);
