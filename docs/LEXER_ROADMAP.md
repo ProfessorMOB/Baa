@@ -110,13 +110,12 @@ This roadmap outlines the planned improvements and current status of the Baa lan
 
 ## Implementation Priorities (Revised after recent updates)
 
-1. **Enhance Error Reporting and Recovery:** *[Next]*
+1. **Enhance Error Reporting and Recovery:** *[Done]*
     - Provide more detailed error messages with context.
     - Implement basic error recovery to continue lexing after simple errors.
-2. **Add Preprocessing Directives:**
+2. **Add Preprocessing Directives:** *[Next]*
     - File inclusion (`#تضمين` or similar).
     - Conditional compilation (`#إذا_عرف`, etc.).
-    - Macros (`#تعريف`).
 3. **Testing:**
     - Develop comprehensive unit tests for lexer functionality.
     - Add integration tests with the parser.
