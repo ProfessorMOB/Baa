@@ -209,18 +209,20 @@ The number parser supports:
     -   Binary integers (with `0b` or `0B` prefix): `0b1010`, `0B1100`
     -   Hexadecimal integers (with `0x` or `0X` prefix): `0x1a3f`, `0XFF`
     -   Support for Arabic-Indic digits: `١٢٣`, `٤٢`
-    -   Underscores for readability (e.g., `1_000_000`, `0xFF_FF`) - *[In Progress]*
+    -   Underscores for readability (e.g., `1_000_000`, `0xFF_FF`, `0b1010_1100`) - *[Implemented]*
 
 2.  **Floating-Point Literals**:
     -   Regular decimal floats: `3.14`, `0.5`
     -   Support for Arabic decimal separator: `3٫14`
     -   Support for Arabic-Indic digits: `٣٫١٤`
+    -   Underscores for readability (e.g., `1_234.56_78`) - *[Implemented]*
 
 3.  **Scientific Notation**:
     -   Standard form with `e` or `E`: `1.23e4`, `5.67e-3`, `42E2`
     -   Support for Arabic-Indic digits: `١٫٢٣e٤`
     -   Optional decimal point: `5e3` (equivalent to `5000`)
     -   Optional sign in exponent: `1.2e+10`, `3.4e-5`
+    -   Underscores for readability (e.g., `1.23e+1_0`) - *[Implemented]*
 
 ### Number Parsing Functions
 
