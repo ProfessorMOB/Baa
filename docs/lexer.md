@@ -2,7 +2,7 @@
 
 ## Overview
 
-The Baa lexer processes source code written in the Baa language, which includes strong support for Arabic. It reads source files encoded in UTF-16LE and uses wide characters (`wchar_t`) internally, which inherently supports bidirectional text rendering if the display environment handles it. The lexer tokenizes Arabic identifiers, keywords, and literals, while maintaining precise source location tracking (line and column numbers). It converts the raw source text into a stream of tokens that can be consumed by the parser.
+The Baa lexer processes source code written in the Baa language, which includes strong support for Arabic. **Note: The lexer operates on the source code *after* it has been processed by the Baa Preprocessor, which handles directives like `#تضمين`.** It reads the resulting (potentially combined) source, assumed to be encoded in UTF-16LE, and uses wide characters (`wchar_t`) internally. The lexer tokenizes Arabic identifiers, keywords, and literals, while maintaining precise source location tracking (line and column numbers). It converts the processed text into a stream of tokens that can be consumed by the parser.
 
 ## Features
 
