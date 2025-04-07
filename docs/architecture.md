@@ -5,6 +5,22 @@ Baa (باء) is designed with a modular architecture that separates concerns int
 
 ## Core Components
 
+### 0. Preprocessor (المعالج المسبق)
+The initial stage that processes the source file before tokenization:
+- **Directive Handling**: Processes directives like `#تضمين` (include) and `#تعريف` (define).
+- **File Inclusion**: Merges included files into a single stream.
+- **Macro Expansion**: Substitutes defined macros (currently parameterless).
+- **Input Encoding**: Expects UTF-16LE input files.
+- **Output**: Produces a single `wchar_t*` stream for the lexer.
+- **Circular Include Detection**: Prevents infinite include loops.
+- **Features & Status:**
+  - Implemented as a separate stage.
+  - Handles `#تضمين` (relative and standard paths).
+  - Handles parameterless `#تعريف` macros with basic text substitution.
+  - Detects circular includes.
+  - Enforces UTF-16LE input.
+  - *Planned:* Conditional compilation, function-like macros, `#undef`, improved error reporting.
+
 ### 1. Lexer
 The lexical analyzer responsible for tokenizing source code:
 - **Token Generation**: Converts source text into tokens

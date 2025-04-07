@@ -1,15 +1,18 @@
 # Baa Language Roadmap (خارطة الطريق)
 
-## Current Version: 0.1.9.8
+## Current Version: 0.1.9.8 (Working towards 0.2.0)
 
-This roadmap outlines the high-level plan for the Baa language project. For detailed status and plans for specific components (Lexer, Parser, AST), please refer to their respective roadmap documents (`LEXER_ROADMAP.md`, `PARSER_ROADMAP.md`, `AST_ROADMAP.md`).
+This roadmap outlines the high-level plan for the Baa language project. For detailed status and plans for specific components (Lexer, Parser, AST, Preprocessor), please refer to their respective roadmap documents (`LEXER_ROADMAP.md`, `PARSER_ROADMAP.md`, `AST_ROADMAP.md`, etc.).
+
+**Note:** The compilation process now includes an explicit **Preprocessor** stage that handles directives (`#تضمين`, `#تعريف`) before the Lexer stage.
 
 ### Immediate Goals (0.2.0)
 
-1.  **Parser Enhancements:** Complete core control flow parsing, restore decimal number parsing, implement full operator precedence, enhance UTF-8 support, add robust error recovery, and implement comprehensive source position tracking. (See `PARSER_ROADMAP.md` for details).
-2.  **Code Generation (Priority):** Complete LLVM integration, implement the basic code emission pipeline (expressions, statements, control flow), add debug information support, and optimize generated code for Arabic text handling.
-3.  **Lexer Enhancements:** Finalize literal scanning (booleans, floats), complete string/char handling (escapes), add full comment support, and enhance error reporting/recovery. (See `LEXER_ROADMAP.md` for details).
-4.  **AST Improvements:** Enhance scope management, improve modularity, implement comprehensive control flow node handling, and add robust error state tracking. (See `AST_ROADMAP.md` for details).
+1.  **Preprocessor Enhancements:** Implement conditional compilation (`#إذا_عرف`, `#إلا`, `#نهاية_إذا`, etc.). (See `PREPROCESSOR_ROADMAP.md` for details).
+2.  **Parser Enhancements:** Complete core control flow parsing, restore decimal number parsing, implement full operator precedence, enhance UTF-8 support, add robust error recovery, and implement comprehensive source position tracking. (See `PARSER_ROADMAP.md` for details).
+3.  **Code Generation (Priority):** Complete LLVM integration, implement the basic code emission pipeline (expressions, statements, control flow), add debug information support, and optimize generated code for Arabic text handling.
+4.  **Lexer Enhancements:** Finalize literal scanning (booleans, floats), complete string/char handling (escapes), add full comment support, and enhance error reporting/recovery (on preprocessed code). (See `LEXER_ROADMAP.md` for details).
+5.  **AST Improvements:** Enhance scope management, improve modularity, implement comprehensive control flow node handling, and add robust error state tracking. (See `AST_ROADMAP.md` for details).
 
 ### Mid-term Goals (0.3.0)
 

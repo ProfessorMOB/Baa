@@ -8,6 +8,10 @@ The project now supports:
 
 ### Core Features
 
+- **Preprocessor Directives:**
+  - `#تضمين <...>` and `#تضمين "..."` (Include files)
+  - `#تعريف NAME ...` (Parameterless macro definition/substitution)
+
 - Basic type system with K&R C compatibility
   - عدد_صحيح (int) - 32-bit integer
   - عدد_حقيقي (float) - 32-bit float
@@ -55,12 +59,14 @@ For detailed information about Arabic support, see [Arabic Support Documentation
 
 #### What's Working
 
+- **Preprocessor**: Handles includes (`#تضمين`) and basic macros (`#تعريف`).
 - **Core Architecture**: Well-defined architecture with clear separation of concerns
 - **Type System**: Basic types including Boolean, type conversion rules, and type checking
 - **AST (Abstract Syntax Tree)**: Comprehensive node structure, program, function nodes, enhanced parameter handling
 - **Lexer**: UTF-16LE file reading, token recognition (keywords, types, bools, operators `+ - * / % = == != < > <= >= && || ! ++ -- += -= *= /= %=`, identifiers, int/number, string, char literals), line/col tracking, basic error tokens. support, advanced operators
 - **Parser**: Recursive descent implementation, expression parsing with precedence, statement parsing
 - **Utils**: Memory management, string handling, error infrastructure
+- **Preprocessor integration with include and basic macro support.**
 
 #### What's Not Working
 
@@ -104,6 +110,8 @@ For detailed information about Arabic support, see [Arabic Support Documentation
 - Simplified number parsing (temporarily removed decimal support)
 - Improved error messages with more context
 - Updated project structure to match architecture documentation
+- Focus on Parser Enhancements, Code Generation, Lexer Enhancements, and AST Improvements.
+- *See [docs/roadmap.md](docs/roadmap.md) for the high-level plan and component-specific roadmaps (e.g., `docs/LEXER_ROADMAP.md`, `docs/PREPROCESSOR_ROADMAP.md`) for details.*
 
 **Fixed:**
 
@@ -143,6 +151,7 @@ baa/
 │       ├── ast/       # AST definitions
 │       ├── lexer/     # Lexer interface
 │       ├── parser/    # Parser interface
+│       ├── preprocessor/ # Preprocessor interface
 │       ├── types/     # Type system interface
 │       ├── utils/     # Utility functions
 │       └── codegen/   # Code generation interface
@@ -150,15 +159,20 @@ baa/
 │   ├── ast/          # AST implementation
 │   ├── lexer/        # Lexer implementation
 │   ├── parser/       # Parser implementation
+│   ├── preprocessor/ # Preprocessor implementation
 │   ├── types/        # Type system implementation
 │   ├── operators/    # Operator system implementation
 │   ├── codegen/      # Code generation (incomplete)
 │   ├── utils/        # Utility functions
-│   └── control_flow/ # Control flow implementation
+│   ├── control_flow/ # Control flow implementation
+│   ├── compiler.c    # Main compilation logic
+│   └── main.c        # Executable entry point
 ├── tests/
 │   ├── unit/         # Unit tests (limited)
 │   └── integration/  # Integration tests (placeholder)
 └── docs/             # Documentation
+    ├── preprocessor.md     # Preprocessor documentation
+    ├── PREPROCESSOR_ROADMAP.md # Detailed Preprocessor roadmap
     ├── architecture.md     # System architecture overview & component status
     ├── language.md         # Language specification
     ├── project_structure.md # Detailed directory layout (Arabic)
@@ -236,11 +250,12 @@ The Baa programming language supports two file extensions:
 
 ```baa
 #تضمين <مكتبة_طباعة>
+#تعريف EXIT_SUCCESS 0
 
 // مثال برنامج بسيط بلغة باء
 دالة رئيسية() {
     اطبع("مرحباً بالعالم!").
-    إرجع 0.
+    إرجع EXIT_SUCCESS.
 }
 ```
 

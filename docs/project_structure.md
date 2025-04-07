@@ -57,6 +57,7 @@ baa/
 │       └── examples/      # أمثلة للاختبار
 │
 ├── docs/                   # التوثيق - Documentation
+│   ├── PREPROCESSOR_ROADMAP.md # خارطة طريق المعالج المسبق
 │   ├── ar/               # التوثيق بالعربية
 │   │   ├── grammar.md    # قواعد اللغة
 │   │   └── tutorial.md   # دليل التعلم

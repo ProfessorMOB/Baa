@@ -2,6 +2,8 @@
 
 This roadmap outlines the planned improvements and current status of the Baa language lexer implementation.
 
+**Note:** The lexer now operates on source code that has **already been processed** by the `baa_preprocess` function. Directives like `#تضمين` and `#تعريف` are handled in that separate step before the lexer sees the code.
+
 ## Core Lexer Functionality
 
 - [x] Basic token recognition
@@ -66,14 +68,15 @@ This roadmap outlines the planned improvements and current status of the Baa lan
 - [ ] Right-to-left text handling improvements (Visual/Editor concern mostly)
 - [ ] Arabic error messages (Only number parser errors are currently Arabic)
 - [ ] Visual error highlighting for Arabic text (Editor integration?)
-- [ ] Arabic language directives
+- [ ] Arabic language directives (If any remain after preprocessing)
 
 ## Preprocessing
 
-- [ ] Include directives
-- [ ] Conditional compilation
-- [ ] Macro definitions
-- [ ] File inclusion
+- [x] **Handled by external `baa_preprocess` function:**
+    - [x] Include directives (`#تضمين`)
+    - [x] Basic Macro definitions (`#تعريف` - parameterless)
+    - [x] File inclusion logic
+    - [ ] Conditional compilation (`#إذا_عرف`, etc. - *handled by preprocessor, but not yet implemented there*)
 
 ## Error Handling and Reporting
 
@@ -113,10 +116,9 @@ This roadmap outlines the planned improvements and current status of the Baa lan
 1. **Enhance Error Reporting and Recovery:** *[Done]*
     - Provide more detailed error messages with context.
     - Implement basic error recovery to continue lexing after simple errors.
-2. **Add Preprocessing Directives:** *[Next]*
-    - File inclusion (`#تضمين` or similar).
-    - Conditional compilation (`#إذا_عرف`, etc.).
-    - Macros (`#تعريف`).
+2. **Preprocessor Development (External):** *[In Progress]*
+    - Basic `#تضمين` and `#تعريف` handled externally by `baa_preprocess`.
+    - **Next steps (for preprocessor):** Conditional compilation (`#إذا_عرف`, etc.).
 3. **Testing:**
     - Develop comprehensive unit tests for lexer functionality.
     - Add integration tests with the parser.
