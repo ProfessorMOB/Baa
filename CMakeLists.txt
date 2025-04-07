@@ -105,6 +105,7 @@ add_subdirectory(src/operators)
 add_subdirectory(src/ast)
 add_subdirectory(src/codegen)
 add_subdirectory(src/analysis)
+add_subdirectory(src/preprocessor)
 
 # تفعيل الاختبارات
 enable_testing()
@@ -126,6 +127,7 @@ target_link_libraries(baa
         baa_utils
         baa_types
         baa_lexer
+        baa_preprocessor
         baa_parser
         baa_operators
         baa_ast

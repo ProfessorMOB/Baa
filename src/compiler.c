@@ -4,32 +4,53 @@
 #include <wchar.h>
 #include <locale.h>
 
+#include "baa/compiler.h"
 #include "baa/utils/utils.h"
 #include "baa/lexer/lexer.h"
 #include "baa/parser/parser.h"
 #include "baa/codegen/codegen.h"
+#include "baa/preprocessor/preprocessor.h"
+
+// Helper: Convert char* to wchar_t* (might move to utils later)
+static wchar_t *char_to_wchar_compiler(const char *str) {
+    size_t len = strlen(str) + 1;
+    wchar_t *wstr = malloc(len * sizeof(wchar_t));
+    if (!wstr) {
+        return NULL;
+    }
+    size_t converted;
+#ifdef _WIN32
+    mbstowcs_s(&converted, wstr, len, str, len - 1);
+#else
+    converted = mbstowcs(wstr, str, len - 1);
+    wstr[converted] = L'\\0';
+#endif
+    return wstr;
+}
 
 int compile_baa_file(const char* filename) {
     // Set locale for wide character support
     setlocale(LC_ALL, "");
 
-    // Convert filename to wide string
-    size_t len = strlen(filename) + 1;
-    wchar_t* wfilename = (wchar_t*)malloc(len * sizeof(wchar_t));
-    if (!wfilename) {
-        fprintf(stderr, "Error: Memory allocation failed\n");
+    // Call Preprocessor
+    wchar_t* error_message = NULL;
+    wchar_t* source = baa_preprocess(filename, NULL, &error_message);
+
+    if (!source) {
+        if (error_message) {
+            fwprintf(stderr, L"Error (Preprocessor): %ls\\n", error_message);
+            free(error_message);
+        } else {
+            fwprintf(stderr, L"Error: Preprocessing failed for file %hs (unknown error).\\n", filename);
+        }
         return 1;
     }
 
-    for (size_t i = 0; i < len; i++) {
-        wfilename[i] = (wchar_t)filename[i];
-    }
-
-    // Read file content
-    wchar_t* source = baa_read_file(wfilename);
-    if (!source) {
-        fprintf(stderr, "Error: Cannot read file %s\n", filename);
-        free(wfilename);
+    // Convert filename to wide string for lexer/output path
+    wchar_t* wfilename = char_to_wchar_compiler(filename);
+    if (!wfilename) {
+        fprintf(stderr, "Error: Failed to convert filename to wchar_t.\\n");
+        free(source);
         return 1;
     }
 
@@ -44,7 +65,7 @@ int compile_baa_file(const char* filename) {
     // Parse program
     BaaProgram* program = baa_parse_program(&parser);
     if (!program) {
-        fprintf(stderr, "Error: Parsing failed\n");
+        fprintf(stderr, "Error: Parsing failed.\\n");
         free(source);
         free(wfilename);
         return 1;
@@ -58,9 +79,10 @@ int compile_baa_file(const char* filename) {
     options.debug_info = true;
 
     // Create output filename (replace .ب with .ll)
-    wchar_t* output_filename = (wchar_t*)malloc((len + 3) * sizeof(wchar_t));
+    size_t wlen = wcslen(wfilename);
+    wchar_t* output_filename = (wchar_t*)malloc((wlen + 4) * sizeof(wchar_t));
     if (!output_filename) {
-        fprintf(stderr, "Error: Memory allocation failed\n");
+        fprintf(stderr, "Error: Memory allocation failed for output filename.\\n");
         baa_free_program(program);
         free(source);
         free(wfilename);
@@ -82,7 +104,7 @@ int compile_baa_file(const char* filename) {
 
     // Generate code
     if (!baa_generate_code(&codegen)) {
-        fprintf(stderr, "Error: Code generation failed: %ls\n", baa_get_codegen_error(&codegen));
+        fprintf(stderr, "Error: Code generation failed: %ls\\n", baa_get_codegen_error(&codegen));
         free(output_filename);
         baa_free_program(program);
         free(source);
@@ -90,7 +112,7 @@ int compile_baa_file(const char* filename) {
         return 1;
     }
 
-    printf("Code generation successful. Output written to %ls\n", output_filename);
+    wprintf(L"Code generation successful. Output written to %ls\\n", output_filename);
 
     // Clean up
     baa_cleanup_codegen();
@@ -100,14 +122,4 @@ int compile_baa_file(const char* filename) {
     free(wfilename);
 
     return 0;
-}
-
-// Renamed from main to avoid duplicate definition
-int baa_compiler_main(int argc, char* argv[]) {
-    if (argc < 2) {
-        printf("Usage: %s <filename.ب>\n", argv[0]);
-        return 1;
-    }
-
-    return compile_baa_file(argv[1]);
 }

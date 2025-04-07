@@ -3,6 +3,15 @@
 
 #include <wchar.h>
 #include <stdbool.h>
+#include <stddef.h> // For size_t
+
+// --- Add BaaMacro struct ---
+// Structure to hold a macro definition
+typedef struct {
+    wchar_t* name;  // Macro name
+    wchar_t* body;  // Macro body (replacement text)
+} BaaMacro;
+// --- End Add ---
 
 // Forward declaration if needed, or include necessary headers
 
@@ -15,6 +24,12 @@ typedef struct {
     char** open_files_stack;    // Stack of full paths currently being processed
     size_t open_files_count;
     size_t open_files_capacity;
+    // --- Add Macro storage ---
+    // Defined macros
+    BaaMacro* macros;           // Dynamically allocated array of macros
+    size_t macro_count;
+    size_t macro_capacity;
+    // --- End Add ---
 } BaaPreprocessor;
 
 /**

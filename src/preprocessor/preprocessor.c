@@ -386,6 +386,8 @@ static wchar_t* process_file(BaaPreprocessor* pp_state, const char* file_path, w
         if (current_line[0] == L'#') {
             const wchar_t* include_directive = L"#تضمين";
             size_t include_directive_len = wcslen(include_directive);
+            const wchar_t* define_directive = L"#تعريف";
+            size_t define_directive_len = wcslen(define_directive);
 
             if (wcsncmp(current_line, include_directive, include_directive_len) == 0 &&
                 iswspace(current_line[include_directive_len]))
@@ -505,16 +507,93 @@ static wchar_t* process_file(BaaPreprocessor* pp_state, const char* file_path, w
                     *error_message = format_preprocessor_error(L"تنسيق #تضمين غير صالح في الملف '%hs': علامة الاقتباس أو القوس الختامي مفقود.", abs_path);
                     success = false;
                 }
+            } else if (wcsncmp(current_line, define_directive, define_directive_len) == 0 &&
+                       (current_line[define_directive_len] == L'\0' || iswspace(current_line[define_directive_len]))) {
+                // Found #تعريف directive
+                wchar_t* name_start = current_line + define_directive_len;
+                while (iswspace(*name_start)) {
+                    name_start++; // Skip space after directive
+                }
+                wchar_t* name_end = name_start;
+                while (*name_end != L'\0' && !iswspace(*name_end)) {
+                    name_end++; // Find end of name
+                }
+
+                if (name_start == name_end) {
+                    *error_message = format_preprocessor_error(L"تنسيق #تعريف غير صالح في الملف '%hs': اسم الماكرو مفقود.", abs_path);
+                    success = false;
+                } else {
+                    size_t name_len = name_end - name_start;
+                    wchar_t* macro_name = wcsndup(name_start, name_len);
+
+                    wchar_t* body_start = name_end;
+                    while (iswspace(*body_start)) {
+                        body_start++; // Skip space before body
+                    }
+                    // Body is the rest of the line (trim trailing space later if needed)
+                    // Simple approach: take everything to end of line
+                    // More robust: could trim trailing whitespace from body_start
+
+                    if (!add_macro(pp_state, macro_name, body_start)) {
+                         *error_message = format_preprocessor_error(L"فشل في إضافة تعريف الماكرو '%ls' في الملف '%hs'. قد يكون بسبب خطأ في الذاكرة.", macro_name, abs_path);
+                         success = false;
+                    }
+
+                    free(macro_name); // Free duplicated name
+
+                    // #تعريف line is processed, do not append to output
+                }
             } else {
-                // TODO: Handle other directives (#define, #ifdef, etc.)
-                // For now, just append the original directive line itself
+                 // TODO: Handle #ifdef, etc.
+                 // For now, unrecognized directives are passed through
                 if (!append_dynamic_buffer_n(&output_buffer, line_start, line_len)) success = false;
-                if (success && !append_to_dynamic_buffer(&output_buffer, L"\n")) success = false; // Append newline
+                if (success && !append_to_dynamic_buffer(&output_buffer, L"\n")) success = false;
                 if (!success && !*error_message) *error_message = format_preprocessor_error(L"فشل في إلحاق السطر بمخزن الإخراج المؤقت في '%hs'.", abs_path);
             }
         } else {
-            // Not a directive, append the original line
-             if (!append_dynamic_buffer_n(&output_buffer, line_start, line_len)) success = false;
+            // Not a directive, process line for macro substitution
+            DynamicWcharBuffer substituted_line_buffer;
+            if (!init_dynamic_buffer(&substituted_line_buffer, line_len + 64)) { // Initial capacity estimate
+                 *error_message = format_preprocessor_error(L"فشل في تخصيص الذاكرة لمخزن السطر المؤقت للاستبدال في '%hs'.", abs_path);
+                 success = false;
+            } else {
+                const wchar_t* line_ptr = current_line;
+                while (*line_ptr != L'\0' && success) {
+                    // Find potential identifier start
+                    if (iswalpha(*line_ptr) || *line_ptr == L'_') {
+                        const wchar_t* id_start = line_ptr;
+                        while (iswalnum(*line_ptr) || *line_ptr == L'_') {
+                            line_ptr++;
+                        }
+                        size_t id_len = line_ptr - id_start;
+                        wchar_t* identifier = wcsndup(id_start, id_len);
+                        if (!identifier) {
+                             *error_message = format_preprocessor_error(L"فشل في تخصيص ذاكرة للمعرف للاستبدال في '%hs'.", abs_path);
+                             success = false; break;
+                        }
+                        const BaaMacro* macro = find_macro(pp_state, identifier);
+                        if (macro) {
+                            // Substitute macro body
+                            if (!append_to_dynamic_buffer(&substituted_line_buffer, macro->body)) success = false;
+                        } else {
+                            // Append original identifier
+                            if (!append_dynamic_buffer_n(&substituted_line_buffer, id_start, id_len)) success = false;
+                        }
+                        free(identifier);
+                    } else {
+                        // Append non-identifier character
+                        if (!append_dynamic_buffer_n(&substituted_line_buffer, line_ptr, 1)) success = false;
+                        line_ptr++;
+                    }
+                } // End while processing line
+
+                if (success) {
+                    // Append the fully substituted line to the main output
+                    if (!append_to_dynamic_buffer(&output_buffer, substituted_line_buffer.buffer)) success = false;
+                }
+                free_dynamic_buffer(&substituted_line_buffer); // Free the temp line buffer
+            }
+            // Append newline after processing the line (substituted or not)
             if (success && !append_to_dynamic_buffer(&output_buffer, L"\n")) success = false; // Append newline
              if (!success && !*error_message) *error_message = format_preprocessor_error(L"فشل في إلحاق السطر بمخزن الإخراج المؤقت في '%hs'.", abs_path);
         }
@@ -547,6 +626,83 @@ static wchar_t* process_file(BaaPreprocessor* pp_state, const char* file_path, w
     return output_buffer.buffer;
 }
 
+// Helper function to free macro storage
+void free_macros(BaaPreprocessor* pp) {
+    if (pp && pp->macros) {
+        for (size_t i = 0; i < pp->macro_count; ++i) {
+            free(pp->macros[i].name);
+            free(pp->macros[i].body);
+        }
+        free(pp->macros);
+        pp->macros = NULL;
+        pp->macro_count = 0;
+        pp->macro_capacity = 0;
+    }
+}
+
+// --- Add Macro Definition Handling ---
+
+// Helper function to add or update a macro definition
+// Returns true on success, false on allocation failure.
+// Handles reallocation of the macro array.
+static bool add_macro(BaaPreprocessor* pp_state, const wchar_t* name, const wchar_t* body) {
+    if (!pp_state || !name || !body) return false; // Should not happen
+
+    // Check if macro already exists (simple linear search for now)
+    for (size_t i = 0; i < pp_state->macro_count; ++i) {
+        if (wcscmp(pp_state->macros[i].name, name) == 0) {
+            // Redefinition: Free old body, duplicate new one
+            free(pp_state->macros[i].body);
+            pp_state->macros[i].body = wcsdup(body);
+            return (pp_state->macros[i].body != NULL); // Return success if wcsdup succeeded
+        }
+    }
+
+    // New macro: Check capacity
+    if (pp_state->macro_count >= pp_state->macro_capacity) {
+        size_t new_capacity = (pp_state->macro_capacity == 0) ? 8 : pp_state->macro_capacity * 2;
+        BaaMacro* new_macros = realloc(pp_state->macros, new_capacity * sizeof(BaaMacro));
+        if (!new_macros) {
+            return false; // Reallocation failed
+        }
+        pp_state->macros = new_macros;
+        pp_state->macro_capacity = new_capacity;
+    }
+
+    // Add the new macro
+    BaaMacro* new_entry = &pp_state->macros[pp_state->macro_count];
+    new_entry->name = wcsdup(name);
+    if (!new_entry->name) {
+        return false; // Name allocation failed
+    }
+    new_entry->body = wcsdup(body);
+    if (!new_entry->body) {
+        free(new_entry->name); // Clean up allocated name
+        return false; // Body allocation failed
+    }
+
+    pp_state->macro_count++;
+    return true;
+}
+
+// Helper function to find a macro by name
+// Returns the macro definition or NULL if not found.
+static const BaaMacro* find_macro(const BaaPreprocessor* pp_state, const wchar_t* name) {
+    if (!pp_state || !name || !pp_state->macros) return NULL;
+
+    // Simple linear search for now. Could use hash map for performance later.
+    for (size_t i = 0; i < pp_state->macro_count; ++i) {
+        if (wcscmp(pp_state->macros[i].name, name) == 0) {
+            return &pp_state->macros[i];
+        }
+    }
+    return NULL; // Not found
+}
+
+// TODO: Add function to lookup macro value later
+
+// --- End Macro Definition Handling ---
+
 wchar_t* baa_preprocess(const char* main_file_path, const char** include_paths, wchar_t** error_message)
 {
     if (!main_file_path || !error_message) {
@@ -567,12 +723,18 @@ wchar_t* baa_preprocess(const char* main_file_path, const char** include_paths, 
     pp_state.open_files_stack = NULL;
     pp_state.open_files_count = 0;
     pp_state.open_files_capacity = 0;
+    // --- Initialize Macro storage ---
+    pp_state.macros = NULL;
+    pp_state.macro_count = 0;
+    pp_state.macro_capacity = 0;
+    // --- End Initialize ---
 
-    // TODO: Implement the main preprocessing loop - NOW CALL process_file
+    // Start recursive processing
     wchar_t* final_output = process_file(&pp_state, main_file_path, error_message);
 
     // --- Cleanup ---
-    free_file_stack(&pp_state); // Free any remaining stack elements (should be empty on success)
+    free_file_stack(&pp_state); // Free include stack
+    free_macros(&pp_state);     // Free macro definitions
 
     if (!final_output) {
         // error_message should be set by process_file or earlier checks

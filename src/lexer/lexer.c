@@ -521,7 +521,7 @@ static BaaToken *scan_number(BaaLexer *lexer)
     wchar_t current_peek = peek(lexer);
     if (base_prefix == 0 && (current_peek == L'.' || current_peek == 0x066B /* Arabic Decimal Separator */))
     {
-        wchar_t next_peek = peek_next(lexer);
+    wchar_t next_peek = peek_next(lexer);
         // Underscore not allowed immediately after dot
         if (next_peek == L'_') {
             BaaToken* error_token = make_error_token(lexer, L"شرطة سفلية غير صالحة في العدد (السطر %zu، العمود %zu): لا يمكن أن تتبع الفاصلة العشرية مباشرة.", lexer->line, lexer->column + 1);
@@ -531,9 +531,9 @@ static BaaToken *scan_number(BaaLexer *lexer)
 
         // Check if there is a digit *after* the decimal point
         if (is_baa_digit(next_peek))
-        {
-            is_float = true;
-            advance(lexer); // Consume the decimal point '.' or '٫'
+    {
+        is_float = true;
+        advance(lexer); // Consume the decimal point '.' or '٫'
             last_char_was_underscore = false; // Reset for fractional part
 
             // Consume digits after decimal point, allowing underscores
@@ -554,8 +554,8 @@ static BaaToken *scan_number(BaaLexer *lexer)
                      if (!is_baa_digit(peek(lexer))) break; // Should only be digits here
                      last_char_was_underscore = false;
                  }
-                advance(lexer);
-            }
+            advance(lexer);
+        }
              // Error if fractional part ends with an underscore
             if (last_char_was_underscore)
             {
@@ -595,7 +595,7 @@ static BaaToken *scan_number(BaaLexer *lexer)
             }
             if (is_baa_digit(after_sign_peek)) {
                  has_exponent_part = true;
-            }
+             }
         } else if (is_baa_digit(next_peek_exp)) {
             has_exponent_part = true;
         }
@@ -1140,7 +1140,7 @@ BaaToken *baa_lexer_next_token(BaaLexer *lexer)
             synchronize(lexer);
             return error_token;
         }
-        return make_token(lexer, BAA_TOKEN_OR);
+            return make_token(lexer, BAA_TOKEN_OR);
     }
 
     // If no case matched, it's an unexpected character
