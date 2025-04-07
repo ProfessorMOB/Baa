@@ -38,7 +38,7 @@ int main() {
     }
 
     // Create main function
-    BaaFunction* main_function = baa_create_function(L"main", NULL, 0);
+    BaaFunction* main_function = baa_create_function_signature(L"main", wcslen(L"main"));
     if (!main_function) {
         fprintf(stderr, "Failed to create main function\n");
         free(program.functions);

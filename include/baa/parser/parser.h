@@ -14,6 +14,7 @@ typedef struct {
     BaaToken current_token;    // Current token
     BaaToken previous_token;   // Previous token
     bool had_error;            // Error flag
+    bool panic_mode;           // Added panic_mode field
     const wchar_t* error_message;  // Error message if had_error is true
     BaaSourceLocation location;    // Current source location
 } BaaParser;

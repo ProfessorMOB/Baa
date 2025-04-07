@@ -3,6 +3,7 @@
 #include "baa/ast/expressions.h"
 #include "baa/ast/statements.h"
 #include "baa/types/types.h"
+#include "baa/utils/utils.h"
 #include <stdlib.h>
 #include <string.h>
 #include <wchar.h>
@@ -16,62 +17,85 @@ extern void baa_unexpected_token_error(BaaParser *parser, const wchar_t *expecte
 // Forward declarations for functions defined in this file
 BaaStmt* baa_parse_variable_declaration(BaaParser* parser);
 BaaParameter* baa_parse_parameter(BaaParser* parser);
-BaaStmt* baa_parse_function_declaration(BaaParser* parser);
+BaaFunction* baa_parse_function_declaration(BaaParser* parser);
 BaaStmt* baa_parse_declaration(BaaParser* parser);
 
 // Function implementations for parameter handling
-BaaParameter* baa_create_parameter(const wchar_t* name, size_t name_len, BaaType* type, bool is_mutable) {
-    BaaParameter* param = (BaaParameter*)baa_malloc(sizeof(BaaParameter));
+BaaParameter* baa_create_parameter(const wchar_t* name, size_t name_length, BaaType* type, bool is_mutable) {
+    BaaParameter* param = baa_malloc(sizeof(BaaParameter));
     if (!param) return NULL;
 
-    // Copy the name
-    wchar_t* name_copy = baa_strndup(name, name_len);
-    if (!name_copy) {
+    param->name = baa_strndup(name, name_length);
+    if (!param->name) {
         baa_free(param);
         return NULL;
     }
 
-    param->name = name_copy;
-    param->name_length = name_len;
+    param->name_length = name_length;
     param->type = type;
     param->is_mutable = is_mutable;
-
     return param;
 }
 
 void baa_free_parameter(BaaParameter* param) {
-    if (param) {
-        if (param->name) {
-            baa_free((void*)param->name);
-        }
-        if (param->type) {
-            baa_free_type(param->type);
-        }
-        baa_free(param);
-    }
+    if (!param) return;
+    baa_free((void*)param->name);
+    baa_free(param);
 }
 
 // Function implementations for statement creation
-BaaStmt* baa_create_variable_declaration(const wchar_t* name, size_t name_len, BaaType* type, BaaExpr* initializer) {
-    return baa_create_var_decl_stmt(name, name_len, type, initializer);
-}
+BaaStmt* baa_create_variable_declaration(const wchar_t* name, size_t name_length, BaaType* type, BaaExpr* initializer) {
+    BaaVarDeclStmt* var_decl = baa_malloc(sizeof(BaaVarDeclStmt));
+    if (!var_decl) return NULL;
 
-BaaStmt* baa_create_function_declaration(const wchar_t* name, size_t name_len,
-                                        BaaParameter** parameters, size_t param_count,
-                                        BaaType* return_type, BaaBlock* body) {
-    // For now, we'll create a simple block statement as a placeholder
-    // In a real implementation, you would create a proper function declaration
-    BaaStmt* stmt = baa_create_block_stmt();
-    if (!stmt) return NULL;
-
-    // Add the body statements to the block
-    if (body && body->statements) {
-        for (size_t i = 0; i < body->count; i++) {
-            baa_add_stmt_to_block(&stmt->block_stmt, body->statements[i]);
-        }
+    var_decl->name = baa_strndup(name, name_length);
+    if (!var_decl->name) {
+        baa_free(var_decl);
+        return NULL;
     }
 
+    var_decl->name_length = name_length;
+    var_decl->type = type;
+    var_decl->initializer = initializer;
+
+    BaaStmt* stmt = baa_malloc(sizeof(BaaStmt));
+    if (!stmt) {
+        baa_free((void*)var_decl->name);
+        baa_free(var_decl);
+        return NULL;
+    }
+
+    stmt->kind = BAA_STMT_VAR_DECL;
+    stmt->data = var_decl;
     return stmt;
+}
+
+static BaaFunction* baa_create_function(const wchar_t* name, size_t name_length,
+                                      BaaParameter** params, size_t param_count,
+                                      BaaType* return_type, BaaBlock* body) {
+    BaaFunction* func = baa_malloc(sizeof(BaaFunction));
+    if (!func) return NULL;
+
+    func->name = baa_strndup(name, name_length);
+    if (!func->name) {
+        baa_free(func);
+        return NULL;
+    }
+
+    func->name_length = name_length;
+    func->parameters = params; // Note: This takes ownership of the params array
+    func->parameter_count = param_count;
+    func->parameter_capacity = param_count; // Assuming the passed array is exact size
+    func->return_type = return_type;
+    func->body = body;
+    func->is_variadic = false; // Set defaults
+    func->is_extern = false;
+    func->is_method = false;
+    func->module_name = NULL;
+    func->ast_node = NULL; // Will be set later if needed
+    func->documentation = NULL;
+
+    return func;
 }
 
 /**
@@ -182,7 +206,7 @@ BaaParameter* baa_parse_parameter(BaaParser* parser)
 /**
  * Parse a function declaration
  */
-BaaStmt* baa_parse_function_declaration(BaaParser* parser)
+BaaFunction* baa_parse_function_declaration(BaaParser* parser)
 {
     // Consume the 'دالة' token
     baa_token_next(parser);
@@ -278,31 +302,36 @@ BaaStmt* baa_parse_function_declaration(BaaParser* parser)
         return NULL;
     }
 
-    // Parse function body
-    BaaBlock* body = baa_parse_block(parser);
-    if (!body) {
+    // Parse function body - expect a block
+    BaaStmt* body_stmt = baa_parse_block(parser);
+    if (!body_stmt || body_stmt->kind != BAA_STMT_BLOCK) {
+        baa_set_parser_error(parser, L"توقع كتلة نصية لجسم الدالة");
         baa_free_type(return_type);
         for (size_t i = 0; i < parameter_count; i++) {
             baa_free_parameter(parameters[i]);
         }
         free(parameters);
+        if (body_stmt) baa_free_stmt(body_stmt); // Free if it was parsed but wrong type
         return NULL;
     }
+    BaaBlock* body_block = (BaaBlock*)body_stmt->data;
+    body_stmt->data = NULL; // Avoid double free, ownership transferred to BaaFunction
+    baa_free_stmt(body_stmt); // Free the wrapper BaaStmt
 
-    // Create the function declaration statement
-    BaaStmt* statement = baa_create_function_declaration(name, name_len, parameters, parameter_count, return_type, body);
-    if (!statement) {
+    // Create the function structure
+    BaaFunction* function = baa_create_function(name, name_len, parameters, parameter_count, return_type, body_block);
+    if (!function) {
         baa_set_parser_error(parser, L"فشل في إنشاء تصريح الدالة");
         baa_free_type(return_type);
-        baa_free_block(body);
+        baa_free_block(body_block); // Use baa_free_block
         for (size_t i = 0; i < parameter_count; i++) {
             baa_free_parameter(parameters[i]);
         }
-        free(parameters);
+        free(parameters); // Parameters array itself was allocated with realloc/malloc
         return NULL;
     }
 
-    return statement;
+    return function;
 }
 
 /**
@@ -313,10 +342,25 @@ BaaStmt* baa_parse_declaration(BaaParser* parser)
     switch (parser->current_token.type) {
         case BAA_TOKEN_VAR:
             return baa_parse_variable_declaration(parser);
-        case BAA_TOKEN_FUNC:
-            return baa_parse_function_declaration(parser);
+        case BAA_TOKEN_FUNC: {
+            // Function declarations are not statements in the same way,
+            // they are top-level definitions. We might need to adjust
+            // how the main parser loop handles this.
+            // For now, let's parse it but signal an issue or handle differently.
+            BaaFunction* func = baa_parse_function_declaration(parser);
+            if (func) {
+                // TODO: How should the Program AST store this function?
+                // Maybe return a special STMT type or NULL and handle in caller?
+                // For now, let's free it and return NULL to indicate it's not a regular stmt.
+                printf("Parsed function: %ls\n", func->name); // Debug print
+                baa_free_function(func);
+                return NULL; // Indicate not a statement to be added to a block
+            } else {
+                return NULL; // Error occurred during parsing
+            }
+        }
         default:
-            baa_set_parser_error(parser, L"توقعت تصريح");
+            baa_set_parser_error(parser, L"توقعت تصريح متغير أو دالة");
             return NULL;
     }
 }

@@ -3,6 +3,7 @@
 #include "baa/ast/expressions.h"
 #include "baa/ast/statements.h"
 #include "baa/types/types.h"
+#include "baa/utils/utils.h"
 #include <stdlib.h>
 #include <string.h>
 #include <wchar.h>

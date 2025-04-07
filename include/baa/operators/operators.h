@@ -48,7 +48,14 @@ typedef enum {
 
     // Member access and array subscript operators
     BAA_OP_DOT,       // .  (نقطة)
-    BAA_OP_SUBSCRIPT  // [] (فهرس)
+    BAA_OP_SUBSCRIPT, // [] (فهرس)
+
+    // Increment/Decrement operators
+    BAA_OP_INC,       // ++ (زيادة)
+    BAA_OP_DEC,       // -- (نقصان)
+
+    // Special value for no operator or default
+    BAA_OP_NONE
 } BaaOperatorType;
 
 // Operator precedence levels

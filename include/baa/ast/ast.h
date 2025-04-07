@@ -59,7 +59,7 @@ struct BaaFunction
     wchar_t *name;             // Function name
     size_t name_length;        // Function name length
     BaaType *return_type;      // Return type
-    BaaParameter *parameters;  // Array of parameters
+    BaaParameter **parameters; // Array of parameter pointers (Changed from BaaParameter*)
     size_t parameter_count;    // Number of parameters
     size_t parameter_capacity; // Capacity of parameters array
     BaaBlock *body;            // Function body
@@ -90,7 +90,7 @@ BaaProgram *baa_create_program(void);
 bool baa_add_function_to_program(BaaProgram *program, BaaFunction *function);
 
 // Function management
-BaaFunction *baa_create_function(const wchar_t *name, size_t name_length);
+BaaFunction *baa_create_function_signature(const wchar_t *name, size_t name_length);
 bool baa_add_parameter_to_function(BaaFunction *function, BaaParameter *parameter);
 BaaParameter *baa_create_parameter(const wchar_t *name, size_t name_length, BaaType *type, bool is_mutable);
 BaaParameter *baa_create_optional_parameter(const wchar_t *name, size_t name_length, BaaType *type, bool is_mutable, BaaExpr *default_value);

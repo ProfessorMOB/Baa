@@ -291,13 +291,17 @@ bool baa_generate_llvm_function(BaaLLVMContext *context, BaaFunction *function)
 
         for (size_t i = 0; i < function->parameter_count; i++)
         {
-            param_types[i] = baa_type_to_llvm_type(context, function->parameters[i].type);
-            if (!param_types[i])
-            {
-                free(c_function_name);
+            if (!function->parameters[i]) {
+                fprintf(stderr, "Error: NULL parameter found in function %ls\n", function->name);
                 free(param_types);
-                return false;
+                return NULL;
             }
+            if (!function->parameters[i]->type) {
+                fprintf(stderr, "Error: NULL type for parameter %ls in function %ls\n", function->parameters[i]->name, function->name);
+                free(param_types);
+                return NULL;
+            }
+            param_types[i] = baa_type_to_llvm_type(context, function->parameters[i]->type);
         }
 
         param_count = function->parameter_count;
@@ -342,22 +346,24 @@ bool baa_generate_llvm_function(BaaLLVMContext *context, BaaFunction *function)
         {
             LLVMValueRef param = LLVMGetParam(llvm_function, i);
 
-            char *param_name = wchar_to_char(function->parameters[i].name);
-            if (param_name)
-            {
-                LLVMSetValueName(param, param_name);
-
-                // Create allocas for all parameters
-                LLVMValueRef alloca = LLVMBuildAlloca(
-                    context->llvm_builder,
-                    LLVMTypeOf(param),
-                    param_name);
-
-                // Store the incoming parameter value to the stack
-                LLVMBuildStore(context->llvm_builder, param, alloca);
-
-                free(param_name);
+            if (function->parameters[i] && function->parameters[i]->name) {
+                char *param_name = wchar_to_char(function->parameters[i]->name);
+                LLVMSetValueName2(param, param_name, strlen(param_name));
+                baa_free(param_name);
+            } else {
+                char default_name[16];
+                snprintf(default_name, sizeof(default_name), "arg%zu", i);
+                LLVMSetValueName2(param, default_name, strlen(default_name));
             }
+
+            // Create allocas for all parameters
+            LLVMValueRef alloca = LLVMBuildAlloca(
+                context->llvm_builder,
+                LLVMTypeOf(param),
+                param_name);
+
+            // Store the incoming parameter value to the stack
+            LLVMBuildStore(context->llvm_builder, param, alloca);
         }
     }
 

@@ -1,8 +1,11 @@
 #include "baa/parser/parser.h"
-#include "baa/ast/expressions.h"
-#include "baa/operators/operators.h"
-#include "baa/lexer/lexer.h"
 #include "baa/parser/parser_helper.h"
+#include "baa/ast/expressions.h"
+#include "baa/ast/statements.h"
+#include "baa/types/types.h"
+#include "baa/operators/operators.h"
+#include "baa/utils/utils.h"
+#include "baa/lexer/lexer.h"
 #include "baa/ast/literals.h"
 #include <stdlib.h>
 #include <string.h>
@@ -29,6 +32,20 @@ static BaaExpr* parse_assignment(BaaParser* parser);
 
 // Forward declaration of the public function
 BaaExpr* baa_parse_expression(BaaParser* parser);
+
+// Forward declarations for expression freeing functions (assuming they exist elsewhere)
+void baa_free_binary_expr_data(void* data);
+void baa_free_unary_expr_data(void* data);
+void baa_free_literal_expr_data(void* data);
+void baa_free_variable_expr_data(void* data);
+void baa_free_call_expr_data(void* data);
+void baa_free_cast_expr_data(void* data);
+void baa_free_assign_expr_data(void* data);
+void baa_free_array_expr_data(void* data);
+void baa_free_index_expr_data(void* data);
+void baa_free_compound_assignment_expr_data(void* data);
+void baa_free_inc_dec_expr_data(void* data);
+void baa_free_grouping_expr_data(void* data);
 
 // Implementation of the literal expression creation functions
 static BaaExpr* baa_create_int_literal_expr(int value) {
@@ -127,53 +144,22 @@ static BaaExpr* baa_create_identifier_expr(const wchar_t* name, size_t length) {
     if (!name_copy) return NULL;
 
     // Create the variable expression
-    BaaExpr* expr = baa_create_variable_expr(name_copy);
+    BaaExpr* expr = baa_create_variable_expr(name_copy, length);
     baa_free(name_copy); // baa_create_variable_expr makes its own copy
 
     return expr;
 }
 
 static BaaExpr* baa_create_call_expr_wrapper(BaaExpr* callee, BaaExpr** args, size_t arg_count) {
-    return baa_create_call_expr(callee, args, (int)arg_count);
+    return baa_create_call_expr(callee, args, arg_count, NULL, false);
 }
 
 static BaaExpr* baa_create_binary_expr_wrapper(BaaExpr* left, BaaExpr* right, BaaOperatorType op) {
-    // Convert the old operator type to the new binary operator enum
-    BaaBinaryOp binary_op;
-    switch (op) {
-        case BAA_OP_ADD: binary_op = BAA_BINARY_ADD; break;
-        case BAA_OP_SUB: binary_op = BAA_BINARY_SUB; break;
-        case BAA_OP_MUL: binary_op = BAA_BINARY_MUL; break;
-        case BAA_OP_DIV: binary_op = BAA_BINARY_DIV; break;
-        case BAA_OP_MOD: binary_op = BAA_BINARY_MOD; break;
-        case BAA_OP_EQ: binary_op = BAA_BINARY_EQ; break;
-        case BAA_OP_NE: binary_op = BAA_BINARY_NE; break;
-        case BAA_OP_LT: binary_op = BAA_BINARY_LT; break;
-        case BAA_OP_LE: binary_op = BAA_BINARY_LE; break;
-        case BAA_OP_GT: binary_op = BAA_BINARY_GT; break;
-        case BAA_OP_GE: binary_op = BAA_BINARY_GE; break;
-        case BAA_OP_AND: binary_op = BAA_BINARY_AND; break;
-        case BAA_OP_OR: binary_op = BAA_BINARY_OR; break;
-        case BAA_OP_DOT: binary_op = BAA_BINARY_MEMBER; break;
-        case BAA_OP_SUBSCRIPT: binary_op = BAA_BINARY_INDEX; break;
-        default: return NULL; // Unsupported operator
-    }
-
-    return baa_create_binary_expr(left, right, binary_op);
+    return baa_create_binary_expr(op, left, right);
 }
 
 static BaaExpr* baa_create_unary_expr_wrapper(BaaOperatorType op, BaaExpr* operand) {
-    // Convert the old operator type to the new unary operator enum
-    BaaUnaryOp unary_op;
-    switch (op) {
-        case BAA_OP_NOT: unary_op = BAA_UNARY_NOT; break;
-        case BAA_OP_SUB: unary_op = BAA_UNARY_NEG; break;
-        case BAA_OP_INC: unary_op = BAA_UNARY_INC; break;
-        case BAA_OP_DEC: unary_op = BAA_UNARY_DEC; break;
-        default: return NULL; // Unsupported operator
-    }
-
-    return baa_create_unary_expr(operand, unary_op);
+    return baa_create_unary_expr(op, operand);
 }
 
 static BaaExpr* baa_create_member_access(BaaExpr* object, const wchar_t* name, size_t length) {
@@ -215,47 +201,18 @@ static BaaExpr* baa_create_compound_assignment(BaaExpr* target, BaaExpr* value, 
     // Validate input
     if (!target || !value) return NULL;
 
-    // Create the compound assignment data
-    BaaCompoundAssignmentData* data = (BaaCompoundAssignmentData*)baa_malloc(sizeof(BaaCompoundAssignmentData));
-    if (!data) return NULL;
-
-    data->target = target;
-    data->value = value;
-    data->operator_type = op;
-
-    // Create the compound assignment expression
-    BaaExpr* expr = baa_create_expr(BAA_EXPR_COMPOUND_ASSIGN, data);
-    if (!expr) {
-        baa_free(data);
-        return NULL;
-    }
-
+    // Use the specific creation function
+    BaaExpr* expr = baa_create_compound_assignment_expr(target, value, op);
     return expr;
 }
 
 /**
  * Create an increment/decrement expression
  */
-static BaaExpr* baa_create_inc_dec_expr(BaaExpr* operand, BaaOperatorType op, bool is_prefix)
+BaaExpr* baa_create_inc_dec_expr(BaaExpr* operand, BaaOperatorType op, bool is_prefix)
 {
-    // Validate input
-    if (!operand) return NULL;
-
-    // Create the inc/dec data
-    BaaIncDecData* data = (BaaIncDecData*)baa_malloc(sizeof(BaaIncDecData));
-    if (!data) return NULL;
-
-    data->operand = operand;
-    data->operator_type = op;
-    data->is_prefix = is_prefix;
-
-    // Create the inc/dec expression
-    BaaExpr* expr = baa_create_expr(BAA_EXPR_INC_DEC, data);
-    if (!expr) {
-        baa_free(data);
-        return NULL;
-    }
-
+    // Use the specific creation function
+    BaaExpr* expr = baa_create_inc_dec_expr(operand, op, is_prefix);
     return expr;
 }
 
@@ -267,19 +224,8 @@ static BaaExpr* baa_create_grouping(BaaExpr* expression)
     // Validate input
     if (!expression) return NULL;
 
-    // Create the grouping data
-    BaaGroupingData* data = (BaaGroupingData*)malloc(sizeof(BaaGroupingData));
-    if (!data) return NULL;
-
-    data->expression = expression;
-
-    // Create the grouping expression
-    BaaExpr* expr = baa_create_expr(BAA_EXPR_GROUPING, data);
-    if (!expr) {
-        free(data);
-        return NULL;
-    }
-
+    // Use the specific creation function
+    BaaExpr* expr = baa_create_grouping_expr(expression);
     return expr;
 }
 
@@ -1053,37 +999,52 @@ void baa_free_expression(BaaExpr* expr) {
     if (!expr) return;
 
     // Free the expression data based on its type
-    switch (expr->type) {
-        case BAA_EXPR_BINARY:
-            baa_free_binary_expr(expr);
-            break;
-        case BAA_EXPR_UNARY:
-            baa_free_unary_expr(expr);
-            break;
-        case BAA_EXPR_LITERAL:
-            baa_free_literal_expr(expr);
-            break;
-        case BAA_EXPR_VARIABLE:
-            baa_free_variable_expr(expr);
-            break;
-        case BAA_EXPR_CALL:
-            baa_free_call_expr(expr);
-            break;
-        case BAA_EXPR_MEMBER:
-            baa_free_member_expr(expr);
-            break;
-        case BAA_EXPR_ARRAY:
-            baa_free_array_expr(expr);
-            break;
-        case BAA_EXPR_COMPOUND_ASSIGN:
-            baa_free_compound_assignment_expr(expr);
-            break;
-        case BAA_EXPR_INC_DEC:
-            baa_free_inc_dec_expr(expr);
-            break;
-        default:
-            // Unknown expression type
-            baa_free(expr);
-            break;
+    if (expr->data) {
+        switch (expr->kind) { // Use kind
+            case BAA_EXPR_BINARY:
+                baa_free_binary_expr_data(expr->data);
+                break;
+            case BAA_EXPR_UNARY:
+                baa_free_unary_expr_data(expr->data);
+                break;
+            case BAA_EXPR_LITERAL:
+                baa_free_literal_expr_data(expr->data);
+                break;
+            case BAA_EXPR_VARIABLE:
+                baa_free_variable_expr_data(expr->data);
+                break;
+            case BAA_EXPR_CALL:
+                baa_free_call_expr_data(expr->data);
+                break;
+            case BAA_EXPR_ARRAY:
+                baa_free_array_expr_data(expr->data);
+                break;
+            case BAA_EXPR_COMPOUND_ASSIGN:
+                baa_free_compound_assignment_expr_data(expr->data);
+                break;
+            case BAA_EXPR_INC_DEC:
+                baa_free_inc_dec_expr_data(expr->data);
+                break;
+            case BAA_EXPR_GROUPING:
+                baa_free_grouping_expr_data(expr->data);
+                break;
+            case BAA_EXPR_INDEX:
+                baa_free_index_expr_data(expr->data);
+                break;
+            case BAA_EXPR_CAST:
+                baa_free_cast_expr_data(expr->data);
+                break;
+            case BAA_EXPR_ASSIGN:
+                baa_free_assign_expr_data(expr->data);
+                break;
+            default:
+                // Handle unknown expression type or do nothing
+                break;
+        }
+        baa_free(expr->data); // Free the data pointer itself
     }
+
+    // Free the main expression structure
+    // Note: Does not free the associated AST node (expr->ast_node)
+    baa_free(expr);
 }

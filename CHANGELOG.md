@@ -18,11 +18,85 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Integrated code generation into the compilation pipeline
   - Added support for generating LLVM IR output files
   - Improved error handling with Arabic messages
+- New parser components
+  - Added control_flow_parser.c for handling control structures
+  - Added declaration_parser.c for variable and function declarations
+  - Added expression_parser.c for expression parsing
+  - Added function_parser.c for function handling
+  - Added type_parser.c for type system parsing
+- Enhanced AST implementation
+  - Added new node types and structures
+  - Added visitor interface for AST traversal
+  - Added scope management system
+  - Added comprehensive statement handling
+  - Added literal value handling
+- Improved testing infrastructure
+  - Added unit tests for lexer functionality
+  - Added number parsing tests
+  - Added control flow tests
+  - Added type and operator tests
+  - Added test framework with assertion macros
+- Memory management improvements
+  - Added baa_malloc/baa_free for consistent memory handling
+  - Added baa_strdup/baa_strndup for string operations
+  - Added proper memory cleanup in all components
 
 ### Changed
-- Updated build system to include LLVM dependencies
-- Enhanced compiler driver to use the new code generation system
-- Improved error handling in the compilation pipeline
+- Updated build system
+  - Added LLVM package detection
+  - Added conditional compilation for LLVM features
+  - Reorganized component subdirectories
+  - Enhanced test configuration
+  - Added memory leak detection
+- Improved type system
+  - Updated parameter handling from BaaFuncParam to BaaParameter
+  - Enhanced type checking and validation
+  - Added support for user-defined types
+  - Improved type conversion system
+- Enhanced error handling
+  - Added Arabic error messages
+  - Improved error recovery mechanisms
+  - Added detailed error context
+  - Enhanced error reporting system
+- Updated project structure
+  - Reorganized source files into logical components
+  - Moved test files to appropriate directories
+  - Enhanced documentation structure
+  - Improved code organization
+
+### Fixed
+- Memory management issues
+  - Fixed memory leaks in parser functions
+  - Fixed string handling in parameter creation
+  - Fixed resource cleanup in AST operations
+  - Fixed memory management in test framework
+- Type system issues
+  - Fixed type declarations in parser functions
+  - Fixed parameter handling in function declarations
+  - Fixed type checking in expressions
+  - Fixed type conversion edge cases
+- Parser improvements
+  - Fixed compilation errors in declaration_parser.c
+  - Fixed control flow parsing issues
+  - Fixed expression parsing bugs
+  - Fixed function parsing problems
+- Test framework issues
+  - Fixed test result reporting
+  - Fixed memory leak detection
+  - Fixed test file organization
+  - Fixed test execution flow
+
+### Removed
+- Removed deprecated components
+  - Removed old control_flow.h
+  - Removed old parser.h
+  - Removed old tokens.h
+  - Removed old types.h
+- Removed redundant files
+  - Removed duplicate test files
+  - Removed old documentation files
+  - Removed unused header files
+  - Removed obsolete test framework files
 
 ## [0.1.9.8] - 2025-02-09
 
