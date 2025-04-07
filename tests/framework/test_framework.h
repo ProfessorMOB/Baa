@@ -32,7 +32,7 @@
             wprintf(L"--- Test FAILED: %ls ---\n\n", L"" #name);                  \
             current_failed_count = failed_tests; /* Update count for next test */ \
         }                                                                         \
-    } while (0)
+    } while (0);
 
 #define TEST_SUITE_END()       \
     print_test_results();      \
