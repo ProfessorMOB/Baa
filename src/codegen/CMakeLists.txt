@@ -24,12 +24,12 @@ if(LLVM_AVAILABLE)
         analysis
         target
         mcjit
-        native
+        # native # Temporarily removed to avoid potential PDB/DIA dependency
         executionengine
     )
 
     # Print the determined LLVM libraries for debugging
-    message(STATUS "LLVM Libraries: ${llvm_libs}")
+    message(STATUS "LLVM Libraries (native excluded): ${llvm_libs}")
 
     target_link_libraries(baa_codegen
         PRIVATE
