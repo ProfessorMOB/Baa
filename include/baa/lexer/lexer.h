@@ -69,6 +69,7 @@ typedef enum {
     BAA_TOKEN_ERROR,      // Error token
     BAA_TOKEN_UNKNOWN,    // Unknown token
     BAA_TOKEN_COMMENT,    // Comment
+    BAA_TOKEN_INCLUDE,    // #تضمين
 
     // Literals
     BAA_TOKEN_IDENTIFIER, // Variable/function name

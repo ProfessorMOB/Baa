@@ -116,16 +116,20 @@ This roadmap outlines the planned improvements and current status of the Baa lan
 1. **Enhance Error Reporting and Recovery:** *[Done]*
     - Provide more detailed error messages with context.
     - Implement basic error recovery to continue lexing after simple errors.
+
 2. **Preprocessor Development (External):** *[In Progress]*
     - Basic `#تضمين` and `#تعريف` handled externally by `baa_preprocess`.
     - **Next steps (for preprocessor):** Conditional compilation (`#إذا_عرف`, etc.).
+
 3. **Testing:**
     - Develop comprehensive unit tests for lexer functionality.
     - Add integration tests with the parser.
+
 4. **Advanced Features:**
     - Underscores in number literals (`1_000`).
     - Multiline strings / Raw strings.
     - Documentation comments.
+
 5. **Performance Optimizations:**
     - Keyword lookup optimization.
     - String interning.

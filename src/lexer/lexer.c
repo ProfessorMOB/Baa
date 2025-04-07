@@ -14,6 +14,9 @@ static BaaToken *scan_number(BaaLexer *lexer);
 static BaaToken *scan_string(BaaLexer *lexer);
 static BaaToken *scan_char_literal(BaaLexer *lexer); // <-- Add forward declaration
 
+// Forward declaration of synchronize
+static void synchronize(BaaLexer *lexer);
+
 // Array of keywords and their corresponding token types
 static struct
 {
@@ -766,7 +769,7 @@ static BaaToken *scan_string(BaaLexer *lexer)
                 if (value == -1) {
                     free(buffer);
                     // Note: Using start_line/start_col for location where string started
-                    BaaToken* error_token = make_error_token(lexer, L"تسلسل هروب يونيكود غير صالح (\uXXXX) في السطر %zu، العمود %zu", start_line, start_col);
+                    BaaToken* error_token = make_error_token(lexer, L"تسلسل هروب يونيكود غير صالح (\\uXXXX) في السطر %zu، العمود %zu", start_line, start_col);
                     synchronize(lexer);
                     return error_token;
                 }
@@ -920,7 +923,7 @@ static BaaToken *scan_char_literal(BaaLexer *lexer)
         case L'u': { // Handle Unicode escape \uXXXX
             int value = scan_hex_escape(lexer, 4);
             if (value == -1) {
-                 BaaToken* error_token = make_error_token(lexer, L"تسلسل هروب يونيكود غير صالح (\uXXXX) في قيمة حرفية (بدأت في السطر %zu، العمود %zu)", start_line, start_col);
+                 BaaToken* error_token = make_error_token(lexer, L"تسلسل هروب يونيكود غير صالح (\\uXXXX) في قيمة حرفية (بدأت في السطر %zu، العمود %zu)", start_line, start_col);
                  synchronize(lexer);
                  return error_token;
             }
