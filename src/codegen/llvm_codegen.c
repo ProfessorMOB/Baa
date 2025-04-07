@@ -345,14 +345,16 @@ bool baa_generate_llvm_function(BaaLLVMContext *context, BaaFunction *function)
         for (size_t i = 0; i < function->parameter_count; i++)
         {
             LLVMValueRef param = LLVMGetParam(llvm_function, i);
+            char *param_name = NULL; // Declare param_name here
 
             if (function->parameters[i] && function->parameters[i]->name) {
-                char *param_name = wchar_to_char(function->parameters[i]->name);
+                param_name = wchar_to_char(function->parameters[i]->name);
                 LLVMSetValueName2(param, param_name, strlen(param_name));
-                baa_free(param_name);
+                // Don't free param_name yet, needed for alloca
             } else {
                 char default_name[16];
                 snprintf(default_name, sizeof(default_name), "arg%zu", i);
+                param_name = strdup(default_name); // Use strdup for char*
                 LLVMSetValueName2(param, default_name, strlen(default_name));
             }
 
@@ -360,10 +362,14 @@ bool baa_generate_llvm_function(BaaLLVMContext *context, BaaFunction *function)
             LLVMValueRef alloca = LLVMBuildAlloca(
                 context->llvm_builder,
                 LLVMTypeOf(param),
-                param_name);
+                param_name ? param_name : "arg"); // Use param_name or default
 
             // Store the incoming parameter value to the stack
             LLVMBuildStore(context->llvm_builder, param, alloca);
+
+            if (param_name) { // Free param_name after use
+                free(param_name); // Use free for strdup result
+            }
         }
     }
 

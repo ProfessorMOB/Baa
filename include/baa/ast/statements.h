@@ -20,7 +20,8 @@ typedef enum {
     BAA_STMT_CASE,    // Case statement
     BAA_STMT_DEFAULT, // Default case statement
     BAA_STMT_BREAK,   // Break statement
-    BAA_STMT_CONTINUE // Continue statement
+    BAA_STMT_CONTINUE, // Continue statement
+    BAA_STMT_IMPORT   // Import statement
 } BaaStmtKind;
 
 // Forward declarations
@@ -103,6 +104,12 @@ typedef struct {
     size_t case_count;     // Number of cases
     BaaDefaultStmt* default_case; // Default case (can be NULL)
 } BaaSwitchStmt;
+
+// Import statement
+typedef struct {
+    const wchar_t* path;  // Path being imported
+    const wchar_t* alias; // Optional alias (can be NULL)
+} BaaImportStmt;
 
 // Generic statement structure - consistent with our expression structure
 struct BaaStmt {
