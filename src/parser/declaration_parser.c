@@ -13,88 +13,51 @@ extern BaaType* baa_parse_type_annotation(BaaParser* parser);
 extern void baa_set_parser_error(BaaParser *parser, const wchar_t *message);
 extern void baa_unexpected_token_error(BaaParser *parser, const wchar_t *expected);
 
-// Define parameter structure locally if it's not defined elsewhere
-typedef struct {
-    const wchar_t* name;
-    size_t name_length;
-    BaaType* type;
-} BaaFuncParam;
-
 // Forward declarations for functions defined in this file
 BaaStmt* baa_parse_variable_declaration(BaaParser* parser);
-BaaFuncParam* baa_parse_parameter(BaaParser* parser);
+BaaParameter* baa_parse_parameter(BaaParser* parser);
 BaaStmt* baa_parse_function_declaration(BaaParser* parser);
 BaaStmt* baa_parse_declaration(BaaParser* parser);
 
 // Function implementations for parameter handling
-BaaFuncParam* baa_create_parameter(const wchar_t* name, size_t name_len, BaaType* type) {
-    BaaFuncParam* param = (BaaFuncParam*)malloc(sizeof(BaaFuncParam));
+BaaParameter* baa_create_parameter(const wchar_t* name, size_t name_len, BaaType* type, bool is_mutable) {
+    BaaParameter* param = (BaaParameter*)baa_malloc(sizeof(BaaParameter));
     if (!param) return NULL;
 
     // Copy the name
-    wchar_t* name_copy = (wchar_t*)malloc((name_len + 1) * sizeof(wchar_t));
+    wchar_t* name_copy = baa_strndup(name, name_len);
     if (!name_copy) {
-        free(param);
+        baa_free(param);
         return NULL;
     }
-
-    wcsncpy(name_copy, name, name_len);
-    name_copy[name_len] = L'\0';
 
     param->name = name_copy;
     param->name_length = name_len;
     param->type = type;
+    param->is_mutable = is_mutable;
 
     return param;
 }
 
-void baa_free_parameter(BaaFuncParam* param) {
+void baa_free_parameter(BaaParameter* param) {
     if (param) {
         if (param->name) {
-            free((void*)param->name);
+            baa_free((void*)param->name);
         }
         if (param->type) {
             baa_free_type(param->type);
         }
-        free(param);
+        baa_free(param);
     }
 }
 
 // Function implementations for statement creation
 BaaStmt* baa_create_variable_declaration(const wchar_t* name, size_t name_len, BaaType* type, BaaExpr* initializer) {
-    // Create a new variable declaration statement
-    BaaStmt* stmt = (BaaStmt*)malloc(sizeof(BaaStmt));
-    if (!stmt) return NULL;
-
-    // Copy the name
-    wchar_t* name_copy = (wchar_t*)malloc((name_len + 1) * sizeof(wchar_t));
-    if (!name_copy) {
-        free(stmt);
-        return NULL;
-    }
-
-    wcsncpy(name_copy, name, name_len);
-    name_copy[name_len] = L'\0';
-
-    // Initialize the statement
-    stmt->type = BAA_STMT_VAR_DECL;
-    stmt->var_decl.name = name_copy;
-    stmt->var_decl.name_length = name_len;
-    stmt->var_decl.type = type;
-    stmt->var_decl.initializer = initializer;
-
-    // Create an AST node for this statement
-    BaaSourceLocation loc = {0};
-    loc.line = 0;
-    loc.column = 0;
-    stmt->ast_node = baa_create_node(BAA_NODE_STATEMENT, loc);
-    stmt->var_decl.ast_node = stmt->ast_node;
-
-    return stmt;
+    return baa_create_var_decl_stmt(name, name_len, type, initializer);
 }
 
 BaaStmt* baa_create_function_declaration(const wchar_t* name, size_t name_len,
-                                        BaaFuncParam** parameters, size_t param_count,
+                                        BaaParameter** parameters, size_t param_count,
                                         BaaType* return_type, BaaBlock* body) {
     // For now, we'll create a simple block statement as a placeholder
     // In a real implementation, you would create a proper function declaration
@@ -184,7 +147,7 @@ BaaStmt* baa_parse_variable_declaration(BaaParser* parser)
 /**
  * Parse a parameter for a function declaration
  */
-BaaFuncParam* baa_parse_parameter(BaaParser* parser)
+BaaParameter* baa_parse_parameter(BaaParser* parser)
 {
     // Expect an identifier for the parameter name
     if (parser->current_token.type != BAA_TOKEN_IDENTIFIER) {
@@ -206,7 +169,7 @@ BaaFuncParam* baa_parse_parameter(BaaParser* parser)
     }
 
     // Create the parameter
-    BaaFuncParam* parameter = baa_create_parameter(name, name_len, type);
+    BaaParameter* parameter = baa_create_parameter(name, name_len, type, false);
     if (!parameter) {
         baa_set_parser_error(parser, L"فشل في إنشاء وسيط");
         baa_free_type(type);
@@ -247,7 +210,7 @@ BaaStmt* baa_parse_function_declaration(BaaParser* parser)
     baa_token_next(parser);
 
     // Parse parameters
-    BaaFuncParam** parameters = NULL;
+    BaaParameter** parameters = NULL;
     size_t parameter_count = 0;
     size_t parameter_capacity = 0;
 
@@ -255,7 +218,7 @@ BaaStmt* baa_parse_function_declaration(BaaParser* parser)
     if (parser->current_token.type != BAA_TOKEN_RIGHT_PAREN) {
         do {
             // Parse a parameter
-            BaaFuncParam* parameter = baa_parse_parameter(parser);
+            BaaParameter* parameter = baa_parse_parameter(parser);
             if (!parameter) {
                 // Free already parsed parameters
                 for (size_t i = 0; i < parameter_count; i++) {
@@ -268,7 +231,7 @@ BaaStmt* baa_parse_function_declaration(BaaParser* parser)
             // Add parameter to the list
             if (parameter_count >= parameter_capacity) {
                 parameter_capacity = parameter_capacity == 0 ? 4 : parameter_capacity * 2;
-                BaaFuncParam** new_parameters = (BaaFuncParam**)realloc(parameters, parameter_capacity * sizeof(BaaFuncParam*));
+                BaaParameter** new_parameters = (BaaParameter**)realloc(parameters, parameter_capacity * sizeof(BaaParameter*));
                 if (!new_parameters) {
                     baa_set_parser_error(parser, L"فشل في تخصيص الذاكرة للوسائط");
                     baa_free_parameter(parameter);

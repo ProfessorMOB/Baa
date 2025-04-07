@@ -35,14 +35,14 @@ static BaaExpr* baa_create_int_literal_expr(int value) {
     // Create the literal data
     BaaLiteralData* literal_data = baa_create_int_literal_data(value);
     if (!literal_data) return NULL;
-    
+
     // Create the literal expression
     BaaExpr* expr = baa_create_literal_expr(literal_data);
     if (!expr) {
         baa_free_literal_data(literal_data);
         return NULL;
     }
-    
+
     return expr;
 }
 
@@ -50,14 +50,14 @@ static BaaExpr* baa_create_float_literal_expr(float value) {
     // Create the literal data
     BaaLiteralData* literal_data = baa_create_float_literal_data(value);
     if (!literal_data) return NULL;
-    
+
     // Create the literal expression
     BaaExpr* expr = baa_create_literal_expr(literal_data);
     if (!expr) {
         baa_free_literal_data(literal_data);
         return NULL;
     }
-    
+
     return expr;
 }
 
@@ -65,14 +65,14 @@ static BaaExpr* baa_create_string_literal_expr(const wchar_t* value, size_t leng
     // Create the literal data
     BaaLiteralData* literal_data = baa_create_string_literal_data(value, length);
     if (!literal_data) return NULL;
-    
+
     // Create the literal expression
     BaaExpr* expr = baa_create_literal_expr(literal_data);
     if (!expr) {
         baa_free_literal_data(literal_data);
         return NULL;
     }
-    
+
     return expr;
 }
 
@@ -80,14 +80,14 @@ static BaaExpr* baa_create_bool_literal_expr(bool value) {
     // Create the literal data
     BaaLiteralData* literal_data = baa_create_bool_literal_data(value);
     if (!literal_data) return NULL;
-    
+
     // Create the literal expression
     BaaExpr* expr = baa_create_literal_expr(literal_data);
     if (!expr) {
         baa_free_literal_data(literal_data);
         return NULL;
     }
-    
+
     return expr;
 }
 
@@ -95,14 +95,14 @@ static BaaExpr* baa_create_char_literal_expr(wchar_t value) {
     // Create the literal data
     BaaLiteralData* literal_data = baa_create_char_literal_data(value);
     if (!literal_data) return NULL;
-    
+
     // Create the literal expression
     BaaExpr* expr = baa_create_literal_expr(literal_data);
     if (!expr) {
         baa_free_literal_data(literal_data);
         return NULL;
     }
-    
+
     return expr;
 }
 
@@ -110,29 +110,26 @@ static BaaExpr* baa_create_null_literal_expr(void) {
     // Create the literal data
     BaaLiteralData* literal_data = baa_create_null_literal_data();
     if (!literal_data) return NULL;
-    
+
     // Create the literal expression
     BaaExpr* expr = baa_create_literal_expr(literal_data);
     if (!expr) {
         baa_free_literal_data(literal_data);
         return NULL;
     }
-    
+
     return expr;
 }
 
 static BaaExpr* baa_create_identifier_expr(const wchar_t* name, size_t length) {
     // Make a copy of the identifier name
-    wchar_t* name_copy = (wchar_t*)baa_malloc((length + 1) * sizeof(wchar_t));
+    wchar_t* name_copy = baa_strndup(name, length);
     if (!name_copy) return NULL;
-    
-    wcsncpy(name_copy, name, length);
-    name_copy[length] = L'\0';
-    
+
     // Create the variable expression
     BaaExpr* expr = baa_create_variable_expr(name_copy);
-    free(name_copy); // baa_create_variable_expr makes its own copy
-    
+    baa_free(name_copy); // baa_create_variable_expr makes its own copy
+
     return expr;
 }
 
@@ -161,7 +158,7 @@ static BaaExpr* baa_create_binary_expr_wrapper(BaaExpr* left, BaaExpr* right, Ba
         case BAA_OP_SUBSCRIPT: binary_op = BAA_BINARY_INDEX; break;
         default: return NULL; // Unsupported operator
     }
-    
+
     return baa_create_binary_expr(left, right, binary_op);
 }
 
@@ -175,7 +172,7 @@ static BaaExpr* baa_create_unary_expr_wrapper(BaaOperatorType op, BaaExpr* opera
         case BAA_OP_DEC: unary_op = BAA_UNARY_DEC; break;
         default: return NULL; // Unsupported operator
     }
-    
+
     return baa_create_unary_expr(operand, unary_op);
 }
 
@@ -183,14 +180,14 @@ static BaaExpr* baa_create_member_access(BaaExpr* object, const wchar_t* name, s
     // Create an identifier for the member name
     BaaExpr* member_name = baa_create_identifier_expr(name, length);
     if (!member_name) return NULL;
-    
+
     // Create a binary expression for the member access
     BaaExpr* expr = baa_create_binary_expr_wrapper(object, member_name, BAA_OP_DOT);
     if (!expr) {
         baa_free_expr(member_name);
         return NULL;
     }
-    
+
     return expr;
 }
 
@@ -198,7 +195,7 @@ static BaaExpr* baa_create_array_access(BaaExpr* array, BaaExpr* index) {
     // Create a binary expression for the array access
     BaaExpr* expr = baa_create_binary_expr_wrapper(array, index, BAA_OP_SUBSCRIPT);
     if (!expr) return NULL;
-    
+
     return expr;
 }
 
@@ -206,7 +203,7 @@ static BaaExpr* baa_create_assignment(BaaExpr* target, BaaExpr* value) {
     // For now, we'll implement assignment as a binary expression with a special operator
     BaaExpr* expr = baa_create_binary_expr_wrapper(target, value, BAA_OP_ASSIGN);
     if (!expr) return NULL;
-    
+
     return expr;
 }
 
@@ -217,22 +214,22 @@ static BaaExpr* baa_create_compound_assignment(BaaExpr* target, BaaExpr* value, 
 {
     // Validate input
     if (!target || !value) return NULL;
-    
+
     // Create the compound assignment data
-    BaaCompoundAssignmentData* data = (BaaCompoundAssignmentData*)malloc(sizeof(BaaCompoundAssignmentData));
+    BaaCompoundAssignmentData* data = (BaaCompoundAssignmentData*)baa_malloc(sizeof(BaaCompoundAssignmentData));
     if (!data) return NULL;
-    
+
     data->target = target;
     data->value = value;
     data->operator_type = op;
-    
+
     // Create the compound assignment expression
     BaaExpr* expr = baa_create_expr(BAA_EXPR_COMPOUND_ASSIGN, data);
     if (!expr) {
-        free(data);
+        baa_free(data);
         return NULL;
     }
-    
+
     return expr;
 }
 
@@ -243,22 +240,22 @@ static BaaExpr* baa_create_inc_dec_expr(BaaExpr* operand, BaaOperatorType op, bo
 {
     // Validate input
     if (!operand) return NULL;
-    
+
     // Create the inc/dec data
-    BaaIncDecData* data = (BaaIncDecData*)malloc(sizeof(BaaIncDecData));
+    BaaIncDecData* data = (BaaIncDecData*)baa_malloc(sizeof(BaaIncDecData));
     if (!data) return NULL;
-    
+
     data->operand = operand;
     data->operator_type = op;
     data->is_prefix = is_prefix;
-    
+
     // Create the inc/dec expression
     BaaExpr* expr = baa_create_expr(BAA_EXPR_INC_DEC, data);
     if (!expr) {
-        free(data);
+        baa_free(data);
         return NULL;
     }
-    
+
     return expr;
 }
 
@@ -269,20 +266,20 @@ static BaaExpr* baa_create_grouping(BaaExpr* expression)
 {
     // Validate input
     if (!expression) return NULL;
-    
+
     // Create the grouping data
     BaaGroupingData* data = (BaaGroupingData*)malloc(sizeof(BaaGroupingData));
     if (!data) return NULL;
-    
+
     data->expression = expression;
-    
+
     // Create the grouping expression
     BaaExpr* expr = baa_create_expr(BAA_EXPR_GROUPING, data);
     if (!expr) {
         free(data);
         return NULL;
     }
-    
+
     return expr;
 }
 
@@ -327,21 +324,21 @@ static BaaExpr* parse_primary(BaaParser* parser)
             // Parse boolean literal
             const wchar_t* lexeme = parser->current_token.lexeme;
             bool value = false;
-            
+
             // Check if it's صحيح or خطأ
             if (wcsncmp(lexeme, L"صحيح", 4) == 0) {
                 value = true;
             } else if (wcsncmp(lexeme, L"خطأ", 3) == 0) {
                 value = false;
             }
-            
+
             // Create the boolean literal expression
             BaaExpr* expr = baa_create_bool_literal_expr(value);
             if (!expr) {
                 baa_set_parser_error(parser, L"فشل في إنشاء تعبير منطقي");
                 return NULL;
             }
-            
+
             // Consume the boolean token
             baa_token_next(parser);
             return expr;
@@ -588,20 +585,20 @@ static BaaExpr* parse_unary(BaaParser* parser)
     // Check for prefix increment and decrement operators
     if (parser->current_token.type == BAA_TOKEN_INCREMENT ||
         parser->current_token.type == BAA_TOKEN_DECREMENT) {
-        
+
         // Get the operator type
-        BaaOperatorType op_type = (parser->current_token.type == BAA_TOKEN_INCREMENT) 
+        BaaOperatorType op_type = (parser->current_token.type == BAA_TOKEN_INCREMENT)
                                  ? BAA_OP_INC : BAA_OP_DEC;
-        
+
         // Consume the operator token
         baa_token_next(parser);
-        
+
         // Parse the operand (must be a valid assignment target)
         BaaExpr* operand = parse_unary(parser);
         if (!operand) {
             return NULL;
         }
-        
+
         // Create the prefix increment/decrement expression
         BaaExpr* expr = baa_create_inc_dec_expr(operand, op_type, true);
         if (!expr) {
@@ -609,10 +606,10 @@ static BaaExpr* parse_unary(BaaParser* parser)
             baa_free_expression(operand);
             return NULL;
         }
-        
+
         return expr;
     }
-    
+
     // Check for other unary operators
     if (parser->current_token.type == BAA_TOKEN_MINUS ||
         parser->current_token.type == BAA_TOKEN_BANG) {
@@ -647,18 +644,18 @@ static BaaExpr* parse_unary(BaaParser* parser)
 
     // If not a unary operator, parse as a call expression
     BaaExpr* expr = parse_call_or_member(parser);
-    
+
     // Check for postfix increment and decrement operators
     if (expr && (parser->current_token.type == BAA_TOKEN_INCREMENT ||
                 parser->current_token.type == BAA_TOKEN_DECREMENT)) {
-        
+
         // Get the operator type
-        BaaOperatorType op_type = (parser->current_token.type == BAA_TOKEN_INCREMENT) 
+        BaaOperatorType op_type = (parser->current_token.type == BAA_TOKEN_INCREMENT)
                                  ? BAA_OP_INC : BAA_OP_DEC;
-        
+
         // Consume the operator token
         baa_token_next(parser);
-        
+
         // Create the postfix increment/decrement expression
         BaaExpr* inc_dec_expr = baa_create_inc_dec_expr(expr, op_type, false);
         if (!inc_dec_expr) {
@@ -666,10 +663,10 @@ static BaaExpr* parse_unary(BaaParser* parser)
             baa_free_expression(expr);
             return NULL;
         }
-        
+
         return inc_dec_expr;
     }
-    
+
     return expr;
 }
 
@@ -1053,5 +1050,40 @@ BaaExpr* baa_parse_expression(BaaParser* parser)
  * Alias baa_free_expr as baa_free_expression for backward compatibility
  */
 void baa_free_expression(BaaExpr* expr) {
-    baa_free_expr(expr);
+    if (!expr) return;
+
+    // Free the expression data based on its type
+    switch (expr->type) {
+        case BAA_EXPR_BINARY:
+            baa_free_binary_expr(expr);
+            break;
+        case BAA_EXPR_UNARY:
+            baa_free_unary_expr(expr);
+            break;
+        case BAA_EXPR_LITERAL:
+            baa_free_literal_expr(expr);
+            break;
+        case BAA_EXPR_VARIABLE:
+            baa_free_variable_expr(expr);
+            break;
+        case BAA_EXPR_CALL:
+            baa_free_call_expr(expr);
+            break;
+        case BAA_EXPR_MEMBER:
+            baa_free_member_expr(expr);
+            break;
+        case BAA_EXPR_ARRAY:
+            baa_free_array_expr(expr);
+            break;
+        case BAA_EXPR_COMPOUND_ASSIGN:
+            baa_free_compound_assignment_expr(expr);
+            break;
+        case BAA_EXPR_INC_DEC:
+            baa_free_inc_dec_expr(expr);
+            break;
+        default:
+            // Unknown expression type
+            baa_free(expr);
+            break;
+    }
 }
