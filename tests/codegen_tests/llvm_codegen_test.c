@@ -1,123 +1,129 @@
-#include "baa/ast/ast.h"
-#include "baa/ast/literals.h"
-#include "baa/ast/expressions.h"
-#include "baa/ast/statements.h"
 #include "baa/codegen/llvm_codegen.h"
+#include "baa/ast/ast.h"
+#include "baa/types/types.h"
 #include <stdlib.h>
 #include <stdio.h>
 #include <wchar.h>
 
 // Helper function to free AST memory
-void cleanup_ast(BaaProgram *program)
-{
-    if (program && program->functions)
-    {
-        for (size_t i = 0; i < program->function_count; i++)
-        {
-            BaaFunction *func = &program->functions[i];
+static void cleanup_ast(BaaProgram* program) {
+    if (!program) return;
 
-            // Free function body
-            if (func->body)
-            {
-                // Recursive cleanup would be implemented here
-                free(func->body);
-            }
-
-            // Free return type
-            if (func->return_type)
-            {
-                free(func->return_type);
-            }
+    for (size_t i = 0; i < program->function_count; i++) {
+        BaaFunction* func = program->functions[i];
+        if (func) {
+            baa_free_function(func);
         }
-
-        free(program->functions);
     }
+    free(program->functions);
 }
 
 // Test program to verify LLVM code generation with updated literal system
-int main()
-{
-    // Initialize LLVM context
-    BaaLLVMContext context;
-    if (!baa_init_llvm_context(&context, L"test_module"))
-    {
-        fprintf(stderr, "Failed to initialize LLVM context\n");
+int main() {
+    // Initialize LLVM codegen
+    BaaLLVMCodegen* codegen = baa_init_llvm_codegen();
+    if (!codegen) {
+        fprintf(stderr, "Failed to initialize LLVM codegen\n");
         return 1;
     }
 
     // Create a simple program
-    BaaProgram program;
-    program.functions = NULL;
-    program.function_count = 0;
-
-    // Create a function
-    program.functions = (BaaFunction *)malloc(sizeof(BaaFunction));
+    BaaProgram program = {0};
     program.function_count = 1;
+    program.functions = (BaaFunction**)malloc(sizeof(BaaFunction*));
+    if (!program.functions) {
+        fprintf(stderr, "Failed to allocate functions array\n");
+        baa_free_llvm_codegen(codegen);
+        return 1;
+    }
 
-    BaaFunction *main_function = &program.functions[0];
-    main_function->name = L"main";
-    main_function->parameters = NULL;
-    main_function->parameter_count = 0;
+    // Create main function
+    BaaFunction* main_function = baa_create_function(L"main", NULL, 0);
+    if (!main_function) {
+        fprintf(stderr, "Failed to create main function\n");
+        free(program.functions);
+        baa_free_llvm_codegen(codegen);
+        return 1;
+    }
+    program.functions[0] = main_function;
 
-    // Create return type (int)
-    main_function->return_type = (BaaType *)malloc(sizeof(BaaType));
-    main_function->return_type->kind = BAA_TYPE_INT;
+    // Create function body
+    BaaBlock* body = baa_create_block_stmt();
+    if (!body) {
+        fprintf(stderr, "Failed to create function body\n");
+        baa_free_function(main_function);
+        free(program.functions);
+        baa_free_llvm_codegen(codegen);
+        return 1;
+    }
 
-    // 1. Create a literal expression for returning 42
-    BaaExpr *literal_expr = (BaaExpr *)malloc(sizeof(BaaExpr));
-    literal_expr->kind = BAA_EXPR_LITERAL;
+    // Create return statement
+    BaaStmt* return_stmt = baa_create_return_stmt();
+    if (!return_stmt) {
+        fprintf(stderr, "Failed to create return statement\n");
+        baa_free_block(body);
+        baa_free_function(main_function);
+        free(program.functions);
+        baa_free_llvm_codegen(codegen);
+        return 1;
+    }
 
-    // Create literal data
-    BaaLiteralData *literal_data = (BaaLiteralData *)malloc(sizeof(BaaLiteralData));
-    literal_data->kind = BAA_LITERAL_INT;
-    literal_data->int_value = 42;
-    literal_expr->data = literal_data;
+    // Create integer literal expression
+    BaaExpr* int_expr = baa_create_literal_expr();
+    if (!int_expr) {
+        fprintf(stderr, "Failed to create integer literal\n");
+        baa_free_stmt(return_stmt);
+        baa_free_block(body);
+        baa_free_function(main_function);
+        free(program.functions);
+        baa_free_llvm_codegen(codegen);
+        return 1;
+    }
 
-    // 2. Create a return statement
-    BaaStmt *return_stmt = (BaaStmt *)malloc(sizeof(BaaStmt));
-    return_stmt->kind = BAA_STMT_RETURN;
+    // Set up the expression
+    BaaLiteralData* literal_data = baa_create_int_literal_data(42);
+    if (!literal_data) {
+        fprintf(stderr, "Failed to create literal data\n");
+        baa_free_expr(int_expr);
+        baa_free_stmt(return_stmt);
+        baa_free_block(body);
+        baa_free_function(main_function);
+        free(program.functions);
+        baa_free_llvm_codegen(codegen);
+        return 1;
+    }
+    int_expr->data.literal = literal_data;
 
-    BaaReturnStmt *return_stmt_data = (BaaReturnStmt *)malloc(sizeof(BaaReturnStmt));
-    return_stmt_data->value = literal_expr;
-    return_stmt->data = return_stmt_data;
+    // Set up the return statement
+    return_stmt->data.return_stmt.expr = int_expr;
 
-    // 3. Create a block statement as the function body
-    BaaStmt *block_stmt = (BaaStmt *)malloc(sizeof(BaaStmt));
-    block_stmt->kind = BAA_STMT_BLOCK;
+    // Add return statement to body
+    if (!baa_add_stmt_to_block(body, return_stmt)) {
+        fprintf(stderr, "Failed to add statement to block\n");
+        baa_free_literal_data(literal_data);
+        baa_free_expr(int_expr);
+        baa_free_stmt(return_stmt);
+        baa_free_block(body);
+        baa_free_function(main_function);
+        free(program.functions);
+        baa_free_llvm_codegen(codegen);
+        return 1;
+    }
 
-    BaaBlockStmt *block_stmt_data = (BaaBlockStmt *)malloc(sizeof(BaaBlockStmt));
-    block_stmt_data->statements = (BaaStmt *)malloc(sizeof(BaaStmt));
-    block_stmt_data->statements[0] = *return_stmt;
-    block_stmt_data->statement_count = 1;
-    block_stmt->data = block_stmt_data;
-
-    main_function->body = block_stmt;
+    // Set function body
+    main_function->body = body;
 
     // Generate LLVM IR
-    if (!baa_generate_llvm_ir(&context, &program))
-    {
-        const wchar_t *error = context.error_message;
-        wprintf(L"Failed to generate LLVM IR: %ls\n", error ? error : L"Unknown error");
-        baa_cleanup_llvm_context(&context);
+    if (!baa_generate_llvm_ir(codegen, &program)) {
+        fprintf(stderr, "Failed to generate LLVM IR\n");
         cleanup_ast(&program);
+        baa_free_llvm_codegen(codegen);
         return 1;
     }
-
-    // Write LLVM IR to file
-    if (!baa_write_llvm_ir_to_file(&context, L"test_output.ll"))
-    {
-        const wchar_t *error = context.error_message;
-        wprintf(L"Failed to write LLVM IR to file: %ls\n", error ? error : L"Unknown error");
-        baa_cleanup_llvm_context(&context);
-        cleanup_ast(&program);
-        return 1;
-    }
-
-    printf("Successfully generated LLVM IR. Written to test_output.ll\n");
 
     // Clean up
-    baa_cleanup_llvm_context(&context);
     cleanup_ast(&program);
+    baa_free_llvm_codegen(codegen);
 
     return 0;
 }

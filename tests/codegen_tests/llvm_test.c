@@ -1,83 +1,118 @@
-#include <stdio.h>
 #include "baa/codegen/llvm_codegen.h"
 #include "baa/ast/ast.h"
 #include "baa/types/types.h"
+#include <stdlib.h>
+#include <stdio.h>
 
 int main() {
-    // Initialize LLVM context
-    BaaLLVMContext context;
-    if (!baa_init_llvm_context(&context, L"test_module")) {
-        printf("Failed to initialize LLVM context: %ls\n", baa_get_llvm_error(&context));
+    // Initialize LLVM codegen
+    BaaLLVMCodegen* codegen = baa_init_llvm_codegen();
+    if (!codegen) {
+        fprintf(stderr, "Failed to initialize LLVM codegen\n");
         return 1;
     }
 
-    // Create a simple program
-    BaaProgram program;
-    program.function_count = 0;
-    program.functions = NULL;
-
-    // Create a function
-    BaaFunction function;
-    function.name = L"main";
-    
-    // Set return type to int
-    BaaType* return_type = baa_create_primitive_type(BAA_TYPE_INT);
-    function.return_type = return_type;
-    
-    // Create a simple function body (return 42)
-    BaaBlock* body = (BaaBlock*)malloc(sizeof(BaaBlock));
-    body->count = 1;
-    body->statements = (BaaStmt**)malloc(sizeof(BaaStmt*));
-    
-    // Create a return statement
-    BaaStmt* return_stmt = (BaaStmt*)malloc(sizeof(BaaStmt));
-    return_stmt->type = BAA_STMT_RETURN;
-    
-    // Create a literal int expression for the return value
-    BaaExpr* int_expr = (BaaExpr*)malloc(sizeof(BaaExpr));
-    int_expr->type = BAA_EXPR_INT;
-    int_expr->int_literal = 42;
-    
-    // Set the return value
-    return_stmt->return_stmt.expr = int_expr;
-    
-    // Add the return statement to the function body
-    body->statements[0] = return_stmt;
-    function.body = body;
-    
-    // Add the function to the program
+    // Create a simple program with a function that returns 42
+    BaaProgram program = {0};
     program.function_count = 1;
     program.functions = (BaaFunction**)malloc(sizeof(BaaFunction*));
-    program.functions[0] = &function;
-    
-    // Generate LLVM IR for the program
-    if (!baa_generate_llvm_ir(&context, &program)) {
-        printf("Failed to generate LLVM IR: %ls\n", baa_get_llvm_error(&context));
-        baa_cleanup_llvm_context(&context);
+    if (!program.functions) {
+        fprintf(stderr, "Failed to allocate functions array\n");
+        baa_free_llvm_codegen(codegen);
         return 1;
     }
-    
-    // Write LLVM IR to file
-    if (!baa_write_llvm_ir_to_file(&context, L"test.ll")) {
-        printf("Failed to write LLVM IR to file: %ls\n", baa_get_llvm_error(&context));
-        baa_cleanup_llvm_context(&context);
+
+    // Create main function
+    BaaFunction* main_function = baa_create_function(L"main", NULL, 0);
+    if (!main_function) {
+        fprintf(stderr, "Failed to create main function\n");
+        free(program.functions);
+        baa_free_llvm_codegen(codegen);
         return 1;
     }
-    
-    // Compile LLVM IR to object file
-    if (!baa_compile_llvm_ir_to_object(&context, L"test.o")) {
-        printf("Failed to compile LLVM IR to object file: %ls\n", baa_get_llvm_error(&context));
-        baa_cleanup_llvm_context(&context);
+    program.functions[0] = main_function;
+
+    // Create function body
+    BaaBlock* body = baa_create_block_stmt();
+    if (!body) {
+        fprintf(stderr, "Failed to create function body\n");
+        baa_free_function(main_function);
+        free(program.functions);
+        baa_free_llvm_codegen(codegen);
         return 1;
     }
-    
-    printf("Successfully generated LLVM IR and compiled to object file\n");
-    
+
+    // Create return statement
+    BaaStmt* return_stmt = baa_create_return_stmt();
+    if (!return_stmt) {
+        fprintf(stderr, "Failed to create return statement\n");
+        baa_free_block(body);
+        baa_free_function(main_function);
+        free(program.functions);
+        baa_free_llvm_codegen(codegen);
+        return 1;
+    }
+
+    // Create integer literal expression
+    BaaExpr* int_expr = baa_create_literal_expr();
+    if (!int_expr) {
+        fprintf(stderr, "Failed to create integer literal\n");
+        baa_free_stmt(return_stmt);
+        baa_free_block(body);
+        baa_free_function(main_function);
+        free(program.functions);
+        baa_free_llvm_codegen(codegen);
+        return 1;
+    }
+
+    // Set up the expression
+    BaaLiteralData* literal_data = baa_create_int_literal_data(42);
+    if (!literal_data) {
+        fprintf(stderr, "Failed to create literal data\n");
+        baa_free_expr(int_expr);
+        baa_free_stmt(return_stmt);
+        baa_free_block(body);
+        baa_free_function(main_function);
+        free(program.functions);
+        baa_free_llvm_codegen(codegen);
+        return 1;
+    }
+    int_expr->data.literal = literal_data;
+
+    // Set up the return statement
+    return_stmt->data.return_stmt.expr = int_expr;
+
+    // Add return statement to body
+    if (!baa_add_stmt_to_block(body, return_stmt)) {
+        fprintf(stderr, "Failed to add statement to block\n");
+        baa_free_literal_data(literal_data);
+        baa_free_expr(int_expr);
+        baa_free_stmt(return_stmt);
+        baa_free_block(body);
+        baa_free_function(main_function);
+        free(program.functions);
+        baa_free_llvm_codegen(codegen);
+        return 1;
+    }
+
+    // Set function body
+    main_function->body = body;
+
+    // Generate LLVM IR
+    if (!baa_generate_llvm_ir(codegen, &program)) {
+        fprintf(stderr, "Failed to generate LLVM IR\n");
+        baa_free_block(body);
+        baa_free_function(main_function);
+        free(program.functions);
+        baa_free_llvm_codegen(codegen);
+        return 1;
+    }
+
     // Clean up
-    baa_cleanup_llvm_context(&context);
-    free(body->statements);
-    free(body);
+    baa_free_block(body);
+    baa_free_function(main_function);
     free(program.functions);
-    
+    baa_free_llvm_codegen(codegen);
+
     return 0;
 }
