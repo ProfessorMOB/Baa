@@ -1,4 +1,5 @@
 #include "baa/preprocessor/preprocessor.h"
+#include "baa/utils/utils.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -17,6 +18,20 @@
 #define PATH_SEPARATOR '/'
 #define MAX_PATH_LEN PATH_MAX
 #endif
+
+// Implementation of wcsndup for Windows compatibility
+static wchar_t* wcsndup(const wchar_t* s, size_t n) {
+    wchar_t* result = (wchar_t*)malloc((n + 1) * sizeof(wchar_t));
+    if (result) {
+        wcsncpy(result, s, n);
+        result[n] = L'\0';
+    }
+    return result;
+}
+
+// Forward declarations for static functions
+static bool add_macro(BaaPreprocessor* pp_state, const wchar_t* name, const wchar_t* body);
+static const BaaMacro* find_macro(const BaaPreprocessor* pp_state, const wchar_t* name);
 
 // --- Helper Functions ---
 
