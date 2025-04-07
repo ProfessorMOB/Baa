@@ -28,6 +28,9 @@ if(LLVM_AVAILABLE)
         executionengine
     )
 
+    # Print the determined LLVM libraries for debugging
+    message(STATUS "LLVM Libraries: ${llvm_libs}")
+
     target_link_libraries(baa_codegen
         PRIVATE
             ${llvm_libs}
