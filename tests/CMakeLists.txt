@@ -1,37 +1,35 @@
+# Enable testing
 enable_testing()
 
-# Add parser tests directory
+# Add test framework
+add_library(test_framework
+    framework/test_framework.c
+)
+target_include_directories(test_framework
+    PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR}/framework
+)
+
+# Common test settings
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests)
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests)
+
+# Enable memory leak detection and UTF-8 support for MinGW
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -finput-charset=UTF-8 -fexec-charset=UTF-8")
+if(CMAKE_C_COMPILER_ID MATCHES "GNU" AND NOT WIN32)
+    # Enable ASan only on non-Windows platforms with GCC
+    # MinGW doesn't fully support ASan on Windows
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fsanitize=address")
+endif()
+
+# Add unit tests
+add_subdirectory(unit)
+
+# Add parser tests
 add_subdirectory(parser_tests)
 
-# Test utilities
-add_executable(test_utils test_utils.c)
-target_link_libraries(test_utils PRIVATE baa_utils)
-add_test(NAME test_utils COMMAND test_utils)
+# Add codegen tests
+add_subdirectory(codegen_tests)
 
-# Test operators
-add_executable(test_operators test_operators.c)
-target_link_libraries(test_operators PRIVATE
-    baa_utils
-    baa_types
-    baa_operators
-)
-add_test(NAME test_operators COMMAND test_operators)
-
-# Test types
-add_executable(test_types test_types.c)
-target_link_libraries(test_types PRIVATE
-    baa_utils
-    baa_types
-)
-add_test(NAME test_types COMMAND test_types)
-
-# Test control flow
-add_executable(test_control_flow test_control_flow.c)
-target_link_libraries(test_control_flow PRIVATE
-    baa_utils
-    baa_ast
-    baa_control_flow
-)
-add_test(NAME test_control_flow COMMAND test_control_flow)
-
-# Remove duplicate test_parser target since it's defined in parser_tests/CMakeLists.txt
+# Add integration tests
+add_subdirectory(integration)

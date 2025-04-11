@@ -6,7 +6,7 @@ add_subdirectory(codegen)
 add_subdirectory(utils)
 add_subdirectory(types)
 add_subdirectory(operators)
-add_subdirectory(control_flow)
+add_subdirectory(src/analysis)
 
 # Main executable
 add_executable(Baa

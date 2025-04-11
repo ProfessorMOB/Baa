@@ -114,31 +114,85 @@ void baa_component_function(void) {
    ```c
    // Token structure
    typedef struct {
-       TokenType type;
-       wchar_t *lexeme;
-       int line;
-       int column;
-   } Token;
+       BaaTokenType type;
+       const wchar_t *lexeme;
+       size_t length;
+       size_t line;
+       size_t column;
+   } BaaToken;
+   
+   // Token scanning
+   BaaToken baa_scan_token(BaaLexer* lexer);
+   ```
+
+3. Boolean and advanced operator support
+   ```c
+   // Boolean literals
+   // صحيح (True) and خطأ (False)
+   if (baa_identifier_equals(lexer, L"صحيح")) {
+       return baa_make_token(lexer, BAA_TOKEN_BOOL_LIT);
+   } else if (baa_identifier_equals(lexer, L"خطأ")) {
+       return baa_make_token(lexer, BAA_TOKEN_BOOL_LIT);
+   }
+   
+   // Compound assignment operators
+   case L'+':
+       if (baa_match(lexer, L'+')) {
+           return baa_make_token(lexer, BAA_TOKEN_INCREMENT);
+       } else if (baa_match(lexer, L'=')) {
+           return baa_make_token(lexer, BAA_TOKEN_PLUS_EQUAL);
+       }
+       return baa_make_token(lexer, BAA_TOKEN_PLUS);
    ```
 
 ### Parser Implementation
 1. Grammar rules
    ```c
    // Parse declarations
-   Node *parse_declaration(void);
+   BaaStmt* baa_parse_var_declaration(BaaParser* parser);
+   BaaStmt* baa_parse_function(BaaParser* parser);
    
    // Parse statements
-   Node *parse_statement(void);
+   BaaStmt* baa_parse_statement(BaaParser* parser);
+   BaaStmt* baa_parse_if_statement(BaaParser* parser);
+   BaaStmt* baa_parse_while_statement(BaaParser* parser);
    
    // Parse expressions
-   Node *parse_expression(void);
+   BaaExpr* baa_parse_expression(BaaParser* parser);
+   BaaExpr* baa_parse_assignment(BaaParser* parser);
    ```
 
 2. AST construction
    ```c
    // Create AST nodes
-   Node *create_binary_node(NodeType type, Node *left, Node *right);
-   Node *create_unary_node(NodeType type, Node *operand);
+   BaaExpr* baa_create_binary_expr(BaaBinaryOpKind op, BaaExpr* left, BaaExpr* right, BaaSourceLocation loc);
+   BaaExpr* baa_create_unary_expr(BaaUnaryOpKind op, BaaExpr* operand, BaaSourceLocation loc);
+   ```
+
+### AST Implementation
+1. Function parameter handling
+   ```c
+   // Create parameters
+   BaaParameter* baa_create_parameter(const wchar_t* name, size_t name_length, BaaType* type);
+   BaaParameter* baa_create_optional_parameter(const wchar_t* name, size_t name_length, BaaType* type, BaaExpr* default_value);
+   BaaParameter* baa_create_rest_parameter(const wchar_t* name, size_t name_length, BaaType* element_type);
+   
+   // Add parameters to function
+   bool baa_add_parameter_to_function(BaaFunction* function, BaaParameter* parameter);
+   
+   // Function validation
+   bool baa_validate_function_signature(BaaFunction* function);
+   ```
+
+2. Control Flow Statements
+   ```c
+   // Create control flow statements
+   BaaStmt* baa_create_if_stmt(BaaExpr* condition, BaaStmt* then_branch, BaaStmt* else_branch);
+   BaaStmt* baa_create_while_stmt(BaaExpr* condition, BaaStmt* body);
+   BaaStmt* baa_create_for_stmt(BaaStmt* initializer, BaaExpr* condition, BaaExpr* increment, BaaStmt* body);
+   BaaStmt* baa_create_switch_stmt(BaaExpr* value, BaaStmt** cases, size_t case_count);
+   BaaStmt* baa_create_break_stmt(int loop_depth, bool is_switch_break);
+   BaaStmt* baa_create_continue_stmt(int loop_depth);
    ```
 
 ### Type System

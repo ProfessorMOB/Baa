@@ -1,135 +1,232 @@
-#include "baa/ast.h"
-#include "baa/utils.h"
-#include "baa_errors.h"
+#include "baa/ast/ast.h"
+#include "baa/ast/statements.h"
+#include "baa/utils/utils.h"
 #include <stdlib.h>
 #include <string.h>
 
-// Source location tracking
-typedef struct {
-    size_t line;
-    size_t column;
-    const wchar_t* file;
-} SourceLocation;
-
-// Node attributes
-typedef struct {
-    SourceLocation location;
-    bool is_constant;
-    bool is_static;
-    bool is_extern;
-} NodeAttributes;
-
-// Tree traversal utilities
-void baa_visit_node(Node *node, void (*visitor)(Node*, void*), void *data) {
-    if (!node || !visitor) {
-        return;
-    }
-
-    visitor(node, data);
-    for (size_t i = 0; i < node->children_count; i++) {
-        baa_visit_node(node->children[i], visitor, data);
-    }
-}
-
-// Source location management
-void baa_set_node_location(Node *node, size_t line, size_t column, const wchar_t *file) {
-    if (!node || !node->attributes) {
-        return;
-    }
-    
-    node->attributes->location.line = line;
-    node->attributes->location.column = column;
-    node->attributes->location.file = file;
-}
-
-// Node attribute management
-void baa_set_node_constant(Node *node, bool is_constant) {
-    if (!node || !node->attributes) {
-        return;
-    }
-    node->attributes->is_constant = is_constant;
-}
-
-void baa_set_node_static(Node *node, bool is_static) {
-    if (!node || !node->attributes) {
-        return;
-    }
-    node->attributes->is_static = is_static;
-}
-
-void baa_set_node_extern(Node *node, bool is_extern) {
-    if (!node || !node->attributes) {
-        return;
-    }
-    node->attributes->is_extern = is_extern;
-}
-
-Node *baa_create_node(NodeType type, const wchar_t *value) {
-    Node *node = baa_malloc(sizeof(Node));
-    if (!node) {
-        baa_set_error(BAA_ERROR_MEMORY, L"Failed to allocate memory for AST node");
+// Node creation
+BaaNode *baa_create_node(BaaNodeKind kind, void *data)
+{
+    BaaNode *node = (BaaNode *)baa_malloc(sizeof(BaaNode));
+    if (!node)
         return NULL;
-    }
 
-    node->type = type;
-    node->value = value ? wcsdup(value) : NULL;
-    node->children = NULL;
-    node->children_count = 0;
-    node->children_capacity = 0;
-    
-    // Initialize attributes
-    node->attributes = baa_malloc(sizeof(NodeAttributes));
-    if (!node->attributes) {
-        baa_free(node);
-        baa_set_error(BAA_ERROR_MEMORY, L"Failed to allocate memory for node attributes");
-        return NULL;
-    }
-    memset(node->attributes, 0, sizeof(NodeAttributes));
+    node->kind = kind;
+    node->data = data;
+    node->parent = NULL;
+    node->line = 0;
+    node->column = 0;
+    // Initialize location
+    node->location.file = NULL;
+    node->location.line = 0;
+    node->location.column = 0;
 
     return node;
 }
 
-void baa_add_child(Node *parent, Node *child) {
-    if (!parent || !child) {
+void baa_set_node_location(BaaNode *node, size_t line, size_t column, BaaSourceLocation loc)
+{
+    if (!node)
         return;
-    }
 
-    if (parent->children_count >= parent->children_capacity) {
-        size_t new_capacity = parent->children_capacity == 0 ? 4 : parent->children_capacity * 2;
-        Node **new_children = baa_realloc(parent->children, new_capacity * sizeof(Node*));
-
-        if (!new_children) {
-            baa_set_error(BAA_ERROR_MEMORY, L"Failed to allocate memory for AST node children");
-            return;
-        }
-
-        parent->children = new_children;
-        parent->children_capacity = new_capacity;
-    }
-
-    parent->children[parent->children_count++] = child;
+    node->line = line;
+    node->column = column;
+    node->location = loc;
 }
 
-void baa_free_node(Node *node) {
-    if (!node) {
+void baa_add_child_node(BaaNode *parent, BaaNode *child)
+{
+    if (!parent || !child)
         return;
+
+    child->parent = parent;
+}
+
+// Program management
+BaaProgram *baa_create_program(void)
+{
+    BaaProgram *program = (BaaProgram *)baa_malloc(sizeof(BaaProgram));
+    if (!program)
+        return NULL;
+
+    program->functions = NULL;
+    program->function_count = 0;
+    program->function_capacity = 0;
+
+    // Create a node for the program
+    BaaNode *node = baa_create_node(BAA_NODE_PROGRAM, program);
+    if (!node)
+    {
+        baa_free(program);
+        return NULL;
     }
 
-    if (node->value) {
-        free(node->value);
+    program->ast_node = node;
+
+    return program;
+}
+
+bool baa_add_function_to_program(BaaProgram *program, BaaFunction *function)
+{
+    if (!program || !function)
+        return false;
+
+    // Resize the functions array if needed
+    if (program->function_count >= program->function_capacity)
+    {
+        size_t new_capacity = program->function_capacity == 0 ? 8 : program->function_capacity * 2;
+        BaaFunction **new_functions = (BaaFunction **)baa_realloc(
+            program->functions,
+            new_capacity * sizeof(BaaFunction *));
+
+        if (!new_functions)
+            return false;
+
+        program->functions = new_functions;
+        program->function_capacity = new_capacity;
     }
 
-    if (node->attributes) {
-        baa_free(node->attributes);
+    // Add the function
+    program->functions[program->function_count++] = function;
+
+    // Link the function's AST node to the program's AST node
+    if (function->ast_node && program->ast_node)
+    {
+        baa_add_child_node(program->ast_node, function->ast_node);
     }
 
-    for (size_t i = 0; i < node->children_count; i++) {
-        baa_free_node(node->children[i]);
+    return true;
+}
+
+// Function management
+BaaFunction *baa_create_function(const wchar_t *name, size_t name_length)
+{
+    if (!name)
+        return NULL;
+
+    BaaFunction *function = (BaaFunction *)baa_malloc(sizeof(BaaFunction));
+    if (!function)
+        return NULL;
+
+    // Duplicate the name
+    wchar_t *name_copy = baa_strndup(name, name_length);
+    if (!name_copy)
+    {
+        baa_free(function);
+        return NULL;
     }
 
-    if (node->children) {
-        baa_free(node->children);
+    function->name = name_copy;
+    function->name_length = name_length;
+    function->body = NULL;
+
+    // Create a node for the function
+    BaaNode *node = baa_create_node(BAA_NODE_FUNCTION, function);
+    if (!node)
+    {
+        baa_free((void *)name_copy);
+        baa_free(function);
+        return NULL;
     }
 
+    function->ast_node = node;
+
+    return function;
+}
+
+BaaFunction *baa_create_function_signature(const wchar_t *name, size_t name_length)
+{
+    if (!name)
+        return NULL;
+
+    BaaFunction *function = (BaaFunction *)baa_malloc(sizeof(BaaFunction));
+    if (!function)
+        return NULL;
+
+    // Duplicate the name
+    wchar_t *name_copy = baa_strndup(name, name_length);
+    if (!name_copy)
+    {
+        baa_free(function);
+        return NULL;
+    }
+
+    function->name = name_copy;
+    function->name_length = name_length;
+    function->body = NULL;
+
+    // Create a node for the function
+    BaaNode *node = baa_create_node(BAA_NODE_FUNCTION, function);
+    if (!node)
+    {
+        baa_free((void *)name_copy);
+        baa_free(function);
+        return NULL;
+    }
+
+    function->ast_node = node;
+
+    return function;
+}
+
+// Memory management
+void baa_free_node(BaaNode *node)
+{
+    if (!node)
+        return;
+
+    // Do not free the data here; it's the responsibility of the specific node type's free function
     baa_free(node);
+}
+
+void baa_free_function(BaaFunction *function)
+{
+    if (!function)
+        return;
+
+    // Free the name
+    if (function->name)
+    {
+        baa_free((void *)function->name);
+    }
+
+    // Free the body
+    if (function->body)
+    {
+        baa_free_block(function->body);
+    }
+
+    // Free the AST node
+    if (function->ast_node)
+    {
+        baa_free_node(function->ast_node);
+    }
+
+    // Free the function itself
+    baa_free(function);
+}
+
+void baa_free_program(BaaProgram *program)
+{
+    if (!program)
+        return;
+
+    // Free all functions
+    if (program->functions)
+    {
+        for (size_t i = 0; i < program->function_count; i++)
+        {
+            baa_free_function(program->functions[i]);
+        }
+        baa_free(program->functions);
+    }
+
+    // Free the AST node
+    if (program->ast_node)
+    {
+        baa_free_node(program->ast_node);
+    }
+
+    // Free the program itself
+    baa_free(program);
 }
