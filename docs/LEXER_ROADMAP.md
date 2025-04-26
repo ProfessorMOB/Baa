@@ -19,9 +19,9 @@ This roadmap outlines the planned improvements and current status of the Baa lan
 - [ ] Special tokens (Comment - Defined, but comments currently skipped, not tokenized. See Comment Support section)
 - [x] Literals (Identifier - Basic Arabic/ASCII support)
 - [x] Literals (Int - `BAA_TOKEN_INT_LIT`)
-- [ ] Literals (Float - Defined `BAA_TOKEN_FLOAT_LIT`, but lexer currently only makes `INT_LIT`; number parser handles float details post-lexing)
+- [x] Literals (Float - Defined `BAA_TOKEN_FLOAT_LIT`, identified by lexer syntax checks; value parsing occurs later)
 - [x] Literals (Char - Defined `BAA_TOKEN_CHAR_LIT`, scanned with escapes `\n, \t, \\, \', \", \r, \0, \uXXXX`)
-- [x] Literals (String - `BAA_TOKEN_STRING_LIT`, scanned with escapes `\n, \t, \\, \", \uXXXX`)
+- [x] Literals (String - `BAA_TOKEN_STRING_LIT`, scanned with escapes `\n, \t, \\, \", \r, \0, \uXXXX`)
 - [x] Literals (Boolean - Defined `BAA_TOKEN_BOOL_LIT`, keywords `صحيح`/`خطأ` scanned)
 - [x] Keywords (FUNC, RETURN, IF, ELSE, WHILE, FOR, DO, SWITCH, CASE, BREAK, CONTINUE - Present in `lexer.c` keyword list)
 - [x] Keywords (VAR, CONST - Defined and added to `lexer.c` keyword list)
@@ -40,7 +40,7 @@ This roadmap outlines the planned improvements and current status of the Baa lan
 - [x] Arabic-Indic digit support
 - [x] Scientific notation support
 - [x] Binary and hexadecimal literals
-- [ ] Underscore in number literals (e.g., 1_000_000)
+- [x] Underscore in number literals (e.g., 1_000_000)
 
 ## String Handling
 
@@ -76,7 +76,7 @@ This roadmap outlines the planned improvements and current status of the Baa lan
     - [x] Include directives (`#تضمين`)
     - [x] Basic Macro definitions (`#تعريف` - parameterless)
     - [x] File inclusion logic
-    - [ ] Conditional compilation (`#إذا_عرف`, etc. - *handled by preprocessor, but not yet implemented there*)
+    - [x] Conditional compilation (`#إذا_عرف`, etc. - *handled by preprocessor*)
 
 ## Error Handling and Reporting
 
@@ -135,5 +135,4 @@ This roadmap outlines the planned improvements and current status of the Baa lan
     - String interning.
 
 6.  **[Misc]** Implement remaining basic escape sequences (`\r`, `\0` in strings, `\"` in chars). *[Done]*
-7.  **[Feature]** Implement underscores in number literals (`1_000_000`). *[Done]*
 

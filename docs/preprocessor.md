@@ -18,7 +18,17 @@ It operates on files assumed to be encoded in **UTF-16LE**.
     - Processes basic macro definitions (currently parameterless).
     - Example: `#تعريف MAX_SIZE 1024`
     - Performs simple text substitution of defined macros in subsequent code lines.
-- **Other Directives:** Directives not explicitly handled (e.g., `#إذا_عرف`) are currently passed through unchanged to the output (intended for future implementation).
+- **`#الغاء_تعريف` (Undefine):**
+    - Removes a previously defined macro.
+    - Example: `#الغاء_تعريف MAX_SIZE`
+- **Conditional Compilation:**
+    - Supports basic conditional blocks:
+        - `#إذا_عرف MACRO` (ifdef)
+        - `#إذا_لم_يعرف MACRO` (ifndef)
+        - `#إلا` (else)
+        - `#نهاية_إذا` (endif)
+    - Lines within blocks whose conditions are false are skipped.
+- **Other Directives:** Directives not explicitly handled (e.g., `#if` with expressions) are currently passed through unchanged to the output (intended for future implementation).
 
 ### Circular Include Detection (كشف التضمين الدائري)
 
@@ -61,6 +71,14 @@ typedef struct {
     BaaMacro* macros;               // Dynamically allocated array of macros
     size_t macro_count;
     size_t macro_capacity;
+    // Conditional compilation state
+    bool* conditional_stack;        // Stack: true if current block's condition was met
+    size_t conditional_stack_count;
+    size_t conditional_stack_capacity;
+    bool* conditional_branch_taken_stack; // Stack: true if a branch (#if, #elif, #else) has been taken
+    size_t conditional_branch_taken_stack_count;
+    size_t conditional_branch_taken_stack_capacity;
+    bool skipping_lines;            // True if currently skipping lines
 } BaaPreprocessor;
 ```
 
@@ -109,9 +127,8 @@ if (!processed_source) {
 
 ## Future Enhancements (تحسينات مستقبلية)
 
-- Conditional compilation (`#إذا_عرف`, `#إلا`, etc.).
+- Conditional compilation (`#if` with constant expressions).
 - Function-like macros (macros with parameters).
-- `#undef` directive.
 - More robust macro substitution rules (recursion prevention, stringification, token pasting).
 - Improved error reporting with original source line numbers.
 - Support for UTF-8 input files.

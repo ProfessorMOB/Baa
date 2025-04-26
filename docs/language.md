@@ -18,8 +18,8 @@ Baa supports a preprocessor step that handles directives starting with `#` befor
 #تضمين "my_definitions.b" // Include a local file
 #تضمين <standard_io>      // Include a standard library
 ```
-*   **Macros:** `#تعريف` - *[Planned]*
-*   **Conditional Compilation:** `#إذا_عرف`, `#إلا`, `#انتهى_إذا` - *[Planned]*
+*   **Macros:** `#تعريف`, `#الغاء_تعريف` - Basic parameterless define/undef implemented. *[Implemented]*
+*   **Conditional Compilation:** `#إذا_عرف`, `#إذا_لم_يعرف`, `#إلا`, `#نهاية_إذا` - Basic support implemented. *[Implemented]*
 
 ### 1.2 Statement Termination
 
@@ -107,7 +107,7 @@ Baa supports standard C/C++ style comments:
 *   **Single-line:** Begins with `//` and continues to the end of the line. - *[Implemented]*
 *   **Multi-line:** Begins with `/*` and ends with `*/`. These comments can span multiple lines. - *[Implemented]*
 *   **Legacy `#` Comments:** Lines starting with `#` are also skipped like single-line comments. *[Note: This style might be deprecated in favour of standard `//`]* - *[Implemented]*
-*   **Preprocessor Directives:** Lines starting with `#` are handled entirely by the preprocessor and are typically removed before the lexer sees the code (except in certain cases like conditional compilation). - *[Implemented for `#تضمين`]*
+*   **Preprocessor Directives:** Lines starting with `#` are handled entirely by the preprocessor and are typically removed before the lexer sees the code (except in certain cases like conditional compilation). - *[Implemented for `#تضمين`, `#تعريف`, `#الغاء_تعريف`, conditionals]*
 
 ```baa
 // هذا تعليق سطر واحد.

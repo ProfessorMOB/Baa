@@ -23,13 +23,13 @@ This roadmap outlines the planned improvements and current status of the Baa lan
     - [x] `#تعريف NAME BODY` (Parameterless macro definition)
     - [x] Simple text substitution for parameterless macros
     - [ ] Function-like macros (with parameters)
-    - [ ] `#undef` directive
+    - [x] `#undef` directive
     - [ ] More robust substitution rules (recursion prevention, stringification `#`, token pasting `##`)
 - **Conditional Compilation:**
-    - [ ] `#إذا_عرف MACRO` (ifdef)
-    - [ ] `#إذا_لم_يعرف MACRO` (ifndef)
-    - [ ] `#إلا` (else)
-    - [ ] `#نهاية_إذا` (endif)
+    - [x] `#إذا_عرف MACRO` (ifdef)
+    - [x] `#إذا_لم_يعرف MACRO` (ifndef)
+    - [x] `#إلا` (else)
+    - [x] `#نهاية_إذا` (endif)
     - [ ] Basic `#if` (evaluating constant expressions - requires expression parser integration)
 
 ## Testing and Validation

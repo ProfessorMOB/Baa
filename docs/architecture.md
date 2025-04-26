@@ -17,9 +17,11 @@ The initial stage that processes the source file before tokenization:
   - Implemented as a separate stage.
   - Handles `#تضمين` (relative and standard paths).
   - Handles parameterless `#تعريف` macros with basic text substitution.
+  - Handles `#الغاء_تعريف` to undefine macros.
+  - Handles basic conditional compilation (`#إذا_عرف`, `#إذا_لم_يعرف`, `#إلا`, `#نهاية_إذا`).
   - Detects circular includes.
   - Enforces UTF-16LE input.
-  - *Planned:* Conditional compilation, function-like macros, `#undef`, improved error reporting.
+  - *Planned:* Function-like macros, `#if` with expressions, improved error reporting.
 
 ### 1. Lexer
 The lexical analyzer responsible for tokenizing source code:
@@ -29,18 +31,18 @@ The lexical analyzer responsible for tokenizing source code:
 - **Error Detection**: Identifies lexical errors and provides diagnostics
 - **Advanced Operators**: Support for compound assignments (+=, -=, etc.) and increment/decrement (++, --)
 - **Boolean Literals**: Recognition of صحيح (true) and خطأ (false)
-- **Number Parsing**: Support for various number formats and Arabic-Indic digits
-- **Comment Handling**: Support for single-line (`#`) comments (skipped). Multi-line comments planned.
+- **Number Parsing**: Support for various number formats including integers, floats, scientific notation, binary (`0b`), hex (`0x`), underscores (`_`), and Arabic-Indic digits. Lexer identifies syntax, `number_parser.c` handles value parsing.
+- **Comment Handling**: Support for single-line (`//`, `#`) and multi-line (`/* */`) comments (skipped).
+- **String/Char Literals**: Handles basic literals with escape sequences (`\n`, `\t`, `\r`, `\0`, `\uXXXX`, etc.).
 - **Features & Status:**
-  - Fully implemented
-  - UTF-16LE encoding support
-  - Basic token handling
-  - Boolean literal support (صحيح/خطأ)
-  - Advanced operators (++, --, +=, -=, *=, /=, %=)
-  - Number parsing with Arabic-Indic digits
-  - String and character literal support
-  - Source position tracking
-  - *Planned:* Scientific notation, binary/hex literals, multi-line comment tokenization, enhanced error reporting.
+  - Fully implemented base lexer functionality.
+  - UTF-16LE encoding support assumed from preprocessor.
+  - Token handling for keywords, identifiers, operators, literals.
+  - Number format recognition (int, float, sci, bin, hex, underscores).
+  - String and character literal support with escapes.
+  - Source position tracking.
+  - Error token generation.
+  - *Planned:* Advanced error recovery, documentation comment tokens, multi-line/raw string literals.
 
 ### 2. Parser
 Transforms tokens into a structured AST:

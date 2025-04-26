@@ -22,7 +22,7 @@ The lexer identifies the following categories of tokens:
 - Keywords (كلمات مفتاحية)
 - Identifiers (معرفات)
 - Literals (قيم حرفية)
-  - Numbers (أرقام - Scanned as `BAA_TOKEN_INT_LIT`, specific type determined by parser)
+  - Numbers (أرقام - Scanned as `BAA_TOKEN_INT_LIT` or `BAA_TOKEN_FLOAT_LIT` based on syntax. Value parsing may occur later.)
   - Strings (نصوص - `BAA_TOKEN_STRING_LIT`)
   - Boolean (قيم منطقية - `BAA_TOKEN_BOOL_LIT`, scanned via `صحيح`/`خطأ` keywords)
   - Characters (حروف - `BAA_TOKEN_CHAR_LIT`, scanned via `'c'` syntax)
@@ -90,7 +90,7 @@ typedef enum {
     // Literals
     BAA_TOKEN_IDENTIFIER, // Variable/function name
     BAA_TOKEN_INT_LIT,    // Integer literal
-    BAA_TOKEN_FLOAT_LIT,  // Float literal (Defined, but lexer produces INT_LIT initially)
+    BAA_TOKEN_FLOAT_LIT,  // Float literal (Identified by lexer based on syntax like '.' or 'e')
     BAA_TOKEN_CHAR_LIT,   // Character literal
     BAA_TOKEN_STRING_LIT, // String literal
     BAA_TOKEN_BOOL_LIT,   // Boolean literal (صحيح/خطأ - true/false)
@@ -269,7 +269,6 @@ The lexer supports a wide range of operators, tokenized with corresponding types
 - [x] Basic escape sequences in strings/chars (\n, \t, \\, \", \', \r, \0)
 - [x] Unicode escape sequences (\uXXXX)
 - [ ] Multiline strings
-- [ ] Raw string literals
 
 ## Comment Support
 
@@ -383,9 +382,5 @@ The lexer uses several internal helper functions:
 - Performance optimizations for large files
 - Advanced error recovery mechanisms
 - Extended Unicode range support
-- Implement multi-line comments (`/* ... */`)
-- Implement remaining escape sequences (`\uXXXX`)
-
-*   **Handle Basic Escape Sequences:**
-    *   String literals: `\n`, `\t`, `\"`, `\\`, `\r`, `\0`. *[Done]*
-    *   Character literals: `\n`, `\t`, `\'`, `\\`, `\r`, `\0`. *[Done]*
+- Implement multi-line string literals
+- Implement raw string literals

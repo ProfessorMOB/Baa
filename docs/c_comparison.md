@@ -92,11 +92,13 @@ This document compares K&R C features with their B (باء) equivalents and outl
 
 | K&R C Feature | B (باء) Equivalent | Status      | Notes |
 |---------------|--------------------|-------------|-------|
-| `#include`    | `تضمين#`          | Partial     | Basic directive handled directly by parser (`parse_import_directive`). Full preprocessing stage planned. |
-| `#define`     | `تعريف#`          | Planned     | No macro handling observed. |
-| `#ifdef`      | `إذا_عرف#`        | Planned     | No conditional compilation observed. |
-| `#endif`      | `نهاية_إذا#`      | Planned     | No conditional compilation observed. |
-| `#undef`      | `إلغاء_تعريف#`    | Planned     | No macro handling observed. |
+| `#include`    | `#تضمين`          | Implemented | Handled by the external `baa_preprocess` function. |
+| `#define`     | `#تعريف`          | Implemented | Parameterless macros handled by `baa_preprocess`. |
+| `#ifdef`      | `#إذا_عرف`        | Implemented | Handled by `baa_preprocess`. |
+| `#ifndef`     | `#إذا_لم_يعرف`    | Implemented | Handled by `baa_preprocess`. |
+| `#else`       | `#إلا`            | Implemented | Handled by `baa_preprocess`. |
+| `#endif`      | `#نهاية_إذا`      | Implemented | Handled by `baa_preprocess`. |
+| `#undef`      | `#الغاء_تعريف`    | Implemented | Handled by `baa_preprocess`. |
 
 ### Standard Library
 

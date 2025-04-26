@@ -11,6 +11,8 @@ The project now supports:
 - **Preprocessor Directives:**
   - `#تضمين <...>` and `#تضمين "..."` (Include files)
   - `#تعريف NAME ...` (Parameterless macro definition/substitution)
+  - `#الغاء_تعريف NAME` (Undefine macro)
+  - Conditional compilation (`#إذا_عرف`, `#إذا_لم_يعرف`, `#إلا`, `#نهاية_إذا`)
 
 - Basic type system with K&R C compatibility
   - عدد_صحيح (int) - 32-bit integer
@@ -59,7 +61,7 @@ For detailed information about Arabic support, see [Arabic Support Documentation
 
 #### What's Working
 
-- **Preprocessor**: Handles includes (`#تضمين`) and basic macros (`#تعريف`).
+- **Preprocessor**: Handles includes (`#تضمين`), basic macros (`#تعريف`), undefines (`#الغاء_تعريف`), and conditional compilation (`#إذا_عرف`, `#إذا_لم_يعرف`, `#إلا`, `#نهاية_إذا`).
 - **Core Architecture**: Well-defined architecture with clear separation of concerns
 - **Type System**: Basic types including Boolean, type conversion rules, and type checking
 - **AST (Abstract Syntax Tree)**: Comprehensive node structure, program, function nodes, enhanced parameter handling
