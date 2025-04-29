@@ -7,8 +7,11 @@
 
 // Structure to hold a macro definition
 typedef struct {
-    wchar_t* name;  // Macro name
-    wchar_t* body;  // Macro body (replacement text)
+    wchar_t* name;          // Macro name
+    wchar_t* body;          // Macro body (replacement text)
+    bool is_function_like;  // True if defined with (...)
+    size_t param_count;     // Number of parameters
+    wchar_t** param_names;  // Array of parameter names (NULL if not function-like)
 } BaaMacro;
 
 // Forward declaration if needed, or include necessary headers

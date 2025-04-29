@@ -35,10 +35,10 @@ static wchar_t *wcsndup(const wchar_t *s, size_t n)
 static bool add_macro(BaaPreprocessor *pp_state, const wchar_t *name, const wchar_t *body);
 static const BaaMacro *find_macro(const BaaPreprocessor *pp_state, const wchar_t *name);
 static bool undefine_macro(BaaPreprocessor *pp_state, const wchar_t *name); // Added for #undef
-static bool push_conditional(BaaPreprocessor* pp_state, bool is_active); // Added for #ifdef
-static bool pop_conditional(BaaPreprocessor* pp_state); // Added for #endif
-static void update_skipping_state(BaaPreprocessor* pp_state); // Added for conditional state
-void free_conditional_stack(BaaPreprocessor* pp); // Added for cleanup
+static bool push_conditional(BaaPreprocessor *pp_state, bool is_active);    // Added for #ifdef
+static bool pop_conditional(BaaPreprocessor *pp_state);                     // Added for #endif
+static void update_skipping_state(BaaPreprocessor *pp_state);               // Added for conditional state
+void free_conditional_stack(BaaPreprocessor *pp);                           // Added for cleanup
 
 // --- Helper Functions ---
 
@@ -385,17 +385,19 @@ void free_file_stack(BaaPreprocessor *pp)
     }
     free(pp->open_files_stack);
     pp->open_files_stack = NULL;
-     pp->open_files_capacity = 0;
+    pp->open_files_capacity = 0;
 }
 
 // --- Conditional Compilation Stack Helpers ---
 
 // Updates the skipping_lines flag based on the combined conditional stack states
-static void update_skipping_state(BaaPreprocessor* pp_state) {
+static void update_skipping_state(BaaPreprocessor *pp_state)
+{
     pp_state->skipping_lines = false;
     // We are skipping if ANY level's condition was false AND no branch has been taken yet (for #else/#elif)
     // OR if a branch *was* already taken at that level.
-    for (size_t i = 0; i < pp_state->conditional_stack_count; ++i) {
+    for (size_t i = 0; i < pp_state->conditional_stack_count; ++i)
+    {
         // If the condition for this level was false, and no branch has been taken yet, we might enter an #else.
         // But if the condition was true OR a branch was already taken, subsequent #else/#elif are skipped.
         // Let's simplify: We are skipping if *any* parent level's condition was false,
@@ -405,36 +407,41 @@ static void update_skipping_state(BaaPreprocessor* pp_state) {
 
         // Determine if parent levels force skipping
         bool parent_skipping = false;
-        for (size_t j = 0; j < i; ++j) {
-             // If parent condition was false AND its branch wasn't taken (meaning we didn't enter its #else either)
-             // OR if parent condition was true but its branch *was* taken (meaning we skip its #else)
-             // Simplified: If the effective state of the parent (considering its condition and branch taken) means we skip...
-             // Let's rethink: We skip if *any* level on the stack evaluates to false *overall*.
-             // An overall level is false if:
-             // 1. Its own condition was false AND no subsequent branch (#else/#elif) has been taken yet.
-             // 2. Its own condition was true BUT a branch was already marked as taken (e.g., we are in an #else after a true #if).
+        for (size_t j = 0; j < i; ++j)
+        {
+            // If parent condition was false AND its branch wasn't taken (meaning we didn't enter its #else either)
+            // OR if parent condition was true but its branch *was* taken (meaning we skip its #else)
+            // Simplified: If the effective state of the parent (considering its condition and branch taken) means we skip...
+            // Let's rethink: We skip if *any* level on the stack evaluates to false *overall*.
+            // An overall level is false if:
+            // 1. Its own condition was false AND no subsequent branch (#else/#elif) has been taken yet.
+            // 2. Its own condition was true BUT a branch was already marked as taken (e.g., we are in an #else after a true #if).
 
-             // Let's try a simpler approach first: Skip if any level's condition is false.
-             // This works for nested #ifdef/#ifndef but needs refinement for #else.
-             if (!pp_state->conditional_stack[i]) {
-                 pp_state->skipping_lines = true;
-                 break;
-             }
-             // Now, consider the branch_taken stack for #else/#elif
-             if (pp_state->conditional_branch_taken_stack[i]) {
-                 // If a branch was taken at this level, we should skip subsequent #else/#elif at the same level.
-                 // This requires knowing if the *next* directive is an #else/#elif at the *same* level.
-                 // This suggests `update_skipping_state` might not be the right place for the full logic.
-                 // Let's keep it simple for now: skip if any condition on the stack is false.
-                 // The #else logic will handle its specific case.
-             }
+            // Let's try a simpler approach first: Skip if any level's condition is false.
+            // This works for nested #ifdef/#ifndef but needs refinement for #else.
+            if (!pp_state->conditional_stack[i])
+            {
+                pp_state->skipping_lines = true;
+                break;
+            }
+            // Now, consider the branch_taken stack for #else/#elif
+            if (pp_state->conditional_branch_taken_stack[i])
+            {
+                // If a branch was taken at this level, we should skip subsequent #else/#elif at the same level.
+                // This requires knowing if the *next* directive is an #else/#elif at the *same* level.
+                // This suggests `update_skipping_state` might not be the right place for the full logic.
+                // Let's keep it simple for now: skip if any condition on the stack is false.
+                // The #else logic will handle its specific case.
+            }
         }
-        if (pp_state->skipping_lines) break; // Optimization
+        if (pp_state->skipping_lines)
+            break; // Optimization
 
         // Final check: If the top level's branch has been taken, we should be skipping (for subsequent #else/#elif)
         // This still feels wrong. Let's revert to the simplest correct logic for ifdef/ifndef/endif:
         // Skip if any level's condition on the stack is false.
-        if (!pp_state->conditional_stack[i]) {
+        if (!pp_state->conditional_stack[i])
+        {
             pp_state->skipping_lines = true;
             break;
         }
@@ -442,22 +449,27 @@ static void update_skipping_state(BaaPreprocessor* pp_state) {
 }
 
 // Pushes a new state onto both conditional stacks
-static bool push_conditional(BaaPreprocessor* pp_state, bool condition_met) {
+static bool push_conditional(BaaPreprocessor *pp_state, bool condition_met)
+{
     // Resize main stack if needed
-    if (pp_state->conditional_stack_count >= pp_state->conditional_stack_capacity) {
+    if (pp_state->conditional_stack_count >= pp_state->conditional_stack_capacity)
+    {
         size_t new_capacity = (pp_state->conditional_stack_capacity == 0) ? 4 : pp_state->conditional_stack_capacity * 2;
-        bool* new_main_stack = realloc(pp_state->conditional_stack, new_capacity * sizeof(bool));
-        if (!new_main_stack) return false;
+        bool *new_main_stack = realloc(pp_state->conditional_stack, new_capacity * sizeof(bool));
+        if (!new_main_stack)
+            return false;
         pp_state->conditional_stack = new_main_stack;
         pp_state->conditional_stack_capacity = new_capacity;
     }
     // Resize branch taken stack if needed
-    if (pp_state->conditional_branch_taken_stack_count >= pp_state->conditional_branch_taken_stack_capacity) {
-         size_t new_capacity = (pp_state->conditional_branch_taken_stack_capacity == 0) ? 4 : pp_state->conditional_branch_taken_stack_capacity * 2;
-         bool* new_branch_stack = realloc(pp_state->conditional_branch_taken_stack, new_capacity * sizeof(bool));
-         if (!new_branch_stack) return false; // Should ideally handle potential mismatch if one realloc fails
-         pp_state->conditional_branch_taken_stack = new_branch_stack;
-         pp_state->conditional_branch_taken_stack_capacity = new_capacity;
+    if (pp_state->conditional_branch_taken_stack_count >= pp_state->conditional_branch_taken_stack_capacity)
+    {
+        size_t new_capacity = (pp_state->conditional_branch_taken_stack_capacity == 0) ? 4 : pp_state->conditional_branch_taken_stack_capacity * 2;
+        bool *new_branch_stack = realloc(pp_state->conditional_branch_taken_stack, new_capacity * sizeof(bool));
+        if (!new_branch_stack)
+            return false; // Should ideally handle potential mismatch if one realloc fails
+        pp_state->conditional_branch_taken_stack = new_branch_stack;
+        pp_state->conditional_branch_taken_stack_capacity = new_capacity;
     }
 
     // Determine if this new block is *potentially* active (ignoring parent state for now)
@@ -473,12 +485,15 @@ static bool push_conditional(BaaPreprocessor* pp_state, bool condition_met) {
 }
 
 // Pops the top state from both conditional stacks
-static bool pop_conditional(BaaPreprocessor* pp_state) {
-    if (pp_state->conditional_stack_count == 0) {
+static bool pop_conditional(BaaPreprocessor *pp_state)
+{
+    if (pp_state->conditional_stack_count == 0)
+    {
         return false; // Stack underflow
     }
     // Ensure counts match before decrementing (should always be true if logic is correct)
-    if (pp_state->conditional_branch_taken_stack_count != pp_state->conditional_stack_count) {
+    if (pp_state->conditional_branch_taken_stack_count != pp_state->conditional_stack_count)
+    {
         // Internal error state, maybe log or handle?
         return false;
     }
@@ -489,7 +504,8 @@ static bool pop_conditional(BaaPreprocessor* pp_state) {
 }
 
 // Frees both conditional stack memories
-void free_conditional_stack(BaaPreprocessor* pp) {
+void free_conditional_stack(BaaPreprocessor *pp)
+{
     free(pp->conditional_stack);
     pp->conditional_stack = NULL;
     pp->conditional_stack_count = 0;
@@ -502,7 +518,6 @@ void free_conditional_stack(BaaPreprocessor* pp) {
 
     pp->skipping_lines = false;
 }
-
 
 // --- Core Recursive Processing Function ---
 
@@ -589,17 +604,16 @@ static wchar_t *process_file(BaaPreprocessor *pp_state, const char *file_path, w
             size_t define_directive_len = wcslen(define_directive);
             const wchar_t *undef_directive = L"#الغاء_تعريف"; // Keyword for #undef
             size_t undef_directive_len = wcslen(undef_directive);
-            const wchar_t* ifdef_directive = L"#إذا_عرف"; // Keyword for #ifdef
+            const wchar_t *ifdef_directive = L"#إذا_عرف"; // Keyword for #ifdef
             size_t ifdef_directive_len = wcslen(ifdef_directive);
-            const wchar_t* ifndef_directive = L"#إذا_لم_يعرف"; // Keyword for #ifndef
+            const wchar_t *ifndef_directive = L"#إذا_لم_يعرف"; // Keyword for #ifndef
             size_t ifndef_directive_len = wcslen(ifndef_directive);
-            const wchar_t* else_directive = L"#إلا"; // Keyword for #else
+            const wchar_t *else_directive = L"#إلا"; // Keyword for #else
             size_t else_directive_len = wcslen(else_directive);
-            const wchar_t* elif_directive = L"#وإلا_إذا"; // Keyword for #elif
+            const wchar_t *elif_directive = L"#وإلا_إذا"; // Keyword for #elif
             size_t elif_directive_len = wcslen(elif_directive);
-            const wchar_t* endif_directive = L"#نهاية_إذا"; // Keyword for #endif
+            const wchar_t *endif_directive = L"#نهاية_إذا"; // Keyword for #endif
             size_t endif_directive_len = wcslen(endif_directive);
-
 
             bool is_conditional_directive = false;
 
@@ -609,397 +623,16 @@ static wchar_t *process_file(BaaPreprocessor *pp_state, const char *file_path, w
             {
                 is_conditional_directive = true;
                 // Found #إذا_عرف directive
-                wchar_t* name_start = current_line + ifdef_directive_len;
-                while (iswspace(*name_start)) name_start++;
-                wchar_t* name_end = name_start;
-                while (*name_end != L'\0' && !iswspace(*name_end)) name_end++;
+                wchar_t *name_start = current_line + ifdef_directive_len;
+                while (iswspace(*name_start))
+                    name_start++;
+                wchar_t *name_end = name_start;
+                while (*name_end != L'\0' && !iswspace(*name_end))
+                    name_end++;
 
-                if (name_start == name_end) {
+                if (name_start == name_end)
+                {
                     *error_message = format_preprocessor_error(L"تنسيق #إذا_عرف غير صالح في الملف '%hs': اسم الماكرو مفقود.", abs_path);
-                    success = false;
-                } else {
-                    size_t name_len = name_end - name_start;
-                    wchar_t* macro_name = wcsndup(name_start, name_len);
-                    if (!macro_name) {
-                        *error_message = format_preprocessor_error(L"فشل في تخصيص ذاكرة لاسم الماكرو في #إذا_عرف في '%hs'.", abs_path);
-                        success = false;
-                    } else {
-                        bool is_defined = (find_macro(pp_state, macro_name) != NULL);
-                        if (!push_conditional(pp_state, is_defined)) {
-                             *error_message = format_preprocessor_error(L"فشل في دفع الحالة الشرطية لـ #إذا_عرف في '%hs'.", abs_path);
-                             success = false;
-                        }
-                        free(macro_name);
-                    }
-                }
-                 // Directive processed, don't append to output
-            }
-            else if (wcsncmp(current_line, ifndef_directive, ifndef_directive_len) == 0 &&
-                     (current_line[ifndef_directive_len] == L'\0' || iswspace(current_line[ifndef_directive_len])))
-            {
-                is_conditional_directive = true;
-                // Found #إذا_لم_يعرف directive
-                wchar_t* name_start = current_line + ifndef_directive_len;
-                while (iswspace(*name_start)) name_start++;
-                wchar_t* name_end = name_start;
-                while (*name_end != L'\0' && !iswspace(*name_end)) name_end++;
-
-                if (name_start == name_end) {
-                    *error_message = format_preprocessor_error(L"تنسيق #إذا_لم_يعرف غير صالح في الملف '%hs': اسم الماكرو مفقود.", abs_path);
-                    success = false;
-                } else {
-                    size_t name_len = name_end - name_start;
-                    wchar_t* macro_name = wcsndup(name_start, name_len);
-                    if (!macro_name) {
-                        *error_message = format_preprocessor_error(L"فشل في تخصيص ذاكرة لاسم الماكرو في #إذا_لم_يعرف في '%hs'.", abs_path);
-                        success = false;
-                    } else {
-                        bool is_defined = (find_macro(pp_state, macro_name) != NULL);
-                        // Push the *negated* definition status
-                        if (!push_conditional(pp_state, !is_defined)) {
-                             *error_message = format_preprocessor_error(L"فشل في دفع الحالة الشرطية لـ #إذا_لم_يعرف في '%hs'.", abs_path);
-                             success = false;
-                        }
-                        free(macro_name);
-                    }
-                }
-                 // Directive processed, don't append to output
-            }
-            else if (wcsncmp(current_line, endif_directive, endif_directive_len) == 0 &&
-                     (current_line[endif_directive_len] == L'\0' || iswspace(current_line[endif_directive_len])))
-            {
-                 is_conditional_directive = true;
-                 // Found #نهاية_إذا directive
-                 if (!pop_conditional(pp_state)) {
-                     *error_message = format_preprocessor_error(L"#نهاية_إذا بدون #إذا_عرف مطابق في الملف '%hs'.", abs_path);
-                     success = false;
-                 }
-                 // Directive processed, don't append to output
-            }
-            else if (wcsncmp(current_line, else_directive, else_directive_len) == 0 &&
-                     (current_line[else_directive_len] == L'\0' || iswspace(current_line[else_directive_len])))
-            {
-                 is_conditional_directive = true;
-                 // Found #إلا directive
-                 if (pp_state->conditional_stack_count == 0) {
-                     *error_message = format_preprocessor_error(L"#إلا بدون #إذا_عرف مطابق في الملف '%hs'.", abs_path);
-                     success = false;
-                 } else {
-                     // Invert the state of the current conditional level
-                     // Note: This simple inversion works for basic #ifdef/#ifndef/#else.
-                     // Check if a branch was already taken at this level
-                     size_t top_index = pp_state->conditional_stack_count - 1;
-                     if (pp_state->conditional_branch_taken_stack[top_index]) {
-                         // If a branch (#if/#ifndef) was already taken, this #else block is inactive
-                         pp_state->conditional_stack[top_index] = false; // Mark condition as false for skipping
-                     } else {
-                         // No branch was taken yet, so this #else branch becomes active *if parent allows*
-                         // Check parent state (are we already skipping?)
-                         bool parent_skipping = false;
-                         for(size_t i = 0; i < top_index; ++i) {
-                             if (!pp_state->conditional_stack[i]) { // Check raw condition of parent
-                                 parent_skipping = true;
-                                 break;
-                             }
-                         }
-
-                         if (parent_skipping) {
-                             // Parent forces skipping, so this #else is inactive
-                             pp_state->conditional_stack[top_index] = false;
-                         } else {
-                             // Parent allows, and no previous branch taken, so this #else is active
-                             pp_state->conditional_stack[top_index] = true; // Mark condition as true for processing
-                             pp_state->conditional_branch_taken_stack[top_index] = true; // Mark that a branch is now taken
-                         }
-                     }
-                     update_skipping_state(pp_state); // Recalculate overall skipping state
-                 }
-                 // Directive processed, don't append to output
-            }
-            else if (wcsncmp(current_line, elif_directive, elif_directive_len) == 0 &&
-                     (current_line[elif_directive_len] == L'\0' || iswspace(current_line[elif_directive_len])))
-            {
-                 is_conditional_directive = true;
-                 // Found #وإلا_إذا (#elif) directive
-                 if (pp_state->conditional_stack_count == 0) {
-                     *error_message = format_preprocessor_error(L"#وإلا_إذا بدون #إذا_عرف مطابق في الملف '%hs'.", abs_path);
-                     success = false;
-                 } else {
-                     size_t top_index = pp_state->conditional_stack_count - 1;
-                     // Check if a branch was already taken at this level
-                     if (pp_state->conditional_branch_taken_stack[top_index]) {
-                         // If a branch was already taken, this #elif is inactive
-                         pp_state->conditional_stack[top_index] = false;
-                     } else {
-                         // No branch taken yet, evaluate this #elif condition
-                         wchar_t* name_start = current_line + elif_directive_len;
-                         while (iswspace(*name_start)) name_start++;
-                         wchar_t* name_end = name_start;
-                         while (*name_end != L'\0' && !iswspace(*name_end)) name_end++;
-
-                         if (name_start == name_end) {
-                             *error_message = format_preprocessor_error(L"تنسيق #وإلا_إذا غير صالح في الملف '%hs': اسم الماكرو مفقود.", abs_path);
-                             success = false;
-                         } else {
-                             size_t name_len = name_end - name_start; // Define name_len here
-                             wchar_t* macro_name = wcsndup(name_start, name_len);
-                             if (!macro_name) {
-                                 *error_message = format_preprocessor_error(L"فشل في تخصيص ذاكرة لاسم الماكرو في #وإلا_إذا في '%hs'.", abs_path);
-                                 success = false;
-                             } else {
-                                 bool condition_met = (find_macro(pp_state, macro_name) != NULL); // Simple check for now
-                                 free(macro_name);
-
-                                 // Check parent state
-                                 bool parent_skipping = false;
-                                 for(size_t i = 0; i < top_index; ++i) {
-                                     if (!pp_state->conditional_stack[i]) {
-                                         parent_skipping = true;
-                                         break;
-                                     }
-                                 }
-
-                                 if (!parent_skipping && condition_met) {
-                                     // Parent allows and condition met: this branch is active
-                                     pp_state->conditional_stack[top_index] = true;
-                                     pp_state->conditional_branch_taken_stack[top_index] = true; // Mark branch taken
-                                 } else {
-                                     // Parent skipping OR condition not met: this branch is inactive
-                                     pp_state->conditional_stack[top_index] = false;
-                                     // Don't mark branch taken yet
-                                 }
-                             }
-                         }
-                     }
-                     update_skipping_state(pp_state); // Recalculate overall skipping state
-                 }
-                  // Directive processed, don't append to output
-            }
-
-
-            // --- Process other directives ONLY if not skipping AND not a conditional directive ---
-            if (!is_conditional_directive && !pp_state->skipping_lines)
-            {
-                if (wcsncmp(current_line, include_directive, include_directive_len) == 0 &&
-                    (current_line[include_directive_len] == L'\0' || iswspace(current_line[include_directive_len])))
-            {
-                // Found #تضمين directive
-                wchar_t *path_start = current_line + include_directive_len;
-                while (iswspace(*path_start))
-                {
-                    path_start++; // Skip space after directive
-                }
-
-                wchar_t start_char = path_start[0];
-                wchar_t end_char = 0;
-                bool use_include_paths = false;
-                wchar_t *path_end = NULL;
-
-                if (start_char == L'"')
-                {
-                    end_char = L'"';
-                    use_include_paths = false;
-                    path_start++; // Move past opening quote
-                    path_end = wcschr(path_start, end_char);
-                }
-                else if (start_char == L'<')
-                {
-                    end_char = L'>';
-                    use_include_paths = true;
-                    path_start++; // Move past opening bracket
-                    path_end = wcschr(path_start, end_char);
-                }
-                else
-                {
-                    *error_message = format_preprocessor_error(L"تنسيق #تضمين غير صالح في الملف '%hs': يجب أن يتبع اسم الملف بـ \" أو <.", abs_path);
-                    success = false;
-                }
-
-                if (success && path_end != NULL)
-                {
-                    size_t include_path_len = path_end - path_start;
-                    if (include_path_len == 0)
-                    {
-                        *error_message = format_preprocessor_error(L"تنسيق #تضمين غير صالح في الملف '%hs': مسار الملف فارغ.", abs_path);
-                        success = false;
-                    }
-                    else
-                    {
-                        wchar_t *include_path_w = wcsndup(path_start, include_path_len);
-                        if (!include_path_w)
-                        {
-                            *error_message = format_preprocessor_error(L"فشل في تخصيص ذاكرة لمسار التضمين في '%hs'.", abs_path);
-                            success = false;
-                        }
-                        else
-                        {
-                            // Convert wchar_t include path to char* for file operations
-                            char *include_path_mb = NULL;
-                            int required_bytes = WideCharToMultiByte(CP_UTF8, 0, include_path_w, -1, NULL, 0, NULL, NULL);
-                            if (required_bytes > 0)
-                            {
-                                include_path_mb = malloc(required_bytes);
-                                if (include_path_mb)
-                                {
-                                    WideCharToMultiByte(CP_UTF8, 0, include_path_w, -1, include_path_mb, required_bytes, NULL, NULL);
-                                }
-                                else
-                                {
-                                    *error_message = format_preprocessor_error(L"فشل في تخصيص ذاكرة لمسار التضمين (MB) في '%hs'.", abs_path);
-                                    success = false;
-                                }
-                            }
-                            else
-                            {
-                                *error_message = format_preprocessor_error(L"فشل في تحويل مسار التضمين إلى UTF-8 في '%hs'.", abs_path);
-                                success = false;
-                            }
-
-                            if (success && include_path_mb)
-                            {
-                                char *full_include_path = NULL;
-                                if (use_include_paths)
-                                {
-                                    // Search include paths
-                                    bool found = false;
-                                    for (size_t i = 0; i < pp_state->include_path_count; ++i)
-                                    {
-                                        char temp_path[MAX_PATH_LEN];
-                                        snprintf(temp_path, MAX_PATH_LEN, "%s%c%s", pp_state->include_paths[i], PATH_SEPARATOR, include_path_mb);
-                                        FILE *test_file = fopen(temp_path, "rb"); // Test existence
-                                        if (test_file)
-                                        {
-                                            fclose(test_file);
-                                            full_include_path = strdup(temp_path);
-                                            found = true;
-                                            break;
-                                        }
-                                    }
-                                    if (!found)
-                                    {
-                                        *error_message = format_preprocessor_error(L"تعذر العثور على ملف التضمين '%hs' في مسارات التضمين.", include_path_mb);
-                                        success = false;
-                                    }
-                                }
-                                else
-                                {
-                                    // Relative path: combine with current file's directory
-                                    char *current_dir = get_directory_part(abs_path);
-                                    if (!current_dir)
-                                    {
-                                        *error_message = format_preprocessor_error(L"فشل في الحصول على دليل الملف الحالي '%hs'.", abs_path);
-                                        success = false;
-                                    }
-                                    else
-                                    {
-                                        char temp_path[MAX_PATH_LEN];
-                                        snprintf(temp_path, MAX_PATH_LEN, "%s%c%s", current_dir, PATH_SEPARATOR, include_path_mb);
-                                        full_include_path = strdup(temp_path);
-                                        free(current_dir);
-                                    }
-                                }
-
-                                // Recursive call
-                                if (success && full_include_path)
-                                {
-                                    wchar_t *included_content = process_file(pp_state, full_include_path, error_message);
-                                    if (!included_content)
-                                    {
-                                        // error_message should be set by recursive call
-                                        success = false;
-                                    }
-                                    else
-                                    {
-                                        // Append result to output buffer
-                                        if (!append_to_dynamic_buffer(&output_buffer, included_content))
-                                        {
-                                            *error_message = format_preprocessor_error(L"فشل في إلحاق المحتوى المضمن من '%hs' بمخزن الإخراج المؤقت.", full_include_path);
-                                            success = false;
-                                        }
-                                        free(included_content);
-                                    }
-                                }
-                                else if (success)
-                                { // full_include_path was NULL or creation failed
-                                    *error_message = format_preprocessor_error(L"فشل في بناء المسار الكامل لملف التضمين '%hs'.", include_path_mb);
-                                    success = false;
-                                }
-                                free(full_include_path);
-                            }
-                            free(include_path_mb);
-                            free(include_path_w);
-                        }
-                    }
-                }
-                else if (success)
-                { // path_end was NULL
-                    *error_message = format_preprocessor_error(L"تنسيق #تضمين غير صالح في الملف '%hs': علامة الاقتباس أو القوس الختامي مفقود.", abs_path);
-                    success = false;
-                }
-            }
-            else if (wcsncmp(current_line, define_directive, define_directive_len) == 0 &&
-                     (current_line[define_directive_len] == L'\0' || iswspace(current_line[define_directive_len])))
-            {
-                // Found #تعريف directive
-                wchar_t *name_start = current_line + define_directive_len;
-                while (iswspace(*name_start))
-                {
-                    name_start++; // Skip space after directive
-                }
-                wchar_t *name_end = name_start;
-                while (*name_end != L'\0' && !iswspace(*name_end))
-                {
-                    name_end++; // Find end of name
-                }
-
-                if (name_start == name_end)
-                {
-                    *error_message = format_preprocessor_error(L"تنسيق #تعريف غير صالح في الملف '%hs': اسم الماكرو مفقود.", abs_path);
-                    success = false;
-                }
-                else
-                {
-                    size_t name_len = name_end - name_start;
-                    wchar_t *macro_name = wcsndup(name_start, name_len);
-
-                    wchar_t *body_start = name_end;
-                    while (iswspace(*body_start))
-                    {
-                        body_start++; // Skip space before body
-                    }
-                    // Body is the rest of the line (trim trailing space later if needed)
-                    // Simple approach: take everything to end of line
-                    // More robust: could trim trailing whitespace from body_start
-
-                    if (!add_macro(pp_state, macro_name, body_start))
-                    {
-                        *error_message = format_preprocessor_error(L"فشل في إضافة تعريف الماكرو '%ls' في الملف '%hs'. قد يكون بسبب خطأ في الذاكرة.", macro_name, abs_path);
-                        success = false;
-                    }
-
-                    free(macro_name); // Free duplicated name
-
-                    // #تعريف line is processed, do not append to output
-                }
-            }
-            else if (wcsncmp(current_line, undef_directive, undef_directive_len) == 0 &&
-                     (current_line[undef_directive_len] == L'\0' || iswspace(current_line[undef_directive_len])))
-            {
-                // Found #الغاء_تعريف directive
-                wchar_t *name_start = current_line + undef_directive_len;
-                while (iswspace(*name_start))
-                {
-                    name_start++; // Skip space after directive
-                }
-                wchar_t *name_end = name_start;
-                while (*name_end != L'\0' && !iswspace(*name_end))
-                {
-                    name_end++; // Find end of name
-                }
-
-                if (name_start == name_end)
-                {
-                    *error_message = format_preprocessor_error(L"تنسيق #الغاء_تعريف غير صالح في الملف '%hs': اسم الماكرو مفقود.", abs_path);
                     success = false;
                 }
                 else
@@ -1008,18 +641,447 @@ static wchar_t *process_file(BaaPreprocessor *pp_state, const char *file_path, w
                     wchar_t *macro_name = wcsndup(name_start, name_len);
                     if (!macro_name)
                     {
-                        *error_message = format_preprocessor_error(L"فشل في تخصيص ذاكرة لاسم الماكرو في #الغاء_تعريف في '%hs'.", abs_path);
+                        *error_message = format_preprocessor_error(L"فشل في تخصيص ذاكرة لاسم الماكرو في #إذا_عرف في '%hs'.", abs_path);
                         success = false;
                     }
                     else
                     {
-                        // Attempt to undefine the macro (function handles 'not found' case gracefully)
-                        undefine_macro(pp_state, macro_name);
+                        bool is_defined = (find_macro(pp_state, macro_name) != NULL);
+                        if (!push_conditional(pp_state, is_defined))
+                        {
+                            *error_message = format_preprocessor_error(L"فشل في دفع الحالة الشرطية لـ #إذا_عرف في '%hs'.", abs_path);
+                            success = false;
+                        }
                         free(macro_name);
-                        // #الغاء_تعريف line is processed, do not append to output
                     }
                 }
+                // Directive processed, don't append to output
             }
+            else if (wcsncmp(current_line, ifndef_directive, ifndef_directive_len) == 0 &&
+                     (current_line[ifndef_directive_len] == L'\0' || iswspace(current_line[ifndef_directive_len])))
+            {
+                is_conditional_directive = true;
+                // Found #إذا_لم_يعرف directive
+                wchar_t *name_start = current_line + ifndef_directive_len;
+                while (iswspace(*name_start))
+                    name_start++;
+                wchar_t *name_end = name_start;
+                while (*name_end != L'\0' && !iswspace(*name_end))
+                    name_end++;
+
+                if (name_start == name_end)
+                {
+                    *error_message = format_preprocessor_error(L"تنسيق #إذا_لم_يعرف غير صالح في الملف '%hs': اسم الماكرو مفقود.", abs_path);
+                    success = false;
+                }
+                else
+                {
+                    size_t name_len = name_end - name_start;
+                    wchar_t *macro_name = wcsndup(name_start, name_len);
+                    if (!macro_name)
+                    {
+                        *error_message = format_preprocessor_error(L"فشل في تخصيص ذاكرة لاسم الماكرو في #إذا_لم_يعرف في '%hs'.", abs_path);
+                        success = false;
+                    }
+                    else
+                    {
+                        bool is_defined = (find_macro(pp_state, macro_name) != NULL);
+                        // Push the *negated* definition status
+                        if (!push_conditional(pp_state, !is_defined))
+                        {
+                            *error_message = format_preprocessor_error(L"فشل في دفع الحالة الشرطية لـ #إذا_لم_يعرف في '%hs'.", abs_path);
+                            success = false;
+                        }
+                        free(macro_name);
+                    }
+                }
+                // Directive processed, don't append to output
+            }
+            else if (wcsncmp(current_line, endif_directive, endif_directive_len) == 0 &&
+                     (current_line[endif_directive_len] == L'\0' || iswspace(current_line[endif_directive_len])))
+            {
+                is_conditional_directive = true;
+                // Found #نهاية_إذا directive
+                if (!pop_conditional(pp_state))
+                {
+                    *error_message = format_preprocessor_error(L"#نهاية_إذا بدون #إذا_عرف مطابق في الملف '%hs'.", abs_path);
+                    success = false;
+                }
+                // Directive processed, don't append to output
+            }
+            else if (wcsncmp(current_line, else_directive, else_directive_len) == 0 &&
+                     (current_line[else_directive_len] == L'\0' || iswspace(current_line[else_directive_len])))
+            {
+                is_conditional_directive = true;
+                // Found #إلا directive
+                if (pp_state->conditional_stack_count == 0)
+                {
+                    *error_message = format_preprocessor_error(L"#إلا بدون #إذا_عرف مطابق في الملف '%hs'.", abs_path);
+                    success = false;
+                }
+                else
+                {
+                    // Invert the state of the current conditional level
+                    // Note: This simple inversion works for basic #ifdef/#ifndef/#else.
+                    // Check if a branch was already taken at this level
+                    size_t top_index = pp_state->conditional_stack_count - 1;
+                    if (pp_state->conditional_branch_taken_stack[top_index])
+                    {
+                        // If a branch (#if/#ifndef) was already taken, this #else block is inactive
+                        pp_state->conditional_stack[top_index] = false; // Mark condition as false for skipping
+                    }
+                    else
+                    {
+                        // No branch was taken yet, so this #else branch becomes active *if parent allows*
+                        // Check parent state (are we already skipping?)
+                        bool parent_skipping = false;
+                        for (size_t i = 0; i < top_index; ++i)
+                        {
+                            if (!pp_state->conditional_stack[i])
+                            { // Check raw condition of parent
+                                parent_skipping = true;
+                                break;
+                            }
+                        }
+
+                        if (parent_skipping)
+                        {
+                            // Parent forces skipping, so this #else is inactive
+                            pp_state->conditional_stack[top_index] = false;
+                        }
+                        else
+                        {
+                            // Parent allows, and no previous branch taken, so this #else is active
+                            pp_state->conditional_stack[top_index] = true;              // Mark condition as true for processing
+                            pp_state->conditional_branch_taken_stack[top_index] = true; // Mark that a branch is now taken
+                        }
+                    }
+                    update_skipping_state(pp_state); // Recalculate overall skipping state
+                }
+                // Directive processed, don't append to output
+            }
+            else if (wcsncmp(current_line, elif_directive, elif_directive_len) == 0 &&
+                     (current_line[elif_directive_len] == L'\0' || iswspace(current_line[elif_directive_len])))
+            {
+                is_conditional_directive = true;
+                // Found #وإلا_إذا (#elif) directive
+                if (pp_state->conditional_stack_count == 0)
+                {
+                    *error_message = format_preprocessor_error(L"#وإلا_إذا بدون #إذا_عرف مطابق في الملف '%hs'.", abs_path);
+                    success = false;
+                }
+                else
+                {
+                    size_t top_index = pp_state->conditional_stack_count - 1;
+                    // Check if a branch was already taken at this level
+                    if (pp_state->conditional_branch_taken_stack[top_index])
+                    {
+                        // If a branch was already taken, this #elif is inactive
+                        pp_state->conditional_stack[top_index] = false;
+                    }
+                    else
+                    {
+                        // No branch taken yet, evaluate this #elif condition
+                        wchar_t *name_start = current_line + elif_directive_len;
+                        while (iswspace(*name_start))
+                            name_start++;
+                        wchar_t *name_end = name_start;
+                        while (*name_end != L'\0' && !iswspace(*name_end))
+                            name_end++;
+
+                        if (name_start == name_end)
+                        {
+                            *error_message = format_preprocessor_error(L"تنسيق #وإلا_إذا غير صالح في الملف '%hs': اسم الماكرو مفقود.", abs_path);
+                            success = false;
+                        }
+                        else
+                        {
+                            size_t name_len = name_end - name_start; // Define name_len here
+                            wchar_t *macro_name = wcsndup(name_start, name_len);
+                            if (!macro_name)
+                            {
+                                *error_message = format_preprocessor_error(L"فشل في تخصيص ذاكرة لاسم الماكرو في #وإلا_إذا في '%hs'.", abs_path);
+                                success = false;
+                            }
+                            else
+                            {
+                                bool condition_met = (find_macro(pp_state, macro_name) != NULL); // Simple check for now
+                                free(macro_name);
+
+                                // Check parent state
+                                bool parent_skipping = false;
+                                for (size_t i = 0; i < top_index; ++i)
+                                {
+                                    if (!pp_state->conditional_stack[i])
+                                    {
+                                        parent_skipping = true;
+                                        break;
+                                    }
+                                }
+
+                                if (!parent_skipping && condition_met)
+                                {
+                                    // Parent allows and condition met: this branch is active
+                                    pp_state->conditional_stack[top_index] = true;
+                                    pp_state->conditional_branch_taken_stack[top_index] = true; // Mark branch taken
+                                }
+                                else
+                                {
+                                    // Parent skipping OR condition not met: this branch is inactive
+                                    pp_state->conditional_stack[top_index] = false;
+                                    // Don't mark branch taken yet
+                                }
+                            }
+                        }
+                    }
+                    update_skipping_state(pp_state); // Recalculate overall skipping state
+                }
+                // Directive processed, don't append to output
+            }
+
+            // --- Process other directives ONLY if not skipping AND not a conditional directive ---
+            if (!is_conditional_directive && !pp_state->skipping_lines)
+            {
+                if (wcsncmp(current_line, include_directive, include_directive_len) == 0 &&
+                    (current_line[include_directive_len] == L'\0' || iswspace(current_line[include_directive_len])))
+                {
+                    // Found #تضمين directive
+                    wchar_t *path_start = current_line + include_directive_len;
+                    while (iswspace(*path_start))
+                    {
+                        path_start++; // Skip space after directive
+                    }
+
+                    wchar_t start_char = path_start[0];
+                    wchar_t end_char = 0;
+                    bool use_include_paths = false;
+                    wchar_t *path_end = NULL;
+
+                    if (start_char == L'"')
+                    {
+                        end_char = L'"';
+                        use_include_paths = false;
+                        path_start++; // Move past opening quote
+                        path_end = wcschr(path_start, end_char);
+                    }
+                    else if (start_char == L'<')
+                    {
+                        end_char = L'>';
+                        use_include_paths = true;
+                        path_start++; // Move past opening bracket
+                        path_end = wcschr(path_start, end_char);
+                    }
+                    else
+                    {
+                        *error_message = format_preprocessor_error(L"تنسيق #تضمين غير صالح في الملف '%hs': يجب أن يتبع اسم الملف بـ \" أو <.", abs_path);
+                        success = false;
+                    }
+
+                    if (success && path_end != NULL)
+                    {
+                        size_t include_path_len = path_end - path_start;
+                        if (include_path_len == 0)
+                        {
+                            *error_message = format_preprocessor_error(L"تنسيق #تضمين غير صالح في الملف '%hs': مسار الملف فارغ.", abs_path);
+                            success = false;
+                        }
+                        else
+                        {
+                            wchar_t *include_path_w = wcsndup(path_start, include_path_len);
+                            if (!include_path_w)
+                            {
+                                *error_message = format_preprocessor_error(L"فشل في تخصيص ذاكرة لمسار التضمين في '%hs'.", abs_path);
+                                success = false;
+                            }
+                            else
+                            {
+                                // Convert wchar_t include path to char* for file operations
+                                char *include_path_mb = NULL;
+                                int required_bytes = WideCharToMultiByte(CP_UTF8, 0, include_path_w, -1, NULL, 0, NULL, NULL);
+                                if (required_bytes > 0)
+                                {
+                                    include_path_mb = malloc(required_bytes);
+                                    if (include_path_mb)
+                                    {
+                                        WideCharToMultiByte(CP_UTF8, 0, include_path_w, -1, include_path_mb, required_bytes, NULL, NULL);
+                                    }
+                                    else
+                                    {
+                                        *error_message = format_preprocessor_error(L"فشل في تخصيص ذاكرة لمسار التضمين (MB) في '%hs'.", abs_path);
+                                        success = false;
+                                    }
+                                }
+                                else
+                                {
+                                    *error_message = format_preprocessor_error(L"فشل في تحويل مسار التضمين إلى UTF-8 في '%hs'.", abs_path);
+                                    success = false;
+                                }
+
+                                if (success && include_path_mb)
+                                {
+                                    char *full_include_path = NULL;
+                                    if (use_include_paths)
+                                    {
+                                        // Search include paths
+                                        bool found = false;
+                                        for (size_t i = 0; i < pp_state->include_path_count; ++i)
+                                        {
+                                            char temp_path[MAX_PATH_LEN];
+                                            snprintf(temp_path, MAX_PATH_LEN, "%s%c%s", pp_state->include_paths[i], PATH_SEPARATOR, include_path_mb);
+                                            FILE *test_file = fopen(temp_path, "rb"); // Test existence
+                                            if (test_file)
+                                            {
+                                                fclose(test_file);
+                                                full_include_path = strdup(temp_path);
+                                                found = true;
+                                                break;
+                                            }
+                                        }
+                                        if (!found)
+                                        {
+                                            *error_message = format_preprocessor_error(L"تعذر العثور على ملف التضمين '%hs' في مسارات التضمين.", include_path_mb);
+                                            success = false;
+                                        }
+                                    }
+                                    else
+                                    {
+                                        // Relative path: combine with current file's directory
+                                        char *current_dir = get_directory_part(abs_path);
+                                        if (!current_dir)
+                                        {
+                                            *error_message = format_preprocessor_error(L"فشل في الحصول على دليل الملف الحالي '%hs'.", abs_path);
+                                            success = false;
+                                        }
+                                        else
+                                        {
+                                            char temp_path[MAX_PATH_LEN];
+                                            snprintf(temp_path, MAX_PATH_LEN, "%s%c%s", current_dir, PATH_SEPARATOR, include_path_mb);
+                                            full_include_path = strdup(temp_path);
+                                            free(current_dir);
+                                        }
+                                    }
+
+                                    // Recursive call
+                                    if (success && full_include_path)
+                                    {
+                                        wchar_t *included_content = process_file(pp_state, full_include_path, error_message);
+                                        if (!included_content)
+                                        {
+                                            // error_message should be set by recursive call
+                                            success = false;
+                                        }
+                                        else
+                                        {
+                                            // Append result to output buffer
+                                            if (!append_to_dynamic_buffer(&output_buffer, included_content))
+                                            {
+                                                *error_message = format_preprocessor_error(L"فشل في إلحاق المحتوى المضمن من '%hs' بمخزن الإخراج المؤقت.", full_include_path);
+                                                success = false;
+                                            }
+                                            free(included_content);
+                                        }
+                                    }
+                                    else if (success)
+                                    { // full_include_path was NULL or creation failed
+                                        *error_message = format_preprocessor_error(L"فشل في بناء المسار الكامل لملف التضمين '%hs'.", include_path_mb);
+                                        success = false;
+                                    }
+                                    free(full_include_path);
+                                }
+                                free(include_path_mb);
+                                free(include_path_w);
+                            }
+                        }
+                    }
+                    else if (success)
+                    { // path_end was NULL
+                        *error_message = format_preprocessor_error(L"تنسيق #تضمين غير صالح في الملف '%hs': علامة الاقتباس أو القوس الختامي مفقود.", abs_path);
+                        success = false;
+                    }
+                }
+                else if (wcsncmp(current_line, define_directive, define_directive_len) == 0 &&
+                         (current_line[define_directive_len] == L'\0' || iswspace(current_line[define_directive_len])))
+                {
+                    // Found #تعريف directive
+                    wchar_t *name_start = current_line + define_directive_len;
+                    while (iswspace(*name_start))
+                    {
+                        name_start++; // Skip space after directive
+                    }
+                    wchar_t *name_end = name_start;
+                    while (*name_end != L'\0' && !iswspace(*name_end))
+                    {
+                        name_end++; // Find end of name
+                    }
+
+                    if (name_start == name_end)
+                    {
+                        *error_message = format_preprocessor_error(L"تنسيق #تعريف غير صالح في الملف '%hs': اسم الماكرو مفقود.", abs_path);
+                        success = false;
+                    }
+                    else
+                    {
+                        size_t name_len = name_end - name_start;
+                        wchar_t *macro_name = wcsndup(name_start, name_len);
+
+                        wchar_t *body_start = name_end;
+                        while (iswspace(*body_start))
+                        {
+                            body_start++; // Skip space before body
+                        }
+                        // Body is the rest of the line (trim trailing space later if needed)
+                        // Simple approach: take everything to end of line
+                        // More robust: could trim trailing whitespace from body_start
+
+                        if (!add_macro(pp_state, macro_name, body_start))
+                        {
+                            *error_message = format_preprocessor_error(L"فشل في إضافة تعريف الماكرو '%ls' في الملف '%hs'. قد يكون بسبب خطأ في الذاكرة.", macro_name, abs_path);
+                            success = false;
+                        }
+
+                        free(macro_name); // Free duplicated name
+
+                        // #تعريف line is processed, do not append to output
+                    }
+                }
+                else if (wcsncmp(current_line, undef_directive, undef_directive_len) == 0 &&
+                         (current_line[undef_directive_len] == L'\0' || iswspace(current_line[undef_directive_len])))
+                {
+                    // Found #الغاء_تعريف directive
+                    wchar_t *name_start = current_line + undef_directive_len;
+                    while (iswspace(*name_start))
+                    {
+                        name_start++; // Skip space after directive
+                    }
+                    wchar_t *name_end = name_start;
+                    while (*name_end != L'\0' && !iswspace(*name_end))
+                    {
+                        name_end++; // Find end of name
+                    }
+
+                    if (name_start == name_end)
+                    {
+                        *error_message = format_preprocessor_error(L"تنسيق #الغاء_تعريف غير صالح في الملف '%hs': اسم الماكرو مفقود.", abs_path);
+                        success = false;
+                    }
+                    else
+                    {
+                        size_t name_len = name_end - name_start;
+                        wchar_t *macro_name = wcsndup(name_start, name_len);
+                        if (!macro_name)
+                        {
+                            *error_message = format_preprocessor_error(L"فشل في تخصيص ذاكرة لاسم الماكرو في #الغاء_تعريف في '%hs'.", abs_path);
+                            success = false;
+                        }
+                        else
+                        {
+                            // Attempt to undefine the macro (function handles 'not found' case gracefully)
+                            undefine_macro(pp_state, macro_name);
+                            free(macro_name);
+                            // #الغاء_تعريف line is processed, do not append to output
+                        }
+                    }
+                }
                 // End of non-conditional directives processing
                 else
                 {
@@ -1036,7 +1098,7 @@ static wchar_t *process_file(BaaPreprocessor *pp_state, const char *file_path, w
         }
         else if (!pp_state->skipping_lines)
         {
-             // Not a directive AND not skipping: process line for macro substitution
+            // Not a directive AND not skipping: process line for macro substitution
             DynamicWcharBuffer substituted_line_buffer;
             if (!init_dynamic_buffer(&substituted_line_buffer, line_len + 64))
             { // Initial capacity estimate
@@ -1152,7 +1214,6 @@ void free_macros(BaaPreprocessor *pp)
     }
 }
 
-
 // Helper function to add or update a macro definition
 // Returns true on success, false on allocation failure.
 // Handles reallocation of the macro array.
@@ -1256,7 +1317,6 @@ static bool undefine_macro(BaaPreprocessor *pp_state, const wchar_t *name)
     return false; // Macro not found
 }
 
-
 wchar_t *baa_preprocess(const char *main_file_path, const char **include_paths, wchar_t **error_message)
 {
     if (!main_file_path || !error_message)
@@ -1299,17 +1359,17 @@ wchar_t *baa_preprocess(const char *main_file_path, const char **include_paths, 
     wchar_t *final_output = process_file(&pp_state, main_file_path, error_message);
 
     // --- Cleanup ---
-    free_file_stack(&pp_state); // Free include stack
-    free_macros(&pp_state);     // Free macro definitions
+    free_file_stack(&pp_state);        // Free include stack
+    free_macros(&pp_state);            // Free macro definitions
     free_conditional_stack(&pp_state); // Free conditional stack
 
     // Check for unterminated conditional block after processing is complete
-    if (pp_state.conditional_stack_count > 0 && !*error_message) {
-         *error_message = format_preprocessor_error(L"كتلة شرطية غير منتهية في نهاية المعالجة (مفقود #نهاية_إذا).");
-         free(final_output); // Free potentially partially generated output
-         final_output = NULL;
+    if (pp_state.conditional_stack_count > 0 && !*error_message)
+    {
+        *error_message = format_preprocessor_error(L"كتلة شرطية غير منتهية في نهاية المعالجة (مفقود #نهاية_إذا).");
+        free(final_output); // Free potentially partially generated output
+        final_output = NULL;
     }
-
 
     if (!final_output)
     {
