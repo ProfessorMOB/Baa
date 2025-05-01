@@ -46,6 +46,17 @@ void baa_cleanup_llvm_context(BaaLLVMContext* context) {
 }
 
 // Additional stubs required by the header
+
+// Note: The return type here MUST match the header declaration (LLVMValueRef)
+// even when LLVM is not available. We return NULL, which is compatible.
+LLVMValueRef baa_generate_llvm_expression(BaaLLVMContext* context, BaaExpr* expr) {
+    if (context) {
+        context->had_error = true;
+        context->error_message = L"LLVM support not available";
+    }
+    return NULL;
+}
+
 bool baa_generate_llvm_function(BaaLLVMContext* context, BaaFunction* function) {
     if (context) {
         context->had_error = true;
@@ -60,14 +71,6 @@ bool baa_generate_llvm_statement(BaaLLVMContext* context, BaaStmt* stmt) {
         context->error_message = L"LLVM support not available";
     }
     return false;
-}
-
-void* baa_generate_llvm_expression(BaaLLVMContext* context, BaaExpr* expr) {
-    if (context) {
-        context->had_error = true;
-        context->error_message = L"LLVM support not available";
-    }
-    return NULL;
 }
 
 bool baa_generate_llvm_if_statement(BaaLLVMContext* context, BaaIfStmt* if_stmt) {

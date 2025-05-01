@@ -176,19 +176,9 @@ static void test_expression_generation(void)
 }
 
 // Main function
-int main(void)
-{
-    // Initialize test suite
-    TEST_SUITE_BEGIN();
-
-    // Add tests
+TEST_SUITE_BEGIN()
     TEST_CASE(test_function_generation);
     TEST_CASE(test_if_statement_generation);
     TEST_CASE(test_while_loop_generation);
     TEST_CASE(test_expression_generation);
-
-    // Run tests
-    TEST_SUITE_END();
-
-    return 0;
-}
+TEST_SUITE_END()

@@ -203,11 +203,7 @@ static void test_error_messages(void) {
 }
 
 // Main function
-int main(void) {
-    // Initialize test suite
-    TEST_SUITE_BEGIN();
-
-    // Add tests
+TEST_SUITE_BEGIN()
     TEST_CASE(test_standard_integer_parsing);
     TEST_CASE(test_arabic_integer_parsing);
     TEST_CASE(test_standard_decimal_parsing);
@@ -215,9 +211,4 @@ int main(void) {
     TEST_CASE(test_mixed_digit_parsing);
     TEST_CASE(test_error_conditions);
     TEST_CASE(test_error_messages);
-
-    // Run tests
-    TEST_SUITE_END();
-
-    return 0;
-}
+TEST_SUITE_END()

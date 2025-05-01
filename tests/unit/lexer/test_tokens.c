@@ -282,15 +282,10 @@ void test_identifiers(void)
     _wremove(test_filename);
 }
 
-int main(void)
-{
-    TEST_SUITE_BEGIN()
-
-    TEST_CASE(test_keywords)
-    TEST_CASE(test_operators)
-    TEST_CASE(test_string_literals)
-    TEST_CASE(test_character_literals)
-    TEST_CASE(test_identifiers)
-
-    TEST_SUITE_END()
-}
+TEST_SUITE_BEGIN()
+    TEST_CASE(test_keywords);
+    TEST_CASE(test_operators);
+    TEST_CASE(test_string_literals);
+    TEST_CASE(test_character_literals);
+    TEST_CASE(test_identifiers);
+TEST_SUITE_END()

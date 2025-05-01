@@ -21,12 +21,7 @@ void test_simple_program(void)
     ASSERT_NOT_NULL(token, L"Failed to get comment token");
     ASSERT_EQUAL(token->type, BAA_TOKEN_COMMENT, L"Expected COMMENT token");
 
-    // #تضمين
-    token = baa_lexer_next_token(lexer);
-    ASSERT_NOT_NULL(token, L"Failed to get include token");
-    ASSERT_EQUAL(token->type, BAA_TOKEN_INCLUDE, L"Expected INCLUDE token");
-    ASSERT_STR_EQ(token->lexeme, L"#تضمين");
-
+    // Skip preprocessor directive (#تضمين) as lexer ignores them
     // <
     token = baa_lexer_next_token(lexer);
     ASSERT_NOT_NULL(token, L"Failed to get less token");
@@ -67,12 +62,7 @@ void test_program_test(void)
     ASSERT_NOT_NULL(token, L"Failed to get comment token");
     ASSERT_EQUAL(token->type, BAA_TOKEN_COMMENT, L"Expected COMMENT token");
 
-    // #تضمين
-    token = baa_lexer_next_token(lexer);
-    ASSERT_NOT_NULL(token, L"Failed to get include token");
-    ASSERT_EQUAL(token->type, BAA_TOKEN_INCLUDE, L"Expected INCLUDE token");
-    ASSERT_STR_EQ(token->lexeme, L"#تضمين");
-
+    // Skip preprocessor directive (#تضمين) as lexer ignores them
     // <
     token = baa_lexer_next_token(lexer);
     ASSERT_NOT_NULL(token, L"Failed to get less token");
@@ -88,12 +78,7 @@ void test_program_test(void)
     free(content);
 }
 
-int main(void)
-{
-    TEST_SUITE_BEGIN()
-
-    TEST_CASE(test_simple_program)
-    TEST_CASE(test_program_test)
-
-    TEST_SUITE_END()
-}
+TEST_SUITE_BEGIN()
+    TEST_CASE(test_simple_program);
+    TEST_CASE(test_program_test);
+TEST_SUITE_END()

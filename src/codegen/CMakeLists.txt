@@ -1,10 +1,10 @@
-add_library(baa_codegen
-    codegen.c
-)
+# Create the library target first
+add_library(baa_codegen)
 
 # Add LLVM-specific files only if LLVM is available
 if(LLVM_AVAILABLE)
     target_sources(baa_codegen PRIVATE
+        codegen.c      # Compile the main codegen file only if LLVM is found
         llvm_codegen.c
     )
 

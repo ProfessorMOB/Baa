@@ -2,11 +2,13 @@
 #define BAA_LLVM_CODEGEN_H
 
 // Forward-declare LLVM types to avoid including the full header
-#ifdef LLVM_AVAILABLE
-#include "llvm-c/Core.h"
+#if LLVM_AVAILABLE // Check the VALUE, not just if defined
+#include "llvm-c/Core.h" // Include actual LLVM headers if available
 #else
-// Define LLVMValueRef as a void* for non-LLVM builds
-typedef void* LLVMValueRef;
+// Define dummy struct and pointer for non-LLVM builds
+// This helps maintain type safety even without LLVM.
+struct BaaDummyLLVMValue { int _dummy; }; // Define the struct with a dummy member
+typedef struct BaaDummyLLVMValue* LLVMValueRef;
 #endif
 
 #include "baa/codegen/codegen.h"

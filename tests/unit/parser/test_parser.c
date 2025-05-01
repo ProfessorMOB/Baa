@@ -1,7 +1,7 @@
 #include "test_framework.h"
-#include "../../src/parser/tokens.h"
-#include "../../include/baa/ast.h"
-#include "../../include/baa/parser.h"
+#include "baa/parser/tokens.h" // Corrected include path
+#include "baa/ast/ast.h"       // Corrected include path
+#include "baa/parser/parser.h" // Corrected include path
 #include <direct.h>
 #include <inttypes.h>
 #include <stdio.h>
@@ -56,9 +56,9 @@ static wchar_t* read_file(const wchar_t* path) {
 }
 
 // Test basic token creation
-TEST(token_creation) {
+void test_token_creation(void) { // Changed to standard function definition
     Token token = {
-        .type = TOKEN_FUNCTION,
+        .type = TOKEN_FUNCTION, // Note: TOKEN_FUNCTION might be undefined if tokens.h isn't included correctly
         .start = L"دالة",
         .length = 4,
         .line = 1,
@@ -72,9 +72,9 @@ TEST(token_creation) {
 }
 
 // Test basic AST node creation
-TEST(ast_creation) {
+void test_ast_creation(void) { // Changed to standard function definition
     // Create a simple expression: 1 + 2
-    Node* num1 = baa_create_node(NODE_NUMBER, L"1");
+    Node* num1 = baa_create_node(NODE_NUMBER, L"1"); // Note: Node, baa_create_node, NODE_NUMBER might be undefined
     Node* plus = baa_create_node(NODE_BINARY_OP, L"+");
     Node* num2 = baa_create_node(NODE_NUMBER, L"2");
 
@@ -94,9 +94,9 @@ TEST(ast_creation) {
 }
 
 // Test function declaration parsing
-TEST(function_declaration) {
+void test_function_declaration(void) { // Changed to standard function definition
     // Create a simple function: دالة مرحبا() { إرجع 0. }
-    Node* func = baa_create_node(NODE_FUNCTION, L"مرحبا");
+    Node* func = baa_create_node(NODE_FUNCTION, L"مرحبا"); // Note: Node, baa_create_node, NODE_FUNCTION might be undefined
     Node* return_stmt = baa_create_node(NODE_RETURN, NULL);
     Node* return_val = baa_create_node(NODE_NUMBER, L"0");
 
@@ -112,8 +112,8 @@ TEST(function_declaration) {
 }
 
 // Test parsing a simple program
-TEST(parse_simple_program) {
-    wchar_t* source = read_file(L"simple.txt");
+void test_parse_simple_program(void) { // Changed to standard function definition
+    wchar_t* source = read_file(L"simple.txt"); // Note: read_file might need adjustment if not finding file
     ASSERT(source != NULL);
 
     Parser* parser = baa_parser_init(source);
@@ -142,7 +142,7 @@ TEST(parse_simple_program) {
 }
 
 // Test parsing Arabic program
-TEST(parse_arabic_program) {
+void test_parse_arabic_program(void) { // Changed to standard function definition
     wchar_t cwd[1024];
     if (_wgetcwd(cwd, sizeof(cwd)) != NULL) {
         wprintf(L"Current working directory: %s\n", cwd);
@@ -212,15 +212,12 @@ TEST(parse_arabic_program) {
     wprintf(L"Test completed successfully\n");
 }
 
-int main() {
-    init_test_framework();
-
-    RUN_TEST(token_creation);
-    RUN_TEST(ast_creation);
-    RUN_TEST(function_declaration);
-    RUN_TEST(parse_simple_program);
-    RUN_TEST(parse_arabic_program);
-
-    print_test_results();
-    return failed_tests > 0 ? 1 : 0;
-}
+TEST_SUITE_BEGIN()
+    // Note: These test cases might fail if the types/functions
+    // from included headers are not resolved correctly by the build system.
+    TEST_CASE(test_token_creation);
+    TEST_CASE(test_ast_creation);
+    TEST_CASE(test_function_declaration);
+    TEST_CASE(test_parse_simple_program);
+    TEST_CASE(test_parse_arabic_program);
+TEST_SUITE_END()

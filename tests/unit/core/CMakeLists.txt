@@ -9,6 +9,7 @@ add_test(NAME test_types COMMAND test_types)
 # Test operators
 add_executable(test_operators test_operators.c)
 target_link_libraries(test_operators PRIVATE
+    test_framework # Added missing test framework link
     baa_utils
     baa_types
     baa_operators

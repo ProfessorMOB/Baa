@@ -10,6 +10,9 @@ add_subdirectory(lexer)
 # Parser tests
 add_subdirectory(parser)
 
+# Preprocessor tests
+add_subdirectory(preprocessor)
+
 # Utils tests
 add_subdirectory(utils)
 
