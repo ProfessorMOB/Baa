@@ -24,7 +24,9 @@ This roadmap outlines the planned improvements and current status of the Baa lan
     - [x] Simple text substitution for parameterless macros
     - [x] `#الغاء_تعريف NAME` (undef)
     - [x] Function-like macros (with parameters - *basic implementation*)
-    - [ ] More robust substitution rules (recursion prevention, stringification `#`, token pasting `##`, robust argument parsing)
+    - [x] Stringification (`#`) - *basic implementation*
+    - [x] Token Pasting (`##`) - *basic implementation (whitespace suppression)*
+    - [ ] More robust substitution rules (recursion prevention, true token pasting, etc.)
 - **Conditional Compilation:**
     - [x] `#إذا_عرف MACRO` (ifdef)
     - [x] `#إذا_لم_يعرف MACRO` (ifndef)
@@ -45,7 +47,8 @@ This roadmap outlines the planned improvements and current status of the Baa lan
 ## Implementation Priorities (Excluding Testing for now)
 
 1.  **Advanced Macro Features:** *[Next]*
-    - Implement more robust substitution rules (stringification `#`, token pasting `##`, robust argument parsing).
+    - Implement more robust substitution rules (true token pasting `##`, recursion prevention).
+    - Implement fully robust argument parsing (edge cases).
 2.  **Conditional Compilation Enhancements:**
     - Implement `#if` with constant expression evaluation.
     - Enhance `#elif` to support constant expression evaluation.

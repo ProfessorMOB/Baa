@@ -21,8 +21,9 @@ It operates on files assumed to be encoded in **UTF-16LE**.
         - Example: `#تعريف ADD(a, b) a + b`
         - Parses parameter names within the parentheses.
         - Performs substitution of parameter names in the macro body with the provided arguments during invocation (`ADD(1, 2)` becomes `1 + 2`).
-        - Argument parsing correctly handles nested parentheses but **does not yet handle commas within string/character literals**.
-        - Special operators like stringification (`#`) and token pasting (`##`) are **not yet supported**.
+        - Argument parsing correctly handles nested parentheses and basic string/character literals.
+        - **Stringification (`#`):** Supports the `#` operator before a parameter name (e.g., `#param`) to convert the corresponding argument into a string literal (quoted and escaped).
+        - **Token Pasting (`##`):** Includes basic support for the `##` operator. It currently works by suppressing whitespace between the tokens adjacent to `##`. *Note: This is a simplified implementation and does not perform true token concatenation to form new identifiers/numbers.*
 - **`#الغاء_تعريف` (Undefine):**
     - Removes a previously defined macro (both object-like and function-like).
     - Example: `#الغاء_تعريف MAX_SIZE`
@@ -137,8 +138,8 @@ if (!processed_source) {
 ## Future Enhancements (تحسينات مستقبلية)
 
 - Conditional compilation (`#if`, `#elif` with constant expressions).
-- More robust macro substitution rules (recursion prevention, stringification `#`, token pasting `##`).
-- More robust argument parsing for function-like macros (handling commas in literals).
+- More robust macro substitution rules (recursion prevention, true token pasting `##`).
+- Fully robust argument parsing for function-like macros (edge cases with literals/whitespace).
 - Improved error reporting with original source line numbers.
 - Support for UTF-8 input files.
 - Input source abstraction (file, string, stdin).

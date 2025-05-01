@@ -37,6 +37,11 @@ typedef struct {
     size_t conditional_branch_taken_stack_count; // Should always == conditional_stack_count
     size_t conditional_branch_taken_stack_capacity;
     bool skipping_lines;            // True if currently skipping lines (determined by combining stack states)
+
+    // Macro expansion recursion detection
+    const BaaMacro** expanding_macros_stack; // Stack of macros currently being expanded
+    size_t expanding_macros_count;
+    size_t expanding_macros_capacity;
 } BaaPreprocessor;
 
 /**

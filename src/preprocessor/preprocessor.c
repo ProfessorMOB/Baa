@@ -41,6 +41,12 @@ static bool pop_conditional(BaaPreprocessor *pp_state);                     // A
 static void update_skipping_state(BaaPreprocessor *pp_state);               // Added for conditional state
 void free_conditional_stack(BaaPreprocessor *pp);                           // Added for cleanup
 
+// --- Macro Expansion Stack Helpers ---
+static bool push_macro_expansion(BaaPreprocessor *pp_state, const BaaMacro *macro);
+static void pop_macro_expansion(BaaPreprocessor *pp_state);
+static bool is_macro_expanding(const BaaPreprocessor *pp_state, const BaaMacro *macro);
+static void free_macro_expansion_stack(BaaPreprocessor *pp_state);
+
 // Forward declaration for argument parsing
 static wchar_t** parse_macro_arguments(const wchar_t** invocation_ptr_ref, size_t expected_arg_count, size_t* actual_arg_count, wchar_t** error_message, const char* abs_path);
 
@@ -1172,6 +1178,24 @@ static wchar_t *process_file(BaaPreprocessor *pp_state, const char *file_path, w
                         const BaaMacro *macro = find_macro(pp_state, identifier);
                         if (macro)
                         {
+                            // --- Recursion Check ---
+                            if (is_macro_expanding(pp_state, macro)) {
+                                *error_message = format_preprocessor_error(L"تم اكتشاف استدعاء ذاتي للماكرو '%ls' في '%hs'.", macro->name, abs_path);
+                                success = false;
+                                free(identifier); // Free identifier before breaking
+                                break;
+                            }
+
+                            // --- Push macro onto expansion stack ---
+                            if (!push_macro_expansion(pp_state, macro)) {
+                                *error_message = format_preprocessor_error(L"فشل في دفع الماكرو '%ls' إلى مكدس التوسيع في '%hs'.", macro->name, abs_path);
+                                success = false;
+                                free(identifier);
+                                break;
+                            }
+
+                            bool expansion_success = true; // Track success of this specific expansion
+
                             if (macro->is_function_like) {
                                 // Potential function-like macro invocation
                                 const wchar_t *invocation_ptr = line_ptr; // Point after the identifier
@@ -1216,12 +1240,20 @@ static wchar_t *process_file(BaaPreprocessor *pp_state, const char *file_path, w
                                 } else {
                                     // Function-like macro name NOT followed by '(', treat as normal identifier
                                     if (!append_dynamic_buffer_n(&substituted_line_buffer, id_start, id_len))
-                                        success = false;
+                                        expansion_success = false;
                                 }
                             } else {
                                 // Simple object-like macro substitution
-                                if (!append_to_dynamic_buffer(&substituted_line_buffer, macro->body))
-                                    success = false;
+                                if (!substitute_macro_body(&substituted_line_buffer, macro, NULL, 0, error_message, abs_path)) {
+                                     expansion_success = false;
+                                }
+                            }
+
+                            // --- Pop macro from expansion stack ---
+                            pop_macro_expansion(pp_state);
+
+                            if (!expansion_success) {
+                                success = false; // Propagate error
                             }
                         }
                         else // Not a macro
@@ -1291,6 +1323,62 @@ static wchar_t *process_file(BaaPreprocessor *pp_state, const char *file_path, w
 
 // --- Function-Like Macro Helpers ---
 
+// Helper function to convert an argument to a string literal, escaping necessary characters.
+// Appends the result (including quotes) to output_buffer.
+// Returns true on success, false on error.
+static bool stringify_argument(DynamicWcharBuffer* output_buffer, const wchar_t* argument, wchar_t** error_message, const char* abs_path) {
+    // Estimate needed capacity: quotes + original length + potential escapes
+    size_t initial_capacity = wcslen(argument) + 10; // Add some buffer for escapes + quotes
+    DynamicWcharBuffer temp_buffer;
+    if (!init_dynamic_buffer(&temp_buffer, initial_capacity)) {
+         *error_message = format_preprocessor_error(L"فشل في تخصيص ذاكرة مؤقتة لتسلسل الوسيطة في '%hs'.", abs_path);
+         return false;
+    }
+
+    bool success = true;
+    // Append opening quote
+    if (!append_to_dynamic_buffer(&temp_buffer, L"\"")) {
+        success = false;
+    }
+
+    // Iterate through argument, escaping characters as needed
+    const wchar_t* ptr = argument;
+    while (*ptr != L'\0' && success) {
+        wchar_t char_to_append[3] = {0}; // Max 2 chars for escape + null terminator
+        bool needs_escape = false;
+
+        if (*ptr == L'\\' || *ptr == L'"') {
+            needs_escape = true;
+            char_to_append[0] = L'\\';
+            char_to_append[1] = *ptr;
+        } else {
+            char_to_append[0] = *ptr;
+        }
+
+        if (!append_to_dynamic_buffer(&temp_buffer, char_to_append)) {
+            success = false;
+        }
+        ptr++;
+    }
+
+    // Append closing quote
+    if (success && !append_to_dynamic_buffer(&temp_buffer, L"\"")) {
+        success = false;
+    }
+
+    // Append the final stringified result to the main output buffer
+    if (success) {
+        if (!append_to_dynamic_buffer(output_buffer, temp_buffer.buffer)) {
+             *error_message = format_preprocessor_error(L"فشل في إلحاق الوسيطة المتسلسلة للمخرج في '%hs'.", abs_path);
+             success = false;
+        }
+    }
+
+    free_dynamic_buffer(&temp_buffer);
+    return success;
+}
+
+
 // Parses macro arguments from an invocation string.
 // Updates invocation_ptr_ref to point after the closing parenthesis.
 // Returns a dynamically allocated array of argument strings (caller must free each string and the array).
@@ -1329,22 +1417,26 @@ static wchar_t** parse_macro_arguments(const wchar_t** invocation_ptr_ref, size_
          // Find the start of the argument
         const wchar_t* arg_start = ptr;
 
-        // Find the end of the argument (next ',' or ')' at the top level)
+        // Find the end of the argument (next ',' or ')' at the top level, respecting literals)
         int paren_level = 0;
         const wchar_t* arg_end = ptr;
         bool in_string = false;
         bool in_char = false;
-        wchar_t prev_char = L'\0'; // To handle escaped quotes
+        wchar_t prev_char = L'\0';
 
         while (*arg_end != L'\0') {
             if (in_string) {
+                // Inside string literal
                 if (*arg_end == L'"' && prev_char != L'\\') {
-                    in_string = false;
+                    in_string = false; // End of string
                 }
+                // Ignore commas and parentheses inside strings
             } else if (in_char) {
+                // Inside char literal
                  if (*arg_end == L'\'' && prev_char != L'\\') {
-                    in_char = false;
+                    in_char = false; // End of char
                 }
+                // Ignore commas and parentheses inside chars
             } else {
                 // Not inside a string or char literal
                 if (*arg_end == L'(') {
@@ -1357,14 +1449,20 @@ static wchar_t** parse_macro_arguments(const wchar_t** invocation_ptr_ref, size_
                          goto parse_error;
                     }
                 } else if (*arg_end == L',' && paren_level == 0) {
-                    break; // End of the current argument
+                    break; // End of the current argument (only if not nested)
                 } else if (*arg_end == L'"') {
-                    in_string = true;
+                    in_string = true; // Start of string
                 } else if (*arg_end == L'\'') {
-                     in_char = true;
+                     in_char = true; // Start of char
                 }
             }
-            prev_char = *arg_end;
+
+            // Handle escaped characters (simple version: just track previous char)
+            if (*arg_end == L'\\' && prev_char == L'\\') {
+                 prev_char = L'\0'; // Treat double backslash as escaped, reset prev_char
+            } else {
+                 prev_char = *arg_end;
+            }
             arg_end++;
         }
         // arg_end now points to the delimiter (',' or ')') or null terminator
@@ -1445,15 +1543,90 @@ parse_error:
 // Performs substitution of parameters within a macro body.
 // Appends the result to the output_buffer.
 // Returns true on success, false on error (setting error_message).
-// NOTE: This implementation handles basic parameter substitution.
-//       It does NOT yet handle stringification (#) or token pasting (##).
+// NOTE: This implementation handles basic parameter substitution, stringification (#),
+//       and basic token pasting (##).
 static bool substitute_macro_body(DynamicWcharBuffer* output_buffer, const BaaMacro* macro, wchar_t** arguments, size_t arg_count, wchar_t** error_message, const char* abs_path) {
     const wchar_t* body_ptr = macro->body;
     bool success = true;
+    bool suppress_next_space = false; // Flag for token pasting
 
     while (*body_ptr != L'\0' && success) {
-        // Check for potential parameter identifier
-        if (iswalpha(*body_ptr) || *body_ptr == L'_') {
+        // Check for token pasting operator '##'
+        if (*body_ptr == L'#' && *(body_ptr + 1) == L'#') {
+            // Trim trailing whitespace from the output buffer before pasting
+            while (output_buffer->length > 0 && iswspace(output_buffer->buffer[output_buffer->length - 1])) {
+                output_buffer->length--;
+            }
+            output_buffer->buffer[output_buffer->length] = L'\0'; // Re-null-terminate
+
+            suppress_next_space = true; // Suppress leading space on the *next* token
+            body_ptr += 2; // Skip '##'
+            // Skip any whitespace immediately after ## (before the next token/param)
+            while (iswspace(*body_ptr)) body_ptr++;
+            continue; // Continue loop to process the token after ##
+        }
+        // Check for stringification operator '#' (only if not part of ##)
+        else if (*body_ptr == L'#') {
+            const wchar_t* operator_ptr = body_ptr; // Point to '#'
+            body_ptr++; // Move past '#'
+
+            // Skip whitespace (optional, non-standard but maybe lenient)
+            // while (iswspace(*body_ptr)) body_ptr++;
+
+            if (iswalpha(*body_ptr) || *body_ptr == L'_') {
+                const wchar_t* id_start = body_ptr;
+                while (iswalnum(*body_ptr) || *body_ptr == L'_') {
+                    body_ptr++;
+                }
+                size_t id_len = body_ptr - id_start;
+                wchar_t* identifier = wcsndup(id_start, id_len);
+                if (!identifier) {
+                    *error_message = format_preprocessor_error(L"فشل في تخصيص ذاكرة للمعرف بعد '#' في نص الماكرو '%ls' في '%hs'.", macro->name, abs_path);
+                    return false;
+                }
+
+                bool param_found = false;
+                for (size_t i = 0; i < macro->param_count; ++i) {
+                    if (wcscmp(identifier, macro->param_names[i]) == 0) {
+                    // Found #param, perform stringification
+                    // Stringification result includes quotes, so spacing is less critical before it.
+                    if (!stringify_argument(output_buffer, arguments[i], error_message, abs_path)) {
+                        success = false; // Error message already set by helper
+                        }
+                        param_found = true;
+                        break; // Exit param search loop
+                    }
+                }
+                free(identifier);
+
+                if (!success) break; // Exit main loop on error
+
+                if (!param_found) {
+                    // '#' was not followed by a valid parameter name. Treat '#' literally.
+                    if (!append_dynamic_buffer_n(output_buffer, operator_ptr, 1)) {
+                         *error_message = format_preprocessor_error(L"فشل في إلحاق '#' الحرفية من نص الماكرو '%ls' في '%hs'.", macro->name, abs_path);
+                         success = false; break;
+                    }
+                    // Let the loop continue to process the identifier normally in the next iteration
+                    body_ptr = id_start; // Reset body_ptr to the start of the identifier
+                } else {
+                    // If param_found, body_ptr is already advanced past the identifier, continue main loop
+                    suppress_next_space = false; // Stringification produces a single token
+                }
+
+            } else {
+                 // '#' not followed by identifier, treat '#' as literal
+                 // TODO: Consider if space suppression is needed before literal '#'
+                 if (!append_dynamic_buffer_n(output_buffer, operator_ptr, 1)) {
+                      *error_message = format_preprocessor_error(L"فشل في إلحاق '#' الحرفية من نص الماكرو '%ls' في '%hs'.", macro->name, abs_path);
+                      success = false; break;
+                 }
+                 suppress_next_space = false; // Reset flag after literal append
+                 // body_ptr is already advanced past '#'
+            }
+        }
+        // Check for potential parameter identifier (if not handled by # or ##)
+        else if (iswalpha(*body_ptr) || *body_ptr == L'_') {
             const wchar_t* id_start = body_ptr;
             while (iswalnum(*body_ptr) || *body_ptr == L'_') {
                 body_ptr++;
@@ -1467,12 +1640,80 @@ static bool substitute_macro_body(DynamicWcharBuffer* output_buffer, const BaaMa
 
             // Check if this identifier matches any parameter name
             bool param_found = false;
+            size_t param_index = (size_t)-1; // Store index if found
             for (size_t i = 0; i < macro->param_count; ++i) {
                 if (wcscmp(identifier, macro->param_names[i]) == 0) {
-                    // Found parameter, substitute with corresponding argument
-                    if (!append_to_dynamic_buffer(output_buffer, arguments[i])) {
+                    param_found = true;
+                    param_index = i;
+                    break;
+                }
+            }
+
+            if (success && param_found) {
+                 // Check for token pasting ## after this parameter
+                 const wchar_t* next_ptr = body_ptr; // Look ahead from end of identifier
+                 bool pasting = false;
+                 const wchar_t* next_id_start = NULL;
+                 size_t next_param_index = (size_t)-1;
+
+                 if (*next_ptr == L'#' && *(next_ptr + 1) == L'#') {
+                     next_ptr += 2; // Skip ##
+                     // Skip whitespace after ##
+                     while (iswspace(*next_ptr)) next_ptr++;
+
+                     // Check if the next token is another parameter identifier
+                     if (iswalpha(*next_ptr) || *next_ptr == L'_') {
+                         next_id_start = next_ptr;
+                         while (iswalnum(*next_ptr) || *next_ptr == L'_') {
+                             next_ptr++;
+                         }
+                         size_t next_id_len = next_ptr - next_id_start;
+                         wchar_t* next_identifier = wcsndup(next_id_start, next_id_len);
+                         if (next_identifier) {
+                             for (size_t j = 0; j < macro->param_count; ++j) {
+                                 if (wcscmp(next_identifier, macro->param_names[j]) == 0) {
+                                     pasting = true;
+                                     next_param_index = j;
+                                     break;
+                                 }
+                             }
+                             free(next_identifier);
+                         }
+                     }
+                 }
+
+                 if (pasting) {
+                     // Perform param##param pasting
+                     // Concatenate arguments[param_index] and arguments[next_param_index]
+                     size_t arg1_len = wcslen(arguments[param_index]);
+                     size_t arg2_len = wcslen(arguments[next_param_index]);
+                     wchar_t* concatenated_arg = malloc((arg1_len + arg2_len + 1) * sizeof(wchar_t));
+                     if (!concatenated_arg) {
+                          *error_message = format_preprocessor_error(L"فشل في تخصيص ذاكرة لوسيطة اللصق ## في '%hs'.", abs_path);
+                          success = false;
+                     } else {
+                         wcscpy(concatenated_arg, arguments[param_index]);
+                         wcscat(concatenated_arg, arguments[next_param_index]);
+
+                         // Append the concatenated result
+                         if (!append_to_dynamic_buffer(output_buffer, concatenated_arg)) {
+                             *error_message = format_preprocessor_error(L"فشل في إلحاق الوسيطة الملصقة ## في '%hs'.", abs_path);
+                             success = false;
+                         } else {
+                             suppress_next_space = false; // Pasting forms one token
+                         }
+                         free(concatenated_arg);
+                     }
+                     // Advance body_ptr past the second identifier
+                     body_ptr = next_ptr;
+                 } else {
+                    // Not pasting, substitute the first parameter normally
+                    // TODO: Check suppress_next_space
+                    if (!append_to_dynamic_buffer(output_buffer, arguments[param_index])) {
                         *error_message = format_preprocessor_error(L"فشل في إلحاق وسيطة الماكرو '%ls' في '%hs'.", macro->name, abs_path);
                         success = false;
+                    } else {
+                         suppress_next_space = false; // Reset flag after successful append
                     }
                     param_found = true;
                     break;
@@ -1481,24 +1722,69 @@ static bool substitute_macro_body(DynamicWcharBuffer* output_buffer, const BaaMa
 
             if (success && !param_found) {
                 // Not a parameter, append the original identifier from the body
+                // TODO: Check suppress_next_space
                 if (!append_dynamic_buffer_n(output_buffer, id_start, id_len)) {
                      *error_message = format_preprocessor_error(L"فشل في إلحاق المعرف من نص الماكرو '%ls' في '%hs'.", macro->name, abs_path);
                      success = false;
+                } else {
+                    suppress_next_space = false; // Reset flag
                 }
             }
             free(identifier);
 
         } else {
             // Not an identifier, append the character directly
+            // TODO: Check suppress_next_space
             if (!append_dynamic_buffer_n(output_buffer, body_ptr, 1)) {
                  *error_message = format_preprocessor_error(L"فشل في إلحاق حرف من نص الماكرو '%ls' في '%hs'.", macro->name, abs_path);
                  success = false;
+            } else {
+                 suppress_next_space = false; // Reset flag
             }
             body_ptr++;
         }
     } // End while processing body
 
+    // TODO: Handle case where ## is the very last thing in the body? (Likely an error)
+
     return success;
+}
+
+// --- Macro Expansion Stack Implementation ---
+
+static bool push_macro_expansion(BaaPreprocessor *pp_state, const BaaMacro *macro) {
+    if (pp_state->expanding_macros_count >= pp_state->expanding_macros_capacity) {
+        size_t new_capacity = (pp_state->expanding_macros_capacity == 0) ? 8 : pp_state->expanding_macros_capacity * 2;
+        const BaaMacro **new_stack = realloc(pp_state->expanding_macros_stack, new_capacity * sizeof(BaaMacro*));
+        if (!new_stack) return false; // Allocation failure
+        pp_state->expanding_macros_stack = new_stack;
+        pp_state->expanding_macros_capacity = new_capacity;
+    }
+    pp_state->expanding_macros_stack[pp_state->expanding_macros_count++] = macro;
+    return true;
+}
+
+static void pop_macro_expansion(BaaPreprocessor *pp_state) {
+    if (pp_state->expanding_macros_count > 0) {
+        pp_state->expanding_macros_count--;
+    }
+}
+
+static bool is_macro_expanding(const BaaPreprocessor *pp_state, const BaaMacro *macro) {
+    for (size_t i = 0; i < pp_state->expanding_macros_count; ++i) {
+        // Compare pointers - assumes macros are uniquely allocated
+        if (pp_state->expanding_macros_stack[i] == macro) {
+            return true;
+        }
+    }
+    return false;
+}
+
+static void free_macro_expansion_stack(BaaPreprocessor *pp_state) {
+    free(pp_state->expanding_macros_stack);
+    pp_state->expanding_macros_stack = NULL;
+    pp_state->expanding_macros_count = 0;
+    pp_state->expanding_macros_capacity = 0;
 }
 
 
@@ -1711,15 +1997,20 @@ wchar_t *baa_preprocess(const char *main_file_path, const char **include_paths, 
     pp_state.conditional_branch_taken_stack_count = 0;
     pp_state.conditional_branch_taken_stack_capacity = 0;
     pp_state.skipping_lines = false; // Start not skipping
+    // Initialize macro expansion stack
+    pp_state.expanding_macros_stack = NULL;
+    pp_state.expanding_macros_count = 0;
+    pp_state.expanding_macros_capacity = 0;
     // --- End Initialize ---
 
     // Start recursive processing
     wchar_t *final_output = process_file(&pp_state, main_file_path, error_message);
 
     // --- Cleanup ---
-    free_file_stack(&pp_state);        // Free include stack
-    free_macros(&pp_state);            // Free macro definitions
-    free_conditional_stack(&pp_state); // Free conditional stack
+    free_file_stack(&pp_state);             // Free include stack
+    free_macros(&pp_state);                 // Free macro definitions
+    free_conditional_stack(&pp_state);      // Free conditional stack
+    free_macro_expansion_stack(&pp_state);  // Free macro expansion stack
 
     // Check for unterminated conditional block after processing is complete
     if (pp_state.conditional_stack_count > 0 && !*error_message)
