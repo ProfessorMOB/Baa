@@ -22,12 +22,13 @@ This roadmap outlines the planned improvements and current status of the Baa lan
 - **Macros:**
     - [x] `#تعريف NAME BODY` (Parameterless macro definition)
     - [x] Simple text substitution for parameterless macros
-    - [ ] Function-like macros (with parameters)
-    - [x] `#undef` directive
-    - [ ] More robust substitution rules (recursion prevention, stringification `#`, token pasting `##`)
+    - [x] `#الغاء_تعريف NAME` (undef)
+    - [x] Function-like macros (with parameters - *basic implementation*)
+    - [ ] More robust substitution rules (recursion prevention, stringification `#`, token pasting `##`, robust argument parsing)
 - **Conditional Compilation:**
     - [x] `#إذا_عرف MACRO` (ifdef)
     - [x] `#إذا_لم_يعرف MACRO` (ifndef)
+    - [x] `#وإلا_إذا MACRO` (elif - *currently only checks if MACRO is defined*)
     - [x] `#إلا` (else)
     - [x] `#نهاية_إذا` (endif)
     - [ ] Basic `#if` (evaluating constant expressions - requires expression parser integration)
@@ -41,19 +42,15 @@ This roadmap outlines the planned improvements and current status of the Baa lan
 - [ ] Unit tests for conditional compilation logic (when implemented)
 - [ ] Integration tests with the overall compiler flow
 
-## Implementation Priorities
+## Implementation Priorities (Excluding Testing for now)
 
-1.  **Conditional Compilation:** *[Next]*
-    - Implement `#إذا_عرف`, `#إذا_لم_يعرف`, `#إلا`, `#نهاية_إذا`.
-2.  **Testing:**
-    - Develop comprehensive unit tests for existing functionality (`#تضمين`, `#تعريف`).
-    - Add tests for conditional compilation as it's implemented.
-3.  **Advanced Macro Features:**
-    - Function-like macros.
-    - `#undef` directive.
-4.  **Error Reporting:**
+1.  **Advanced Macro Features:** *[Next]*
+    - Implement more robust substitution rules (stringification `#`, token pasting `##`, robust argument parsing).
+2.  **Conditional Compilation Enhancements:**
+    - Implement `#if` with constant expression evaluation.
+    - Enhance `#elif` to support constant expression evaluation.
+3.  **Error Reporting:**
     - Improve error messages to include original source line/column numbers.
-5.  **Robustness & Advanced Features:**
-    - More robust macro substitution rules.
-    - Support for `#if` expressions.
-    - UTF-8 input support.
+4.  **Robustness & Advanced Features:**
+    - Support for UTF-8 input files.
+    - Input source abstraction (file, string, stdin).

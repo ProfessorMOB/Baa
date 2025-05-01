@@ -6,18 +6,9 @@ add_subdirectory(codegen)
 add_subdirectory(utils)
 add_subdirectory(types)
 add_subdirectory(operators)
-add_subdirectory(src/analysis)
+add_subdirectory(analysis) # Corrected path
 
-# Main executable
-add_executable(Baa
-    main.c
-)
-
-target_link_libraries(Baa
-    PRIVATE
-    baa_lexer
-    baa_parser
-    baa_ast
-    baa_codegen
-    baa_utils
-)
+# The main executable 'baa' is defined in the root CMakeLists.txt
+# Remove the redundant definition below:
+# add_executable(Baa main.c)
+# target_link_libraries(Baa PRIVATE ...)

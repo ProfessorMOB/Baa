@@ -32,13 +32,21 @@ static wchar_t *wcsndup(const wchar_t *s, size_t n)
 }
 
 // Forward declarations for static functions
-static bool add_macro(BaaPreprocessor *pp_state, const wchar_t *name, const wchar_t *body);
+// Updated add_macro signature
+static bool add_macro(BaaPreprocessor *pp_state, const wchar_t *name, const wchar_t *body, bool is_function_like, size_t param_count, wchar_t **param_names);
 static const BaaMacro *find_macro(const BaaPreprocessor *pp_state, const wchar_t *name);
 static bool undefine_macro(BaaPreprocessor *pp_state, const wchar_t *name); // Added for #undef
 static bool push_conditional(BaaPreprocessor *pp_state, bool is_active);    // Added for #ifdef
 static bool pop_conditional(BaaPreprocessor *pp_state);                     // Added for #endif
 static void update_skipping_state(BaaPreprocessor *pp_state);               // Added for conditional state
 void free_conditional_stack(BaaPreprocessor *pp);                           // Added for cleanup
+
+// Forward declaration for argument parsing
+static wchar_t** parse_macro_arguments(const wchar_t** invocation_ptr_ref, size_t expected_arg_count, size_t* actual_arg_count, wchar_t** error_message, const char* abs_path);
+
+// Forward declaration for substitution
+static bool substitute_macro_body(DynamicWcharBuffer* output_buffer, const BaaMacro* macro, wchar_t** arguments, size_t arg_count, wchar_t** error_message, const char* abs_path);
+
 
 // --- Helper Functions ---
 
@@ -719,9 +727,11 @@ static wchar_t *process_file(BaaPreprocessor *pp_state, const char *file_path, w
                     {
                         // No branch taken yet, evaluate this #elif condition
                         wchar_t *name_start = current_line + elif_directive_len;
-                        while (iswspace(*name_start)) name_start++;
+                        while (iswspace(*name_start))
+                            name_start++;
                         wchar_t *name_end = name_start;
-                        while (*name_end != L'\0' && !iswspace(*name_end)) name_end++;
+                        while (*name_end != L'\0' && !iswspace(*name_end))
+                            name_end++;
 
                         if (name_start == name_end)
                         {
@@ -947,20 +957,129 @@ static wchar_t *process_file(BaaPreprocessor *pp_state, const char *file_path, w
                     {
                         size_t name_len = name_end - name_start;
                         wchar_t *macro_name = wcsndup(name_start, name_len);
+                        if (!macro_name) {
+                             *error_message = format_preprocessor_error(L"فشل في تخصيص ذاكرة لاسم الماكرو في #تعريف في '%hs'.", abs_path);
+                             success = false;
+                             break; // Exit directive processing for this line
+                        }
 
-                        wchar_t *body_start = name_end;
-                        while (iswspace(*body_start))
-                        {
+                        // --- Start Function-Like Macro Parsing ---
+                        bool is_function_like = false;
+                        size_t param_count = 0;
+                        wchar_t **params = NULL; // Array of parameter names
+                        size_t params_capacity = 0;
+                        wchar_t *body_start = name_end; // Default body start if not function-like
+
+                        // Check for '(' immediately after name (no space allowed by C standard)
+                        if (*name_end == L'(') {
+                            is_function_like = true;
+                            wchar_t *param_ptr = name_end + 1; // Start parsing after '('
+
+                            // Loop to parse parameters
+                            while (success) {
+                                // Skip whitespace before parameter or ')'
+                                while (iswspace(*param_ptr)) param_ptr++;
+
+                                if (*param_ptr == L')') { // End of parameter list
+                                    param_ptr++; // Consume ')'
+                                    break; // Exit parameter parsing loop
+                                }
+
+                                // If not ')', expect an identifier (parameter name)
+                                if (!iswalpha(*param_ptr) && *param_ptr != L'_') {
+                                    *error_message = format_preprocessor_error(L"تنسيق #تعريف غير صالح في '%hs': متوقع اسم معامل أو ')' بعد '('.", abs_path);
+                                    success = false;
+                                    break;
+                                }
+
+                                // Find parameter name start and end
+                                wchar_t *param_name_start = param_ptr;
+                                while (iswalnum(*param_ptr) || *param_ptr == L'_') {
+                                    param_ptr++;
+                                }
+                                wchar_t *param_name_end = param_ptr;
+                                size_t param_name_len = param_name_end - param_name_start;
+
+                                if (param_name_len == 0) { // Should not happen if check above is correct, but safety
+                                     *error_message = format_preprocessor_error(L"تنسيق #تعريف غير صالح في '%hs': اسم معامل فارغ.", abs_path);
+                                     success = false;
+                                     break;
+                                }
+
+                                // Duplicate and store parameter name
+                                wchar_t *param_name = wcsndup(param_name_start, param_name_len);
+                                if (!param_name) {
+                                    *error_message = format_preprocessor_error(L"فشل في تخصيص ذاكرة لاسم المعامل في #تعريف في '%hs'.", abs_path);
+                                    success = false;
+                                    break;
+                                }
+
+                                // Resize params array if needed
+                                if (param_count >= params_capacity) {
+                                    size_t new_capacity = (params_capacity == 0) ? 4 : params_capacity * 2;
+                                    wchar_t **new_params = realloc(params, new_capacity * sizeof(wchar_t*));
+                                    if (!new_params) {
+                                        free(param_name); // Free the name we just allocated
+                                        *error_message = format_preprocessor_error(L"فشل في إعادة تخصيص الذاكرة لمعاملات الماكرو في #تعريف في '%hs'.", abs_path);
+                                        success = false;
+                                        break;
+                                    }
+                                    params = new_params;
+                                    params_capacity = new_capacity;
+                                }
+                                params[param_count++] = param_name; // Store the duplicated name
+
+                                // Skip whitespace after parameter name
+                                while (iswspace(*param_ptr)) param_ptr++;
+
+                                // Expect ',' or ')'
+                                if (*param_ptr == L',') {
+                                    param_ptr++; // Consume ',' and continue loop
+                                } else if (*param_ptr == L')') {
+                                    param_ptr++; // Consume ')' and break loop
+                                    break;
+                                } else {
+                                    *error_message = format_preprocessor_error(L"تنسيق #تعريف غير صالح في '%hs': متوقع ',' أو ')' بعد اسم المعامل.", abs_path);
+                                    success = false;
+                                    break;
+                                }
+                            } // End while parsing parameters
+
+                            if (success) {
+                                body_start = param_ptr; // Body starts after the ')'
+                            } else {
+                                // Cleanup partially parsed params on error
+                                if (params) {
+                                    for (size_t i = 0; i < param_count; ++i) free(params[i]);
+                                    free(params);
+                                    params = NULL;
+                                    param_count = 0;
+                                }
+                            }
+                        } // End if function-like
+
+                        // --- End Function-Like Macro Parsing ---
+
+                        if (success) {
+                            // Find actual start of the body (skip space after name or ')')
+                            while (iswspace(*body_start))
+                            {
                             body_start++; // Skip space before body
                         }
-                        // Body is the rest of the line (trim trailing space later if needed)
-                        // Simple approach: take everything to end of line
-                        // More robust: could trim trailing whitespace from body_start
+                            // Body is the rest of the line
+                            // TODO: Consider trimming trailing whitespace from body_start?
 
-                        if (!add_macro(pp_state, macro_name, body_start))
-                        {
-                            *error_message = format_preprocessor_error(L"فشل في إضافة تعريف الماكرو '%ls' في الملف '%hs'. قد يكون بسبب خطأ في الذاكرة.", macro_name, abs_path);
-                            success = false;
+                            // Call add_macro with potentially parsed parameters
+                            if (!add_macro(pp_state, macro_name, body_start, is_function_like, param_count, params))
+                            {
+                                // add_macro should free params if it fails internally after taking ownership
+                                *error_message = format_preprocessor_error(L"فشل في إضافة تعريف الماكرو '%ls' في الملف '%hs'. قد يكون بسبب خطأ في الذاكرة.", macro_name, abs_path);
+                                success = false;
+                                // If add_macro failed but we allocated params, they should be freed by add_macro
+                                params = NULL; // Ensure we don't double-free if add_macro failed early
+                                param_count = 0;
+                            }
+                            // Ownership of params array and its contents is transferred to add_macro if successful
                         }
 
                         free(macro_name); // Free duplicated name
@@ -1053,11 +1172,59 @@ static wchar_t *process_file(BaaPreprocessor *pp_state, const char *file_path, w
                         const BaaMacro *macro = find_macro(pp_state, identifier);
                         if (macro)
                         {
-                            // Substitute macro body
-                            if (!append_to_dynamic_buffer(&substituted_line_buffer, macro->body))
-                                success = false;
+                            if (macro->is_function_like) {
+                                // Potential function-like macro invocation
+                                const wchar_t *invocation_ptr = line_ptr; // Point after the identifier
+                                // Skip whitespace before potential '('
+                                while (iswspace(*invocation_ptr)) invocation_ptr++;
+
+                                if (*invocation_ptr == L'(') {
+                                    // Found '(', this IS a function-like macro invocation
+                                    invocation_ptr++; // Consume '('
+                                    //const wchar_t* args_start_ptr = invocation_ptr; // Save start for advancing line_ptr
+
+                                    size_t actual_arg_count = 0;
+                                    wchar_t** arguments = parse_macro_arguments(&invocation_ptr, macro->param_count, &actual_arg_count, error_message, abs_path);
+
+                                    if (!arguments) {
+                                        // Error occurred during argument parsing
+                                        success = false;
+                                    } else {
+                                        // Check argument count
+                                        if (actual_arg_count != macro->param_count) {
+                                            *error_message = format_preprocessor_error(L"عدد وسيطات غير صحيح للماكرو '%ls' في '%hs' (متوقع %zu، تم الحصول على %zu).",
+                                                                                       macro->name, abs_path, macro->param_count, actual_arg_count);
+                                            success = false;
+                                        } else {
+                                            // Perform substitution
+                                            if (!substitute_macro_body(&substituted_line_buffer, macro, arguments, actual_arg_count, error_message, abs_path)) {
+                                                success = false;
+                                            }
+                                        }
+
+                                        // Free parsed arguments
+                                        // Note: parse_macro_arguments currently returns placeholder, so this loop does nothing yet
+                                        for (size_t i = 0; i < actual_arg_count; ++i) {
+                                            free(arguments[i]);
+                                        }
+                                        free(arguments);
+                                    }
+
+                                    // Advance the main line pointer past the invocation
+                                    line_ptr = invocation_ptr; // invocation_ptr was updated by parse_macro_arguments
+
+                                } else {
+                                    // Function-like macro name NOT followed by '(', treat as normal identifier
+                                    if (!append_dynamic_buffer_n(&substituted_line_buffer, id_start, id_len))
+                                        success = false;
+                                }
+                            } else {
+                                // Simple object-like macro substitution
+                                if (!append_to_dynamic_buffer(&substituted_line_buffer, macro->body))
+                                    success = false;
+                            }
                         }
-                        else
+                        else // Not a macro
                         {
                             // Append original identifier
                             if (!append_dynamic_buffer_n(&substituted_line_buffer, id_start, id_len))
@@ -1121,6 +1288,220 @@ static wchar_t *process_file(BaaPreprocessor *pp_state, const char *file_path, w
     return output_buffer.buffer;
 }
 
+
+// --- Function-Like Macro Helpers ---
+
+// Parses macro arguments from an invocation string.
+// Updates invocation_ptr_ref to point after the closing parenthesis.
+// Returns a dynamically allocated array of argument strings (caller must free each string and the array).
+// Returns NULL on error and sets error_message.
+// NOTE: This is a simplified implementation. It doesn't handle nested parentheses,
+//       commas inside strings/chars, or complex whitespace correctly yet.
+static wchar_t** parse_macro_arguments(const wchar_t** invocation_ptr_ref, size_t expected_arg_count, size_t* actual_arg_count, wchar_t** error_message, const char* abs_path) {
+    *actual_arg_count = 0;
+    *error_message = NULL;
+    const wchar_t* ptr = *invocation_ptr_ref;
+
+    wchar_t** args = NULL;
+    size_t args_capacity = 0;
+
+    // Simple loop to find arguments separated by commas until ')'
+    while (*ptr != L'\0') {
+        // Skip leading whitespace for the argument
+        while (iswspace(*ptr)) ptr++;
+
+        if (*ptr == L')') { // End of arguments
+            ptr++; // Consume ')'
+            break;
+        }
+
+        // If not the first argument, expect a comma before it
+        if (*actual_arg_count > 0) {
+             if (*ptr == L',') {
+                 ptr++; // Consume ','
+                 while (iswspace(*ptr)) ptr++; // Skip space after comma
+             } else {
+                 *error_message = format_preprocessor_error(L"تنسيق استدعاء الماكرو غير صالح في '%hs': متوقع ',' أو ')' بين الوسيطات.", abs_path);
+                 goto parse_error; // Use goto for cleanup
+             }
+        }
+
+         // Find the start of the argument
+        const wchar_t* arg_start = ptr;
+
+        // Find the end of the argument (next ',' or ')' at the top level)
+        int paren_level = 0;
+        const wchar_t* arg_end = ptr;
+        bool in_string = false;
+        bool in_char = false;
+        wchar_t prev_char = L'\0'; // To handle escaped quotes
+
+        while (*arg_end != L'\0') {
+            if (in_string) {
+                if (*arg_end == L'"' && prev_char != L'\\') {
+                    in_string = false;
+                }
+            } else if (in_char) {
+                 if (*arg_end == L'\'' && prev_char != L'\\') {
+                    in_char = false;
+                }
+            } else {
+                // Not inside a string or char literal
+                if (*arg_end == L'(') {
+                    paren_level++;
+                } else if (*arg_end == L')') {
+                    if (paren_level == 0) break; // End of the entire argument list
+                    paren_level--;
+                    if (paren_level < 0) { // Mismatched parentheses
+                         *error_message = format_preprocessor_error(L"تنسيق استدعاء الماكرو غير صالح في '%hs': أقواس غير متطابقة في الوسيطات.", abs_path);
+                         goto parse_error;
+                    }
+                } else if (*arg_end == L',' && paren_level == 0) {
+                    break; // End of the current argument
+                } else if (*arg_end == L'"') {
+                    in_string = true;
+                } else if (*arg_end == L'\'') {
+                     in_char = true;
+                }
+            }
+            prev_char = *arg_end;
+            arg_end++;
+        }
+        // arg_end now points to the delimiter (',' or ')') or null terminator
+
+        if (paren_level != 0) { // Mismatched parentheses at the end
+             *error_message = format_preprocessor_error(L"تنسيق استدعاء الماكرو غير صالح في '%hs': أقواس غير متطابقة في نهاية الوسيطات.", abs_path);
+             goto parse_error;
+        }
+        if (in_string || in_char) { // Unterminated literal at the end
+             *error_message = format_preprocessor_error(L"تنسيق استدعاء الماكرو غير صالح في '%hs': علامة اقتباس غير منتهية في الوسيطات.", abs_path);
+             goto parse_error;
+        }
+
+        // Advance the main pointer 'ptr' to where arg_end stopped
+        ptr = arg_end;
+
+        // Trim trailing whitespace from the argument
+        while (arg_end > arg_start && iswspace(*(arg_end - 1))) {
+            arg_end--;
+        }
+        size_t arg_len = arg_end - arg_start;
+
+        // Duplicate the argument
+        wchar_t* arg_str = wcsndup(arg_start, arg_len);
+        if (!arg_str) {
+            *error_message = format_preprocessor_error(L"فشل في تخصيص ذاكرة لوسيطة الماكرو في '%hs'.", abs_path);
+            goto parse_error;
+        }
+
+        // Resize args array if needed
+        if (*actual_arg_count >= args_capacity) {
+            size_t new_capacity = (args_capacity == 0) ? 4 : args_capacity * 2;
+            wchar_t** new_args = realloc(args, new_capacity * sizeof(wchar_t*));
+            if (!new_args) {
+                free(arg_str);
+                *error_message = format_preprocessor_error(L"فشل في إعادة تخصيص الذاكرة لوسيطات الماكرو في '%hs'.", abs_path);
+                goto parse_error;
+            }
+            args = new_args;
+            args_capacity = new_capacity;
+        }
+        args[*actual_arg_count] = arg_str;
+        (*actual_arg_count)++;
+
+        // ptr should already be pointing at the delimiter (',' or ')') or end of string
+        if (*ptr == L'\0') { // Reached end of string unexpectedly
+             *error_message = format_preprocessor_error(L"تنسيق استدعاء الماكرو غير صالح في '%hs': قوس الإغلاق ')' مفقود.", abs_path);
+             goto parse_error;
+        }
+        // If it was ',', the next loop iteration will consume it.
+        // If it was ')', the next loop iteration will break.
+
+    } // End while parsing arguments
+
+    // Check if we exited loop because of ')'
+    if (*(ptr-1) != L')') { // Check the character before the current ptr position
+         *error_message = format_preprocessor_error(L"تنسيق استدعاء الماكرو غير صالح في '%hs': قوس الإغلاق ')' مفقود بعد الوسيطات.", abs_path);
+         goto parse_error;
+    }
+
+
+    *invocation_ptr_ref = ptr; // Update the caller's pointer
+    return args;
+
+parse_error:
+    // Cleanup allocated arguments on error
+    if (args) {
+        for (size_t i = 0; i < *actual_arg_count; ++i) {
+            free(args[i]);
+        }
+        free(args);
+    }
+    *actual_arg_count = 0;
+    return NULL;
+}
+
+
+// Performs substitution of parameters within a macro body.
+// Appends the result to the output_buffer.
+// Returns true on success, false on error (setting error_message).
+// NOTE: This implementation handles basic parameter substitution.
+//       It does NOT yet handle stringification (#) or token pasting (##).
+static bool substitute_macro_body(DynamicWcharBuffer* output_buffer, const BaaMacro* macro, wchar_t** arguments, size_t arg_count, wchar_t** error_message, const char* abs_path) {
+    const wchar_t* body_ptr = macro->body;
+    bool success = true;
+
+    while (*body_ptr != L'\0' && success) {
+        // Check for potential parameter identifier
+        if (iswalpha(*body_ptr) || *body_ptr == L'_') {
+            const wchar_t* id_start = body_ptr;
+            while (iswalnum(*body_ptr) || *body_ptr == L'_') {
+                body_ptr++;
+            }
+            size_t id_len = body_ptr - id_start;
+            wchar_t* identifier = wcsndup(id_start, id_len);
+            if (!identifier) {
+                *error_message = format_preprocessor_error(L"فشل في تخصيص ذاكرة للمعرف في نص الماكرو '%ls' في '%hs'.", macro->name, abs_path);
+                return false;
+            }
+
+            // Check if this identifier matches any parameter name
+            bool param_found = false;
+            for (size_t i = 0; i < macro->param_count; ++i) {
+                if (wcscmp(identifier, macro->param_names[i]) == 0) {
+                    // Found parameter, substitute with corresponding argument
+                    if (!append_to_dynamic_buffer(output_buffer, arguments[i])) {
+                        *error_message = format_preprocessor_error(L"فشل في إلحاق وسيطة الماكرو '%ls' في '%hs'.", macro->name, abs_path);
+                        success = false;
+                    }
+                    param_found = true;
+                    break;
+                }
+            }
+
+            if (success && !param_found) {
+                // Not a parameter, append the original identifier from the body
+                if (!append_dynamic_buffer_n(output_buffer, id_start, id_len)) {
+                     *error_message = format_preprocessor_error(L"فشل في إلحاق المعرف من نص الماكرو '%ls' في '%hs'.", macro->name, abs_path);
+                     success = false;
+                }
+            }
+            free(identifier);
+
+        } else {
+            // Not an identifier, append the character directly
+            if (!append_dynamic_buffer_n(output_buffer, body_ptr, 1)) {
+                 *error_message = format_preprocessor_error(L"فشل في إلحاق حرف من نص الماكرو '%ls' في '%hs'.", macro->name, abs_path);
+                 success = false;
+            }
+            body_ptr++;
+        }
+    } // End while processing body
+
+    return success;
+}
+
+
 // Helper function to free macro storage
 void free_macros(BaaPreprocessor *pp)
 {
@@ -1130,6 +1511,13 @@ void free_macros(BaaPreprocessor *pp)
         {
             free(pp->macros[i].name);
             free(pp->macros[i].body);
+            // Free parameter names if it's a function-like macro
+            if (pp->macros[i].is_function_like && pp->macros[i].param_names) {
+                for (size_t j = 0; j < pp->macros[i].param_count; ++j) {
+                    free(pp->macros[i].param_names[j]);
+                }
+                free(pp->macros[i].param_names);
+            }
         }
         free(pp->macros);
         pp->macros = NULL;
@@ -1138,23 +1526,53 @@ void free_macros(BaaPreprocessor *pp)
     }
 }
 
-// Helper function to add or update a macro definition
+// Helper function to add or update a macro definition (updated signature)
 // Returns true on success, false on allocation failure.
 // Handles reallocation of the macro array.
-static bool add_macro(BaaPreprocessor *pp_state, const wchar_t *name, const wchar_t *body)
+static bool add_macro(BaaPreprocessor *pp_state, const wchar_t *name, const wchar_t *body, bool is_function_like, size_t param_count, wchar_t **param_names)
 {
-    if (!pp_state || !name || !body)
-        return false; // Should not happen
+    if (!pp_state || !name || !body) {
+        // Free potentially allocated params if other args are invalid
+        if (is_function_like && param_names) {
+             for (size_t j = 0; j < param_count; ++j) { free(param_names[j]); }
+             free(param_names);
+        }
+        return false;
+    }
 
     // Check if macro already exists (simple linear search for now)
     for (size_t i = 0; i < pp_state->macro_count; ++i)
     {
         if (wcscmp(pp_state->macros[i].name, name) == 0)
         {
-            // Redefinition: Free old body, duplicate new one
+            // Redefinition: Free old body and params, update with new ones
+            // Note: C standard usually warns/errors on incompatible redefinition.
+            // Here, we just replace everything.
             free(pp_state->macros[i].body);
+            if (pp_state->macros[i].is_function_like && pp_state->macros[i].param_names) {
+                 for (size_t j = 0; j < pp_state->macros[i].param_count; ++j) {
+                     free(pp_state->macros[i].param_names[j]);
+                 }
+                 free(pp_state->macros[i].param_names);
+            }
+
             pp_state->macros[i].body = wcsdup(body);
-            return (pp_state->macros[i].body != NULL); // Return success if wcsdup succeeded
+            pp_state->macros[i].is_function_like = is_function_like;
+            pp_state->macros[i].param_count = param_count;
+            pp_state->macros[i].param_names = param_names; // Takes ownership
+
+            // Check if allocations succeeded
+            if (!pp_state->macros[i].body) {
+                // If body fails, try to clean up params if they were just assigned
+                 if (is_function_like && param_names) {
+                     for (size_t j = 0; j < param_count; ++j) { free(param_names[j]); }
+                     free(param_names);
+                 }
+                 pp_state->macros[i].param_names = NULL; // Ensure it's NULL on failure
+                 // Macro entry might be in a bad state, but we signal failure
+                 return false;
+            }
+            return true; // Redefinition successful
         }
     }
 
@@ -1173,16 +1591,25 @@ static bool add_macro(BaaPreprocessor *pp_state, const wchar_t *name, const wcha
 
     // Add the new macro
     BaaMacro *new_entry = &pp_state->macros[pp_state->macro_count];
+    BaaMacro *new_entry = &pp_state->macros[pp_state->macro_count];
     new_entry->name = wcsdup(name);
-    if (!new_entry->name)
-    {
-        return false; // Name allocation failed
-    }
     new_entry->body = wcsdup(body);
-    if (!new_entry->body)
-    {
-        free(new_entry->name); // Clean up allocated name
-        return false;          // Body allocation failed
+    new_entry->is_function_like = is_function_like;
+    new_entry->param_count = param_count;
+    new_entry->param_names = param_names; // Takes ownership of the passed array and its contents
+
+    // Check allocations
+    if (!new_entry->name || !new_entry->body) {
+        // Clean up everything allocated for this new entry on failure
+        free(new_entry->name); // Safe even if NULL
+        free(new_entry->body); // Safe even if NULL
+        if (is_function_like && param_names) {
+            for (size_t j = 0; j < param_count; ++j) {
+                free(param_names[j]); // Assumes param_names contains allocated strings
+            }
+            free(param_names);
+        }
+        return false; // Allocation failed
     }
 
     pp_state->macro_count++;
@@ -1221,6 +1648,13 @@ static bool undefine_macro(BaaPreprocessor *pp_state, const wchar_t *name)
             // Found the macro, now remove it
             free(pp_state->macros[i].name);
             free(pp_state->macros[i].body);
+            // Free parameters if function-like
+            if (pp_state->macros[i].is_function_like && pp_state->macros[i].param_names) {
+                for (size_t j = 0; j < pp_state->macros[i].param_count; ++j) {
+                    free(pp_state->macros[i].param_names[j]);
+                }
+                free(pp_state->macros[i].param_names);
+            }
 
             // Shift subsequent elements down
             if (i < pp_state->macro_count - 1)

@@ -15,20 +15,26 @@ It operates on files assumed to be encoded in **UTF-16LE**.
     - Supports standard include paths using angle brackets (`#تضمين <ملف.ب>`). Searches paths provided during initialization.
     - Supports relative include paths using double quotes (`#تضمين "ملف.ب"`). Paths are resolved relative to the directory of the file containing the directive.
 - **`#تعريف` (Define):**
-    - Processes basic macro definitions (currently parameterless).
-    - Example: `#تعريف MAX_SIZE 1024`
-    - Performs simple text substitution of defined macros in subsequent code lines.
+    - **Object-like Macros:** Defines simple text replacement macros.
+        - Example: `#تعريف MAX_SIZE 1024`
+    - **Function-like Macros:** Defines macros that take arguments.
+        - Example: `#تعريف ADD(a, b) a + b`
+        - Parses parameter names within the parentheses.
+        - Performs substitution of parameter names in the macro body with the provided arguments during invocation (`ADD(1, 2)` becomes `1 + 2`).
+        - Argument parsing correctly handles nested parentheses but **does not yet handle commas within string/character literals**.
+        - Special operators like stringification (`#`) and token pasting (`##`) are **not yet supported**.
 - **`#الغاء_تعريف` (Undefine):**
-    - Removes a previously defined macro.
+    - Removes a previously defined macro (both object-like and function-like).
     - Example: `#الغاء_تعريف MAX_SIZE`
 - **Conditional Compilation:**
     - Supports basic conditional blocks:
-        - `#إذا_عرف MACRO` (ifdef)
-        - `#إذا_لم_يعرف MACRO` (ifndef)
-        - `#إلا` (else)
-        - `#نهاية_إذا` (endif)
+        - `#إذا_عرف MACRO` (ifdef): Checks if `MACRO` is defined.
+        - `#إذا_لم_يعرف MACRO` (ifndef): Checks if `MACRO` is *not* defined.
+        - `#وإلا_إذا MACRO` (elif): **Currently** checks if `MACRO` is defined (similar to `#ifdef`). Executes if the preceding `#if`/`#elif` was false, no prior branch in the block was taken, *and* `MACRO` is defined. *Note: Does not yet support general expression evaluation.*
+        - `#إلا` (else): Executes if the preceding `#if`/`#elif` was false and no prior branch in the block was taken.
+        - `#نهاية_إذا` (endif): Ends the conditional block.
     - Lines within blocks whose conditions are false are skipped.
-- **Other Directives:** Directives not explicitly handled (e.g., `#if` with expressions) are currently passed through unchanged to the output (intended for future implementation).
+- **Other Directives:** Directives not explicitly handled (e.g., `#if` with general expressions) are currently passed through unchanged to the output (intended for future implementation).
 
 ### Circular Include Detection (كشف التضمين الدائري)
 
@@ -88,8 +94,11 @@ Represents a single macro definition:
 
 ```c
 typedef struct {
-    wchar_t* name;  // Macro name
-    wchar_t* body;  // Macro body (replacement text)
+    wchar_t* name;          // Macro name
+    wchar_t* body;          // Macro body (replacement text)
+    bool is_function_like;  // True if defined with (...)
+    size_t param_count;     // Number of parameters
+    wchar_t** param_names;  // Array of parameter names (NULL if not function-like)
 } BaaMacro;
 ```
 
@@ -127,8 +136,9 @@ if (!processed_source) {
 
 ## Future Enhancements (تحسينات مستقبلية)
 
-- Conditional compilation (`#if` with constant expressions).
-- Function-like macros (macros with parameters).
-- More robust macro substitution rules (recursion prevention, stringification, token pasting).
+- Conditional compilation (`#if`, `#elif` with constant expressions).
+- More robust macro substitution rules (recursion prevention, stringification `#`, token pasting `##`).
+- More robust argument parsing for function-like macros (handling commas in literals).
 - Improved error reporting with original source line numbers.
 - Support for UTF-8 input files.
+- Input source abstraction (file, string, stdin).
