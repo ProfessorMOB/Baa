@@ -390,60 +390,17 @@ void free_file_stack(BaaPreprocessor *pp)
 
 // --- Conditional Compilation Stack Helpers ---
 
-// Updates the skipping_lines flag based on the combined conditional stack states
+// Updates the skipping_lines flag based on the current conditional stack.
+// We skip if *any* level on the stack is currently inactive (false).
 static void update_skipping_state(BaaPreprocessor *pp_state)
 {
     pp_state->skipping_lines = false;
-    // We are skipping if ANY level's condition was false AND no branch has been taken yet (for #else/#elif)
-    // OR if a branch *was* already taken at that level.
     for (size_t i = 0; i < pp_state->conditional_stack_count; ++i)
     {
-        // If the condition for this level was false, and no branch has been taken yet, we might enter an #else.
-        // But if the condition was true OR a branch was already taken, subsequent #else/#elif are skipped.
-        // Let's simplify: We are skipping if *any* parent level's condition was false,
-        // OR if the current level's condition is false AND we haven't hit an #else yet.
-        // Refined logic: Skip if any parent level is false, OR if current level is false AND branch already taken.
-        // More accurate: Skip if any parent level forces skipping, OR if current level's branch is already taken (relevant for subsequent #elif/#else).
-
-        // Determine if parent levels force skipping
-        bool parent_skipping = false;
-        for (size_t j = 0; j < i; ++j)
-        {
-            // If parent condition was false AND its branch wasn't taken (meaning we didn't enter its #else either)
-            // OR if parent condition was true but its branch *was* taken (meaning we skip its #else)
-            // Simplified: If the effective state of the parent (considering its condition and branch taken) means we skip...
-            // Let's rethink: We skip if *any* level on the stack evaluates to false *overall*.
-            // An overall level is false if:
-            // 1. Its own condition was false AND no subsequent branch (#else/#elif) has been taken yet.
-            // 2. Its own condition was true BUT a branch was already marked as taken (e.g., we are in an #else after a true #if).
-
-            // Let's try a simpler approach first: Skip if any level's condition is false.
-            // This works for nested #ifdef/#ifndef but needs refinement for #else.
-            if (!pp_state->conditional_stack[i])
-            {
-                pp_state->skipping_lines = true;
-                break;
-            }
-            // Now, consider the branch_taken stack for #else/#elif
-            if (pp_state->conditional_branch_taken_stack[i])
-            {
-                // If a branch was taken at this level, we should skip subsequent #else/#elif at the same level.
-                // This requires knowing if the *next* directive is an #else/#elif at the *same* level.
-                // This suggests `update_skipping_state` might not be the right place for the full logic.
-                // Let's keep it simple for now: skip if any condition on the stack is false.
-                // The #else logic will handle its specific case.
-            }
-        }
-        if (pp_state->skipping_lines)
-            break; // Optimization
-
-        // Final check: If the top level's branch has been taken, we should be skipping (for subsequent #else/#elif)
-        // This still feels wrong. Let's revert to the simplest correct logic for ifdef/ifndef/endif:
-        // Skip if any level's condition on the stack is false.
         if (!pp_state->conditional_stack[i])
         {
             pp_state->skipping_lines = true;
-            break;
+            return; // No need to check further levels
         }
     }
 }
@@ -721,40 +678,19 @@ static wchar_t *process_file(BaaPreprocessor *pp_state, const char *file_path, w
                 }
                 else
                 {
-                    // Invert the state of the current conditional level
-                    // Note: This simple inversion works for basic #ifdef/#ifndef/#else.
-                    // Check if a branch was already taken at this level
                     size_t top_index = pp_state->conditional_stack_count - 1;
+                    // Check if a branch was already taken at this level
                     if (pp_state->conditional_branch_taken_stack[top_index])
                     {
-                        // If a branch (#if/#ifndef) was already taken, this #else block is inactive
-                        pp_state->conditional_stack[top_index] = false; // Mark condition as false for skipping
+                        // If a branch (#if, #ifndef, #elif) was already taken, this #else block is inactive
+                        pp_state->conditional_stack[top_index] = false;
                     }
                     else
                     {
-                        // No branch was taken yet, so this #else branch becomes active *if parent allows*
-                        // Check parent state (are we already skipping?)
-                        bool parent_skipping = false;
-                        for (size_t i = 0; i < top_index; ++i)
-                        {
-                            if (!pp_state->conditional_stack[i])
-                            { // Check raw condition of parent
-                                parent_skipping = true;
-                                break;
-                            }
-                        }
-
-                        if (parent_skipping)
-                        {
-                            // Parent forces skipping, so this #else is inactive
-                            pp_state->conditional_stack[top_index] = false;
-                        }
-                        else
-                        {
-                            // Parent allows, and no previous branch taken, so this #else is active
-                            pp_state->conditional_stack[top_index] = true;              // Mark condition as true for processing
-                            pp_state->conditional_branch_taken_stack[top_index] = true; // Mark that a branch is now taken
-                        }
+                        // No branch was taken yet, this #else branch becomes active
+                        // (Its activity is still governed by parent blocks via update_skipping_state)
+                        pp_state->conditional_stack[top_index] = true;              // Mark this level as active
+                        pp_state->conditional_branch_taken_stack[top_index] = true; // Mark that a branch (this #else) is now taken
                     }
                     update_skipping_state(pp_state); // Recalculate overall skipping state
                 }
@@ -783,11 +719,9 @@ static wchar_t *process_file(BaaPreprocessor *pp_state, const char *file_path, w
                     {
                         // No branch taken yet, evaluate this #elif condition
                         wchar_t *name_start = current_line + elif_directive_len;
-                        while (iswspace(*name_start))
-                            name_start++;
+                        while (iswspace(*name_start)) name_start++;
                         wchar_t *name_end = name_start;
-                        while (*name_end != L'\0' && !iswspace(*name_end))
-                            name_end++;
+                        while (*name_end != L'\0' && !iswspace(*name_end)) name_end++;
 
                         if (name_start == name_end)
                         {
@@ -796,7 +730,7 @@ static wchar_t *process_file(BaaPreprocessor *pp_state, const char *file_path, w
                         }
                         else
                         {
-                            size_t name_len = name_end - name_start; // Define name_len here
+                            size_t name_len = name_end - name_start;
                             wchar_t *macro_name = wcsndup(name_start, name_len);
                             if (!macro_name)
                             {
@@ -805,29 +739,19 @@ static wchar_t *process_file(BaaPreprocessor *pp_state, const char *file_path, w
                             }
                             else
                             {
-                                bool condition_met = (find_macro(pp_state, macro_name) != NULL); // Simple check for now
+                                // Evaluate the condition (simple defined(MACRO) for now)
+                                bool condition_met = (find_macro(pp_state, macro_name) != NULL);
                                 free(macro_name);
 
-                                // Check parent state
-                                bool parent_skipping = false;
-                                for (size_t i = 0; i < top_index; ++i)
+                                if (condition_met)
                                 {
-                                    if (!pp_state->conditional_stack[i])
-                                    {
-                                        parent_skipping = true;
-                                        break;
-                                    }
-                                }
-
-                                if (!parent_skipping && condition_met)
-                                {
-                                    // Parent allows and condition met: this branch is active
+                                    // Condition met and no prior branch taken: this branch is active
                                     pp_state->conditional_stack[top_index] = true;
                                     pp_state->conditional_branch_taken_stack[top_index] = true; // Mark branch taken
                                 }
                                 else
                                 {
-                                    // Parent skipping OR condition not met: this branch is inactive
+                                    // Condition not met or prior branch taken: this branch is inactive
                                     pp_state->conditional_stack[top_index] = false;
                                     // Don't mark branch taken yet
                                 }
