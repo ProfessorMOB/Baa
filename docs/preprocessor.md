@@ -23,19 +23,23 @@ It operates on files assumed to be encoded in **UTF-16LE**.
         - Performs substitution of parameter names in the macro body with the provided arguments during invocation (`ADD(1, 2)` becomes `1 + 2`).
         - Argument parsing correctly handles nested parentheses and basic string/character literals.
         - **Stringification (`#`):** Supports the `#` operator before a parameter name (e.g., `#param`) to convert the corresponding argument into a string literal (quoted and escaped).
-        - **Token Pasting (`##`):** Includes basic support for the `##` operator. It currently works by suppressing whitespace between the tokens adjacent to `##`. *Note: This is a simplified implementation and does not perform true token concatenation to form new identifiers/numbers.*
+        - **Token Pasting (`##`):** Supports the `##` operator for concatenating tokens during macro expansion. It pastes the token preceding `##` with the token following `##`.
 - **`#الغاء_تعريف` (Undefine):**
     - Removes a previously defined macro (both object-like and function-like).
     - Example: `#الغاء_تعريف MAX_SIZE`
 - **Conditional Compilation:**
-    - Supports basic conditional blocks:
+    - Supports conditional blocks:
+        - `#إذا expression` (if): Evaluates a constant integer `expression`. Undefined identifiers in the expression evaluate to `0`.
         - `#إذا_عرف MACRO` (ifdef): Checks if `MACRO` is defined.
         - `#إذا_لم_يعرف MACRO` (ifndef): Checks if `MACRO` is *not* defined.
-        - `#وإلا_إذا MACRO` (elif): **Currently** checks if `MACRO` is defined (similar to `#ifdef`). Executes if the preceding `#if`/`#elif` was false, no prior branch in the block was taken, *and* `MACRO` is defined. *Note: Does not yet support general expression evaluation.*
+        - `#وإلا_إذا expression` (elif): Evaluates a constant integer `expression` if the preceding `#if`/`#elif` was false and no prior branch in the block was taken.
         - `#إلا` (else): Executes if the preceding `#if`/`#elif` was false and no prior branch in the block was taken.
         - `#نهاية_إذا` (endif): Ends the conditional block.
     - Lines within blocks whose conditions are false are skipped.
-- **Other Directives:** Directives not explicitly handled (e.g., `#if` with general expressions) are currently passed through unchanged to the output (intended for future implementation).
+    - **Expression Evaluation:** Supports standard integer arithmetic (`+`, `-`, `*`, `/`, `%`), comparison (`==`, `!=`, `<`, `>`, `<=`, `>=`), logical (`&&`, `||`, `!`), and the `defined(MACRO)` operator within `#if` and `#elif` directives, respecting operator precedence.
+
+### Macro Recursion Detection (كشف استدعاء الماكرو الذاتي)
+- Detects and prevents infinite loops caused by direct or indirect recursive macro expansions.
 
 ### Circular Include Detection (كشف التضمين الدائري)
 
@@ -86,6 +90,11 @@ typedef struct {
     size_t conditional_branch_taken_stack_count;
     size_t conditional_branch_taken_stack_capacity;
     bool skipping_lines;            // True if currently skipping lines
+
+    // Macro expansion recursion detection
+    const BaaMacro** expanding_macros_stack; // Stack of macros currently being expanded
+    size_t expanding_macros_count;
+    size_t expanding_macros_capacity;
 } BaaPreprocessor;
 ```
 
@@ -137,9 +146,10 @@ if (!processed_source) {
 
 ## Future Enhancements (تحسينات مستقبلية)
 
-- Conditional compilation (`#if`, `#elif` with constant expressions).
-- More robust macro substitution rules (recursion prevention, true token pasting `##`).
-- Fully robust argument parsing for function-like macros (edge cases with literals/whitespace).
+- More robust macro substitution rules (handling edge cases).
+- Fully robust argument parsing for function-like macros (complex edge cases with literals/whitespace).
 - Improved error reporting with original source line numbers.
 - Support for UTF-8 input files.
 - Input source abstraction (file, string, stdin).
+- Support for bitwise operators (`&`, `|`, `^`, `~`, `<<`, `>>`) in conditional expressions.
+- Predefined macros (e.g., `__FILE__`, `__LINE__`).

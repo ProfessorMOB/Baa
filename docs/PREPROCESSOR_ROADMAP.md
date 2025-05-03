@@ -23,17 +23,20 @@ This roadmap outlines the planned improvements and current status of the Baa lan
     - [x] `#تعريف NAME BODY` (Parameterless macro definition)
     - [x] Simple text substitution for parameterless macros
     - [x] `#الغاء_تعريف NAME` (undef)
-    - [x] Function-like macros (with parameters - *basic implementation*)
-    - [x] Stringification (`#`) - *basic implementation*
-    - [x] Token Pasting (`##`) - *basic implementation (whitespace suppression)*
-    - [ ] More robust substitution rules (recursion prevention, true token pasting, etc.)
+    - [x] Function-like macros (with parameters)
+    - [x] Stringification (`#`)
+    - [x] Token Pasting (`##`) (concatenation)
+    - [x] Macro recursion detection
+    - [ ] More robust substitution rules (handling complex edge cases)
+    - [ ] Fully robust argument parsing (complex edge cases with literals/whitespace)
 - **Conditional Compilation:**
+    - [x] `#إذا expression` (if - constant expression evaluation)
     - [x] `#إذا_عرف MACRO` (ifdef)
     - [x] `#إذا_لم_يعرف MACRO` (ifndef)
-    - [x] `#وإلا_إذا MACRO` (elif - *currently only checks if MACRO is defined*)
+    - [x] `#وإلا_إذا expression` (elif - constant expression evaluation)
     - [x] `#إلا` (else)
     - [x] `#نهاية_إذا` (endif)
-    - [ ] Basic `#if` (evaluating constant expressions - requires expression parser integration)
+    - [ ] Support for bitwise operators (`&`, `|`, `^`, `~`, `<<`, `>>`) in conditional expressions.
 
 ## Testing and Validation
 
@@ -46,14 +49,12 @@ This roadmap outlines the planned improvements and current status of the Baa lan
 
 ## Implementation Priorities (Excluding Testing for now)
 
-1.  **Advanced Macro Features:** *[Next]*
-    - Implement more robust substitution rules (true token pasting `##`, recursion prevention).
-    - Implement fully robust argument parsing (edge cases).
-2.  **Conditional Compilation Enhancements:**
-    - Implement `#if` with constant expression evaluation.
-    - Enhance `#elif` to support constant expression evaluation.
-3.  **Error Reporting:**
+1.  **Error Reporting:** *[Next]*
     - Improve error messages to include original source line/column numbers.
-4.  **Robustness & Advanced Features:**
+2.  **Robustness & Advanced Features:**
     - Support for UTF-8 input files.
     - Input source abstraction (file, string, stdin).
+    - Support for bitwise operators (`&`, `|`, `^`, `~`, `<<`, `>>`) in conditional expressions.
+    - Predefined macros (e.g., `__FILE__`, `__LINE__`).
+3.  **Macro Edge Cases:**
+    - Address complex edge cases in macro substitution and argument parsing.
