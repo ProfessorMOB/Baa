@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **Parser Refactoring:** Split `src/parser/parser.c` into more modular components:
+  - `src/parser/parser_helper.c`: Contains core utilities like `advance`, `peek`, `match_keyword`, error helpers, etc.
+  - `src/parser/statement_parser.c`: Contains statement dispatching (`baa_parse_statement`) and block parsing (`baa_parse_block`).
+  - `src/parser/declaration_parser.c`: Contains declaration dispatching (`baa_parse_declaration`) and import parsing (`baa_parse_import_directive`).
+- **Code Synchronization:** Aligned parser implementation files and `docs/PARSER.md` documentation. Corrected public API documentation, added missing documentation for imports, resolved conflicting function definitions.
+
+### Fixed
+- **Build Errors:**
+  - Resolved duplicate symbol linker errors by consolidating function implementations (error handling, parser helpers) and removing `src/parser/error_handling.c`.
+  - Fixed math library linking error (`m.lib`) on Windows/Clang by adding `m` to `target_link_libraries` in the root `CMakeLists.txt`.
+
+### Removed
+- Obsolete parser source files (`src/parser/function_parser.c`, `src/parser/error_handling.c`) after refactoring.
+
 ### Added
 - LLVM integration for code generation
   - Basic LLVM IR generation infrastructure

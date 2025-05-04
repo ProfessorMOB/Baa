@@ -26,18 +26,33 @@ if(LLVM_AVAILABLE)
         mcjit
         native
         executionengine
+        # Add other components as needed, e.g., MC, Object, BitReader?
     )
+    # Note: llvm_map_components_to_libnames is useful for older CMake/LLVM versions
+    # or specific scenarios, but linking imported targets is generally preferred.
 
-    # Print the determined LLVM libraries for debugging
-    message(STATUS "LLVM Libraries: ${llvm_libs}")
+    # Print the determined LLVM libraries for debugging (optional)
+    # message(STATUS "LLVM Libraries (via map): ${llvm_libs}")
 
+    # Link against imported LLVM targets
     target_link_libraries(baa_codegen
         PRIVATE
-            ${llvm_libs}
+            LLVM::Core
+            LLVM::Support
+            LLVM::IRReader
+            LLVM::Analysis
+            LLVM::Target
+            LLVM::MCJIT
+            LLVM::ExecutionEngine
+            LLVM::NativeTarget # For LLVMInitializeNativeTarget etc.
+            LLVM::NativeAsmPrinter # Often needed with NativeTarget
+            LLVM::NativeAsmParser # If parsing inline asm
+            # Add other LLVM:: targets corresponding to the components listed above if needed
     )
 else()
     # Add stub implementation when LLVM is not available
     target_sources(baa_codegen PRIVATE
+        codegen.c      # Always compile the main codegen file
         llvm_stub.c
     )
 
@@ -54,9 +69,10 @@ target_include_directories(baa_codegen
         ${LLVM_INCLUDE_DIRS}
 )
 
-target_link_libraries(baa_codegen
-    PRIVATE
-        baa_utils
-        baa_types
-        baa_ast
-)
+# Removed redundant linking of utils, types, ast as they are linked in the main executable
+# target_link_libraries(baa_codegen
+#     PRIVATE
+#         baa_utils
+#         baa_types
+#         baa_ast
+# )

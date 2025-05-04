@@ -35,12 +35,16 @@ BaaStmt* baa_create_for_statement(BaaStmt* init, BaaExpr* condition, BaaExpr* in
     return baa_create_for_stmt(init, condition, increment, body);
 }
 
-BaaStmt* baa_create_switch_statement(BaaExpr* condition, BaaCaseStmt** cases, size_t case_count, BaaDefaultStmt* default_case) {
-    return baa_create_switch_stmt(condition, cases, case_count, default_case);
+// Updated: Now only takes the expression. Cases/default are added later by the parser.
+BaaStmt* baa_create_switch_statement(BaaExpr* condition) {
+    return baa_create_switch_stmt(condition);
+    // Note: The caller (parser) is now responsible for using
+    // baa_add_case_to_switch and baa_set_default_case
 }
 
-BaaStmt* baa_create_case_statement(BaaExpr* value, BaaBlock* body) {
-    return baa_create_case_stmt(value, body);
+// Updated: Now takes the has_fallthrough flag
+BaaStmt* baa_create_case_statement(BaaExpr* value, BaaBlock* body, bool has_fallthrough) {
+    return baa_create_case_stmt(value, body, has_fallthrough);
 }
 
 BaaStmt* baa_create_default_statement(BaaBlock* body) {

@@ -99,7 +99,7 @@ void baa_set_parser_error(BaaParser *parser, const wchar_t *message)
         {
             free((void *)parser->error_message);
         }
-        parser->error_message = wcsdup(full_msg);
+        parser->error_message = _wcsdup(full_msg);
     }
 }
 

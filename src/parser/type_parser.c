@@ -12,7 +12,7 @@ void baa_unexpected_token_error(BaaParser *parser, const wchar_t *expected);
 
 // Function declarations for type creation
 BaaType* baa_create_user_type(const wchar_t* name, size_t name_len);
-BaaType* baa_create_array_type(BaaType* element_type, size_t array_size);
+// Removed forward declaration for baa_create_array_type
 
 /**
  * Create a user-defined type
@@ -35,23 +35,7 @@ BaaType* baa_create_user_type(const wchar_t* name, size_t name_len) {
     return type;
 }
 
-/**
- * Create an array type
- */
-BaaType* baa_create_array_type(BaaType* element_type, size_t array_size) {
-    if (!element_type) return NULL;
-
-    // For simplicity, we'll reuse the BAA_TYPE_ERROR kind for array types
-    // In a real compiler, you'd have a proper array type kind
-    wchar_t array_type_name[256];
-    swprintf(array_type_name, 256, L"%ls[%zu]", baa_type_to_string(element_type), array_size);
-
-    // Create the array type, size will be element_type's size * array_size
-    uint32_t array_size_bytes = element_type->size * (array_size == 0 ? 0 : array_size);
-    BaaType* array_type = baa_create_type(BAA_TYPE_ERROR, array_type_name, array_size_bytes, false);
-
-    return array_type;
-}
+// Removed duplicate definition of baa_create_array_type
 
 /**
  * Parse a type specification
@@ -113,12 +97,12 @@ BaaType* baa_parse_type(BaaParser* parser)
     bool is_array = false;
     size_t array_size = 0;
 
-    if (parser->current_token.type == TOKEN_LEFT_BRACKET) {
+    if (parser->current_token.type == (BaaTokenType)TOKEN_LEFT_BRACKET) {
         is_array = true;
         baa_token_next(parser);
 
         // Check if array size is specified
-        if (parser->current_token.type == TOKEN_NUMBER) {
+        if (parser->current_token.type == (BaaTokenType)TOKEN_NUMBER) {
             // Parse the array size
             wchar_t* end_ptr;
             array_size = (size_t)wcstoul(parser->current_token.lexeme, &end_ptr, 10);
@@ -130,7 +114,7 @@ BaaType* baa_parse_type(BaaParser* parser)
         }
 
         // Expect closing bracket
-        if (parser->current_token.type != TOKEN_RIGHT_BRACKET) {
+        if (parser->current_token.type != (BaaTokenType)TOKEN_RIGHT_BRACKET) {
             baa_unexpected_token_error(parser, L"]");
             return NULL;
         }
@@ -171,7 +155,7 @@ BaaType* baa_parse_type(BaaParser* parser)
 BaaType* baa_parse_type_annotation(BaaParser* parser)
 {
     // Check for optional type marker
-    if (parser->current_token.type == TOKEN_COLON) {
+    if (parser->current_token.type == (BaaTokenType)TOKEN_COLON) {
         baa_token_next(parser);
         return baa_parse_type(parser);
     }

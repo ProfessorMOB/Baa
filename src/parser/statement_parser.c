@@ -11,10 +11,11 @@
 // Forward declarations for functions called by parse_statement/parse_block
 // These are implemented in other parser modules (declaration, control_flow, expression)
 extern BaaStmt *baa_parse_declaration(BaaParser *parser);
-extern BaaStmt *baa_parse_if(BaaParser *parser); // Assumed to exist (e.g., in control_flow_parser.c)
-extern BaaStmt *baa_parse_while(BaaParser *parser); // Assumed to exist
-extern BaaStmt *baa_parse_for(BaaParser *parser);   // Assumed to exist
-extern BaaStmt *baa_parse_return(BaaParser *parser); // Assumed to exist
+// Renamed functions to match definitions likely in control_flow_parser.c
+extern BaaStmt *baa_parse_if_statement(BaaParser *parser);
+extern BaaStmt *baa_parse_while_statement(BaaParser *parser);
+extern BaaStmt *baa_parse_for_statement(BaaParser *parser);
+extern BaaStmt *baa_parse_return_statement(BaaParser *parser); // Assuming this follows the pattern
 extern BaaExpr *baa_parse_expression(BaaParser *parser);
 extern void baa_free_expr(BaaExpr *expr); // Should be baa_free_expression? Check declaration
 extern void baa_free_stmt(BaaStmt *stmt); // Needed for cleanup
@@ -118,132 +119,23 @@ BaaStmt *baa_parse_statement(BaaParser *parser) // Made non-static
     // Use helper functions (declared in parser_helper.h)
     if (match_keyword(parser, L"لو")) // Assuming 'لو' corresponds to BAA_TOKEN_IF internally or is handled by match_keyword
     {
-        // The original code in parser.c had the full if-parsing logic here.
-        // Now, we should delegate to a dedicated function, assuming it exists.
-        // Let's revert to the original logic from parser.c for now, as the external
-        // baa_parse_if might not exist or match exactly.
-        BaaExpr *condition = NULL;
-        BaaStmt *if_body_stmt = NULL; // Use different name
-        BaaBlock *if_body = NULL;
-        BaaStmt *else_body_stmt = NULL; // Use different name
-        BaaBlock *else_body = NULL;
-
-        // Parse 'if' specific parts (condition, blocks)
-        // Expect '('
-        if (parser->current_token.type != BAA_TOKEN_LPAREN) { // Use token types
-             baa_unexpected_token_error(parser, L"(");
-             return NULL;
-        }
-        baa_token_next(parser); // Consume '('
-
-        condition = baa_parse_expression(parser);
-        if (!condition) return NULL;
-
-        // Expect ')'
-        if (parser->current_token.type != BAA_TOKEN_RPAREN) {
-             baa_unexpected_token_error(parser, L")");
-             baa_free_expr(condition); // Use baa_free_expr
-             return NULL;
-        }
-        baa_token_next(parser); // Consume ')'
-
-        // Expect '{' for the 'then' block
-        if (parser->current_token.type != BAA_TOKEN_LBRACE) {
-             baa_unexpected_token_error(parser, L"{");
-             baa_free_expr(condition);
-             return NULL;
-        }
-        baa_token_next(parser); // Consume '{'
-
-        // Parse the 'then' block (calls baa_parse_block in this file)
-        if_body_stmt = baa_parse_block(parser);
-        if (!if_body_stmt) {
-            baa_free_expr(condition);
-            return NULL;
-        }
-        if_body = (BaaBlock*)if_body_stmt->data; // Extract block data
-
-        // Check for 'else'
-        if (match_keyword(parser, L"وإلا")) // Assuming 'وإلا' is 'else'
-        {
-            // Check for 'else if'
-            if (match_keyword(parser, L"لو")) { // 'else if'
-                 // Recursively call baa_parse_statement to handle the nested 'if'
-                 BaaStmt* else_if_stmt = baa_parse_statement(parser);
-                 if (!else_if_stmt) {
-                     baa_free_expr(condition);
-                     baa_free_stmt(if_body_stmt); // Free the parsed if-body statement
-                     return NULL;
-                 }
-                 // Wrap the 'else if' statement in a block for consistency in the IfStmt structure
-                 else_body = baa_create_block();
-                 if (!else_body || !baa_add_stmt_to_block(else_body, else_if_stmt)) {
-                     baa_set_parser_error(parser, L"فشل في إنشاء كتلة لـ else if");
-                     baa_free_expr(condition);
-                     baa_free_stmt(if_body_stmt);
-                     baa_free_stmt(else_if_stmt);
-                     if (else_body) baa_free_block(else_body);
-                     return NULL;
-                 }
-                 // Create a wrapper Stmt for the else block
-                 else_body_stmt = baa_create_block_stmt();
-                 if (!else_body_stmt) {
-                     baa_free_expr(condition);
-                     baa_free_stmt(if_body_stmt);
-                     baa_free_block(else_body); // Free the block content
-                     return NULL;
-                 }
-                 baa_free_block((BaaBlock*)else_body_stmt->data); // Free default block
-                 else_body_stmt->data = else_body; // Assign our block
-
-            } else if (parser->current_token.type == BAA_TOKEN_LBRACE) { // 'else' block
-                 baa_token_next(parser); // Consume '{'
-                 else_body_stmt = baa_parse_block(parser);
-                 if (!else_body_stmt) {
-                     baa_free_expr(condition);
-                     baa_free_stmt(if_body_stmt);
-                     return NULL;
-                 }
-                 else_body = (BaaBlock*)else_body_stmt->data; // Extract block data
-            } else {
-                 baa_unexpected_token_error(parser, L"{ أو لو"); // Expect '{' or 'if' after 'else'
-                 baa_free_expr(condition);
-                 baa_free_stmt(if_body_stmt);
-                 return NULL;
-            }
-        }
-
-        // Create the final If statement AST node
-        BaaStmt *final_if_stmt = baa_create_if_stmt(condition, if_body, else_body);
-        if (!final_if_stmt) {
-            // Cleanup owned resources if creation fails
-            baa_free_expr(condition); // Condition is always created here
-            // Blocks might be owned by the wrapper stmts, free the wrappers
-            baa_free_stmt(if_body_stmt);
-            if (else_body_stmt) baa_free_stmt(else_body_stmt);
-            return NULL;
-        }
-        // If baa_create_if_stmt takes ownership/copies, the original wrappers might be freed.
-        // Assuming it does, we might not need to free if_body_stmt/else_body_stmt here.
-        // Let's assume baa_create_if_stmt handles it.
-
-        return final_if_stmt;
-
+        // Delegate to the specific if parser function
+        return baa_parse_if_statement(parser);
     }
     else if (match_keyword(parser, L"طالما")) // Assuming 'طالما' is 'while'
     {
-        // Delegate to a specific while parser function (assumed external)
-        return baa_parse_while(parser);
+        // Delegate to a specific while parser function
+        return baa_parse_while_statement(parser);
     }
     else if (match_keyword(parser, L"لكل")) // Assuming 'لكل' is 'for'
     {
-        // Delegate to a specific for parser function (assumed external)
-        return baa_parse_for(parser);
+        // Delegate to a specific for parser function
+        return baa_parse_for_statement(parser);
     }
     else if (match_keyword(parser, L"ارجع")) // Assuming 'ارجع' is 'return'
     {
-        // Delegate to a specific return parser function (assumed external)
-        return baa_parse_return(parser);
+        // Delegate to a specific return parser function
+        return baa_parse_return_statement(parser);
     }
     else if (parser->current_token.type == BAA_TOKEN_LBRACE)
     {

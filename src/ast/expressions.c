@@ -588,6 +588,48 @@ void baa_free_expr(BaaExpr *expr)
             baa_free(index_expr);
         }
         break;
+
+    // TODO: Verify the actual struct names and members if different
+    case BAA_EXPR_COMPOUND_ASSIGN:
+        if (expr->data)
+        {
+            BaaCompoundAssignmentData *compound_assign_data = (BaaCompoundAssignmentData *)expr->data;
+            if (compound_assign_data->target)
+            {
+                baa_free_expr(compound_assign_data->target);
+            }
+            if (compound_assign_data->value)
+            {
+                baa_free_expr(compound_assign_data->value);
+            }
+            baa_free(compound_assign_data);
+        }
+        break;
+
+    case BAA_EXPR_INC_DEC:
+        if (expr->data)
+        {
+            BaaIncDecData *inc_dec_data = (BaaIncDecData *)expr->data;
+            if (inc_dec_data->operand)
+            {
+                baa_free_expr(inc_dec_data->operand);
+            }
+            baa_free(inc_dec_data);
+        }
+        break;
+
+    case BAA_EXPR_GROUPING:
+        if (expr->data)
+        {
+            BaaGroupingData *grouping_data = (BaaGroupingData *)expr->data;
+            if (grouping_data->expression)
+            {
+                baa_free_expr(grouping_data->expression);
+            }
+            baa_free(grouping_data);
+        }
+        break;
+        // Add default case or handle other potential future kinds if necessary
     }
 
     // Free the AST node if one was assigned

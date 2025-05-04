@@ -98,76 +98,7 @@ bool baa_add_function_to_program(BaaProgram *program, BaaFunction *function)
     return true;
 }
 
-// Function management
-BaaFunction *baa_create_function(const wchar_t *name, size_t name_length)
-{
-    if (!name)
-        return NULL;
-
-    BaaFunction *function = (BaaFunction *)baa_malloc(sizeof(BaaFunction));
-    if (!function)
-        return NULL;
-
-    // Duplicate the name
-    wchar_t *name_copy = baa_strndup(name, name_length);
-    if (!name_copy)
-    {
-        baa_free(function);
-        return NULL;
-    }
-
-    function->name = name_copy;
-    function->name_length = name_length;
-    function->body = NULL;
-
-    // Create a node for the function
-    BaaNode *node = baa_create_node(BAA_NODE_FUNCTION, function);
-    if (!node)
-    {
-        baa_free((void *)name_copy);
-        baa_free(function);
-        return NULL;
-    }
-
-    function->ast_node = node;
-
-    return function;
-}
-
-BaaFunction *baa_create_function_signature(const wchar_t *name, size_t name_length)
-{
-    if (!name)
-        return NULL;
-
-    BaaFunction *function = (BaaFunction *)baa_malloc(sizeof(BaaFunction));
-    if (!function)
-        return NULL;
-
-    // Duplicate the name
-    wchar_t *name_copy = baa_strndup(name, name_length);
-    if (!name_copy)
-    {
-        baa_free(function);
-        return NULL;
-    }
-
-    function->name = name_copy;
-    function->name_length = name_length;
-    function->body = NULL;
-
-    // Create a node for the function
-    BaaNode *node = baa_create_node(BAA_NODE_FUNCTION, function);
-    if (!node)
-    {
-        baa_free((void *)name_copy);
-        baa_free(function);
-        return NULL;
-    }
-
-    function->ast_node = node;
-
-    return function;
-}
+// Function management (Definitions moved to src/ast/function.c)
 
 // Memory management
 void baa_free_node(BaaNode *node)
@@ -179,32 +110,7 @@ void baa_free_node(BaaNode *node)
     baa_free(node);
 }
 
-void baa_free_function(BaaFunction *function)
-{
-    if (!function)
-        return;
-
-    // Free the name
-    if (function->name)
-    {
-        baa_free((void *)function->name);
-    }
-
-    // Free the body
-    if (function->body)
-    {
-        baa_free_block(function->body);
-    }
-
-    // Free the AST node
-    if (function->ast_node)
-    {
-        baa_free_node(function->ast_node);
-    }
-
-    // Free the function itself
-    baa_free(function);
-}
+// Function baa_free_function moved to src/ast/function.c
 
 void baa_free_program(BaaProgram *program)
 {

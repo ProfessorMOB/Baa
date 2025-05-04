@@ -124,13 +124,13 @@ wchar_t *format_preprocessor_error_with_context(BaaPreprocessor *pp_state, const
         va_end(args_copy_fallback);
         if (needed_fallback < 0) {
             va_end(args_fallback);
-            return wcsdup(L"فشل في تنسيق رسالة الخطأ (وفشل تخصيص البادئة).");
+            return _wcsdup(L"فشل في تنسيق رسالة الخطأ (وفشل تخصيص البادئة).");
         }
         size_t buffer_size_fallback = (size_t)needed_fallback + 1;
         wchar_t *buffer_fallback = malloc(buffer_size_fallback * sizeof(wchar_t));
         if (!buffer_fallback) {
              va_end(args_fallback);
-             return wcsdup(L"فشل في تنسيق رسالة الخطأ (وفشل تخصيص البادئة والمخزن المؤقت).");
+             return _wcsdup(L"فشل في تنسيق رسالة الخطأ (وفشل تخصيص البادئة والمخزن المؤقت).");
         }
         vswprintf(buffer_fallback, buffer_size_fallback, format, args_fallback);
         va_end(args_fallback);
@@ -162,13 +162,13 @@ wchar_t *format_preprocessor_error_with_context(BaaPreprocessor *pp_state, const
         va_end(args_copy_fallback);
         if (needed_fallback < 0) {
              va_end(args_fallback);
-             return wcsdup(L"فشل في تنسيق رسالة الخطأ (وفشل تحويل البادئة).");
+             return _wcsdup(L"فشل في تنسيق رسالة الخطأ (وفشل تحويل البادئة).");
         }
         size_t buffer_size_fallback = (size_t)needed_fallback + 1;
         wchar_t *buffer_fallback = malloc(buffer_size_fallback * sizeof(wchar_t));
         if (!buffer_fallback) {
              va_end(args_fallback);
-             return wcsdup(L"فشل في تنسيق رسالة الخطأ (وفشل تحويل البادئة والمخزن المؤقت).");
+             return _wcsdup(L"فشل في تنسيق رسالة الخطأ (وفشل تحويل البادئة والمخزن المؤقت).");
         }
         vswprintf(buffer_fallback, buffer_size_fallback, format, args_fallback);
         va_end(args_fallback);
@@ -186,7 +186,7 @@ wchar_t *format_preprocessor_error_with_context(BaaPreprocessor *pp_state, const
     if (needed_msg < 0) {
         va_end(args);
         free(prefix_w);
-        return wcsdup(L"فشل في تنسيق جزء الرسالة من خطأ المعالج المسبق."); // Basic fallback
+        return _wcsdup(L"فشل في تنسيق جزء الرسالة من خطأ المعالج المسبق."); // Basic fallback
     }
 
     // Combine prefix and message
@@ -198,7 +198,7 @@ wchar_t *format_preprocessor_error_with_context(BaaPreprocessor *pp_state, const
     if (!final_buffer) {
         va_end(args);
         free(prefix_w);
-        return wcsdup(L"فشل في تخصيص الذاكرة لرسالة خطأ المعالج المسبق الكاملة."); // Basic fallback
+        return _wcsdup(L"فشل في تخصيص الذاكرة لرسالة خطأ المعالج المسبق الكاملة."); // Basic fallback
     }
 
     // Copy prefix
@@ -234,7 +234,7 @@ wchar_t *format_preprocessor_error(const wchar_t *format, ...)
     #ifdef _WIN32
             error_msg = _wcsdup(fallback);
     #else
-            error_msg = wcsdup(fallback);
+            error_msg = _wcsdup(fallback); // Use _wcsdup here too
     #endif
             return error_msg;
         }
@@ -249,7 +249,7 @@ wchar_t *format_preprocessor_error(const wchar_t *format, ...)
         #ifdef _WIN32
             error_msg = _wcsdup(fallback);
         #else
-            error_msg = wcsdup(fallback);
+            error_msg = _wcsdup(fallback); // Use _wcsdup here too
         #endif
         return error_msg; // Allocation failed
     }
@@ -415,7 +415,7 @@ char *get_directory_part(const char *file_path)
 #ifdef _WIN32
     char *path_copy = _strdup(file_path);
 #else
-    char *path_copy = strdup(file_path);
+    char *path_copy = _strdup(file_path); // Use _strdup here too
 #endif
     if (!path_copy)
         return NULL;
@@ -450,7 +450,7 @@ char *get_directory_part(const char *file_path)
     return dir_part;
 #else
     char *dir_name_result = dirname(path_copy);
-    char *dir_part = strdup(dir_name_result); // dirname might modify input or return static ptr
+    char *dir_part = _strdup(dir_name_result); // Use _strdup here too
     free(path_copy);
     return dir_part;
 #endif
@@ -479,7 +479,7 @@ bool push_file_stack(BaaPreprocessor *pp, const char *abs_path)
         pp->open_files_capacity = new_capacity;
     }
 
-    char *path_copy = strdup(abs_path);
+    char *path_copy = _strdup(abs_path); // Use _strdup here
     if (!path_copy)
         return false;
     pp->open_files_stack[pp->open_files_count++] = path_copy;

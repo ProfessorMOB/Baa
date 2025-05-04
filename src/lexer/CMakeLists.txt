@@ -9,8 +9,3 @@ target_include_directories(baa_lexer
     PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}
 )
-
-target_link_libraries(baa_lexer
-    PRIVATE
-    m  # Link with math library
-)

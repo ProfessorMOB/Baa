@@ -1,5 +1,6 @@
 #include "baa/parser/parser.h"
 #include "baa/parser/parser_helper.h"
+#include "baa/ast/ast.h" // Added for BaaParameter, BaaFunction declarations
 #include "baa/ast/expressions.h"
 #include "baa/ast/statements.h"
 #include "baa/types/types.h"
@@ -21,28 +22,7 @@ BaaFunction* baa_parse_function_declaration(BaaParser* parser);
 BaaStmt* baa_parse_import_directive(BaaParser* parser); // Added forward declaration
 BaaStmt* baa_parse_declaration(BaaParser* parser);
 
-// Function implementations for parameter handling
-BaaParameter* baa_create_parameter(const wchar_t* name, size_t name_length, BaaType* type, bool is_mutable) {
-    BaaParameter* param = baa_malloc(sizeof(BaaParameter));
-    if (!param) return NULL;
-
-    param->name = baa_strndup(name, name_length);
-    if (!param->name) {
-        baa_free(param);
-        return NULL;
-    }
-
-    param->name_length = name_length;
-    param->type = type;
-    param->is_mutable = is_mutable;
-    return param;
-}
-
-void baa_free_parameter(BaaParameter* param) {
-    if (!param) return;
-    baa_free((void*)param->name);
-    baa_free(param);
-}
+// Function implementations for parameter handling (Definitions moved to src/ast/function.c)
 
 // Function implementations for statement creation
 BaaStmt* baa_create_variable_declaration(const wchar_t* name, size_t name_length, BaaType* type, BaaExpr* initializer) {

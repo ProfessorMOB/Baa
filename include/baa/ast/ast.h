@@ -100,6 +100,7 @@ bool baa_validate_function_signature(BaaFunction *function);
 // Memory management
 void baa_free_program(BaaProgram *program);
 void baa_free_function(BaaFunction *function);
+void baa_free_parameter(BaaParameter* parameter); // Added declaration
 void baa_free_node(BaaNode *node);
 
 #endif /* BAA_AST_H */

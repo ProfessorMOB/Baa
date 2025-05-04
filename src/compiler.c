@@ -89,12 +89,41 @@ int compile_baa_file(const char* filename) {
         return 1;
     }
 
-    wcscpy(output_filename, wfilename);
+    // Use secure version wcscpy_s
+    errno_t err_cpy = wcscpy_s(output_filename, wlen + 4, wfilename);
+    if (err_cpy != 0) {
+        fprintf(stderr, "Error: wcscpy_s failed for output filename.\\n");
+        baa_free_program(program);
+        free(source);
+        free(wfilename);
+        free(output_filename); // Free allocated memory
+        return 1;
+    }
+
     wchar_t* ext = wcsrchr(output_filename, L'.');
     if (ext) {
-        wcscpy(ext, L".ll");
+        // Use secure version wcscpy_s
+        size_t remaining_size = (wlen + 4) - (ext - output_filename);
+        errno_t err_ext_cpy = wcscpy_s(ext, remaining_size, L".ll");
+         if (err_ext_cpy != 0) {
+            fprintf(stderr, "Error: wcscpy_s failed for extension replacement.\\n");
+            baa_free_program(program);
+            free(source);
+            free(wfilename);
+            free(output_filename);
+            return 1;
+        }
     } else {
-        wcscat(output_filename, L".ll");
+        // Use secure version wcscat_s
+        errno_t err_cat = wcscat_s(output_filename, wlen + 4, L".ll");
+        if (err_cat != 0) {
+            fprintf(stderr, "Error: wcscat_s failed for appending extension.\\n");
+            baa_free_program(program);
+            free(source);
+            free(wfilename);
+            free(output_filename);
+            return 1;
+        }
     }
 
     options.output_file = output_filename;

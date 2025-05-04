@@ -424,14 +424,14 @@ bool substitute_macro_body(BaaPreprocessor *pp_state, DynamicWcharBuffer *output
             {
                 // If the argument itself is empty, the pasting results in just the LHS
                 if (arguments[rhs_param_index][0] == L'\0') {
-                    rhs_value = wcsdup(L""); // Empty string
+                    rhs_value = _wcsdup(L""); // Empty string
                 } else {
-                    rhs_value = wcsdup(arguments[rhs_param_index]);
+                    rhs_value = _wcsdup(arguments[rhs_param_index]);
                 }
             }
             else
             {
-                rhs_value = wcsdup(rhs_token); // Use literal RHS token
+                rhs_value = _wcsdup(rhs_token); // Use literal RHS token
             }
             free(rhs_token);
             if (!rhs_value)

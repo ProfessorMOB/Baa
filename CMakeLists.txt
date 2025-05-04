@@ -9,129 +9,123 @@ project(baa
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 
-# Option to skip parser compilation for development
-option(SKIP_PARSER "Skip compiling the parser components" OFF)
+# Option to skip parser compilation for development (No longer directly applicable this way)
+# option(SKIP_PARSER "Skip compiling the parser components" OFF)
 
-# Find LLVM package - Set the default path for Windows to the known installation
-if(WIN32)
-    set(LLVM_DIR "C:/Program Files/LLVM/lib/cmake/llvm" CACHE PATH "Directory containing LLVMConfig.cmake")
-else()
-    set(LLVM_DIR "" CACHE PATH "Directory containing LLVMConfig.cmake")
-endif()
+add_definitions(-DUNICODE -D_UNICODE -D_CRT_SECURE_NO_WARNINGS)
+set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /IGNORE:4006 /IGNORE:4099") # Ignore certain linker warnings if needed
 
-# Try to find LLVM
-find_package(LLVM CONFIG)
-
-if(NOT LLVM_FOUND)
-    # Try common installation paths
-    if(WIN32)
-        set(LLVM_HINT_PATHS
-            "C:/Program Files/LLVM"
-            "C:/Program Files/LLVM/lib/cmake/llvm"
-            "C:/LLVM"
-        )
-    elseif(APPLE)
-        set(LLVM_HINT_PATHS
-            "/usr/local/opt/llvm"
-            "/opt/homebrew/opt/llvm"
-        )
-    else() # Linux
-        set(LLVM_HINT_PATHS
-            "/usr/lib/llvm"
-            "/usr/local/lib/llvm"
-        )
-    endif()
-
-    # Try to find LLVM in the hint paths
-    foreach(HINT_PATH ${LLVM_HINT_PATHS})
-        message(STATUS "Checking for LLVM in: ${HINT_PATH}")
-
-        if(EXISTS "${HINT_PATH}/lib/cmake/llvm/LLVMConfig.cmake")
-            set(LLVM_DIR "${HINT_PATH}/lib/cmake/llvm")
-            find_package(LLVM CONFIG)
-            if(LLVM_FOUND)
-                break()
-            endif()
-        elseif(EXISTS "${HINT_PATH}/LLVMConfig.cmake")
-            set(LLVM_DIR "${HINT_PATH}")
-            find_package(LLVM CONFIG)
-            if(LLVM_FOUND)
-                break()
-            endif()
-        endif()
-    endforeach()
-endif()
-
-if(LLVM_FOUND)
-    message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
-    message(STATUS "Using LLVMConfig.cmake in: ${LLVM_DIR}")
-
-    # Add LLVM definitions and include directories
-    include_directories(${LLVM_INCLUDE_DIRS})
-    add_definitions(${LLVM_DEFINITIONS})
-
-    # Include LLVM CMake modules
-    list(APPEND CMAKE_MODULE_PATH "${LLVM_CMAKE_DIR}")
-    include(AddLLVM)
-
-    # Set LLVM_AVAILABLE to indicate LLVM is available
-    set(LLVM_AVAILABLE TRUE)
-else()
-    message(WARNING "LLVM not found - code generation will be disabled")
-    set(LLVM_AVAILABLE FALSE)
-
-    # Define empty variables to avoid errors
-    set(LLVM_INCLUDE_DIRS "")
-    set(LLVM_DEFINITIONS "")
-endif()
-
-# دعم اليونيكود وUTF-8
-if(WIN32)
-    add_definitions(-DUNICODE -D_UNICODE)
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -finput-charset=UTF-8")
-else()
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -finput-charset=UTF-8 -fexec-charset=UTF-8")
-endif()
-
-# إضافة مجلدات التضمين
+# إضافة مجلد التضمين الرئيسي
 include_directories(${CMAKE_SOURCE_DIR}/include)
 
-# إضافة المكونات
-add_subdirectory(src/utils)
-add_subdirectory(src/types)
-add_subdirectory(src/lexer)
-add_subdirectory(src/parser)
-add_subdirectory(src/operators)
-add_subdirectory(src/ast)
-add_subdirectory(src/codegen)
-add_subdirectory(src/analysis)
-add_subdirectory(src/preprocessor)
-
-# تفعيل الاختبارات (معطل مؤقتاً)
-# enable_testing()
-# add_subdirectory(tests)
-
-# البرنامج الرئيسي
+# --- البرنامج الرئيسي ---
 add_executable(baa
+    # Core executable files
     src/main.c
     src/compiler.c
+
+    # Utility files
+    src/utils/utils.c
+
+    # Type system files
+    src/types/types.c
+
+    # Operator files
+    src/operators/operators.c
+
+    # AST files
+    src/ast/ast.c
+    src/ast/expressions.c
+    src/ast/statements.c
+    src/ast/literals.c
+    src/ast/function.c
+
+    # Lexer files
+    src/lexer/lexer.c
+    src/lexer/number_parser.c
+
+    # Preprocessor files
+    src/preprocessor/preprocessor.c
+    src/preprocessor/preprocessor_utils.c
+    src/preprocessor/preprocessor_macros.c
+    src/preprocessor/preprocessor_expansion.c
+    src/preprocessor/preprocessor_conditionals.c
+    src/preprocessor/preprocessor_expr_eval.c
+    src/preprocessor/preprocessor_core.c
+
+    # Parser files
+    src/parser/parser.c
+    src/parser/expression_parser.c
+    src/parser/statement_parser.c
+    src/parser/type_parser.c
+    src/parser/parser_helper.c
+    src/parser/declaration_parser.c
+    src/parser/control_flow_parser.c
+    src/parser/error_handling.c
+
+    # Analysis files
+    src/analysis/flow_analysis.c
+    src/analysis/flow_errors.c
+
+    # Codegen core file (always needed)
+    src/codegen/codegen.c
 )
 
+# Include directories for the executable
 target_include_directories(baa
     PRIVATE
         ${CMAKE_SOURCE_DIR}/include
+        # Add internal src include if necessary (e.g., src/preprocessor/preprocessor_internal.h)
+        # ${CMAKE_SOURCE_DIR}/src/include # Example if such a dir exists
+        ${CMAKE_SOURCE_DIR}/src/preprocessor # For preprocessor_internal.h
 )
 
-target_link_libraries(baa
-    PRIVATE
-        baa_utils
-        baa_types
-        baa_lexer
-        baa_preprocessor
-        baa_parser
-        baa_operators
-        baa_ast
-        baa_codegen
-        baa_flow_analysis
-        m # Link math library
-)
+# --- Conditional LLVM Handling ---
+# Check if LLVM is available (You might need to adjust how LLVM_AVAILABLE is set/found)
+# For now, assume it's OFF unless explicitly enabled or found via find_package(LLVM)
+option(USE_LLVM "Enable LLVM backend" OFF) # Example option
+
+if(USE_LLVM)
+    # Attempt to find LLVM (adjust paths/version as needed)
+    find_package(LLVM REQUIRED CONFIG) # Or adjust version/components
+
+    if(LLVM_FOUND)
+        message(STATUS "LLVM Found: ${LLVM_PACKAGE_VERSION}")
+        message(STATUS "LLVM Include Dirs: ${LLVM_INCLUDE_DIRS}")
+        message(STATUS "LLVM Library Dirs: ${LLVM_LIBRARY_DIRS}")
+
+        # Add LLVM source file
+        target_sources(baa PRIVATE src/codegen/llvm_codegen.c)
+
+        # Add LLVM include directories
+        target_include_directories(baa PRIVATE ${LLVM_INCLUDE_DIRS})
+
+        # Add LLVM compile definitions
+        target_compile_definitions(baa PRIVATE LLVM_AVAILABLE=1)
+
+        # Link LLVM libraries
+        # list(APPEND CMAKE_MODULE_PATH "${LLVM_CMAKE_DIR}") # Usually handled by find_package
+        # include(AddLLVM) # Usually handled by find_package
+        llvm_map_components_to_libnames(llvm_libs
+            core support irreader analysis target mcjit native executionengine
+            # Add other necessary components
+        )
+        message(STATUS "Linking LLVM Libraries: ${llvm_libs}")
+        target_link_libraries(baa PRIVATE ${llvm_libs})
+
+    else()
+        message(WARNING "USE_LLVM is ON but LLVM was not found. Using stub backend.")
+        target_sources(baa PRIVATE src/codegen/llvm_stub.c)
+        target_compile_definitions(baa PRIVATE LLVM_AVAILABLE=0)
+    endif()
+else()
+    message(STATUS "LLVM backend disabled. Using stub backend.")
+    # Add stub source file
+    target_sources(baa PRIVATE src/codegen/llvm_stub.c)
+    # Add compile definition
+    target_compile_definitions(baa PRIVATE LLVM_AVAILABLE=0)
+endif()
+
+# تفعيل الاختبارات (معطل مؤقتاً)
+# enable_testing()
+# add_subdirectory(tests) # Keep this if tests are separate

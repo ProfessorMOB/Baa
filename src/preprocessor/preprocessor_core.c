@@ -354,7 +354,7 @@ wchar_t *process_file(BaaPreprocessor *pp_state, const char *file_path, wchar_t 
                                             #endif
                                                 {
                                                     fclose(test_file);
-                                                    full_include_path = strdup(temp_path);
+                                                    full_include_path = _strdup(temp_path);
                                                     found = true;
                                                     break;
                                                 }
@@ -372,7 +372,7 @@ wchar_t *process_file(BaaPreprocessor *pp_state, const char *file_path, wchar_t 
                                         } else {
                                             char temp_path[MAX_PATH_LEN];
                                             snprintf(temp_path, MAX_PATH_LEN, "%s%c%s", current_dir, PATH_SEPARATOR, include_path_mb);
-                                            full_include_path = strdup(temp_path); // Assume relative path exists for now
+                                            full_include_path = _strdup(temp_path); // Assume relative path exists for now
                                             free(current_dir);
                                             if (!full_include_path) {
                                                  *error_message = format_preprocessor_error_with_context(pp_state, L"فشل في تخصيص ذاكرة للمسار النسبي المدمج.");

@@ -63,7 +63,7 @@ bool add_macro(BaaPreprocessor *pp_state, const wchar_t *name, const wchar_t *bo
                 free(pp_state->macros[i].param_names);
             }
 
-            pp_state->macros[i].body = wcsdup(body);
+            pp_state->macros[i].body = _wcsdup(body);
             pp_state->macros[i].is_function_like = is_function_like;
             pp_state->macros[i].param_count = param_count;
             pp_state->macros[i].param_names = param_names; // Takes ownership
@@ -108,8 +108,8 @@ bool add_macro(BaaPreprocessor *pp_state, const wchar_t *name, const wchar_t *bo
 
     // Add the new macro
     BaaMacro *new_entry = &pp_state->macros[pp_state->macro_count];
-    new_entry->name = wcsdup(name);
-    new_entry->body = wcsdup(body);
+    new_entry->name = _wcsdup(name);
+    new_entry->body = _wcsdup(body);
     new_entry->is_function_like = is_function_like;
     new_entry->param_count = param_count;
     new_entry->param_names = param_names; // Takes ownership of the passed array and its contents
