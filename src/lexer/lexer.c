@@ -116,10 +116,10 @@ static wchar_t advance(BaaLexer *lexer)
     {
         lexer->column++;
     }
-    return c;
+    return c; // Return the character that was consumed
 }
 
-static bool match(BaaLexer *lexer, wchar_t expected)
+static bool match(BaaLexer *lexer, wchar_t expected) // Added match function definition
 {
     if (is_at_end(lexer))
         return false;
@@ -127,6 +127,22 @@ static bool match(BaaLexer *lexer, wchar_t expected)
         return false;
     advance(lexer);
     return true;
+}
+
+// Corresponds to baa_init_lexer in header
+void baa_init_lexer(BaaLexer* lexer, const wchar_t* source, const wchar_t* filename) // Added definition
+{
+    // filename parameter is currently unused in the struct, but included for signature match
+    (void)filename; // Mark as unused to prevent compiler warnings
+
+    if (!lexer || !source) return; // Basic validation
+
+    lexer->source = source;
+    lexer->start = 0;
+    lexer->current = 0;
+    lexer->line = 1;
+    lexer->column = 0;
+    // Note: No had_error field in the struct per lexer.h
 }
 
 // Creates a token by copying the lexeme from the source
@@ -424,6 +440,21 @@ static BaaToken *scan_identifier(BaaLexer *lexer)
     {
         advance(lexer);
     }
+
+    // Check if identifier is a keyword
+    size_t length = lexer->current - lexer->start; // Correct length calculation
+    for (size_t i = 0; i < sizeof(keywords) / sizeof(keywords[0]); i++)
+    {
+        // Compare length first for efficiency
+        if (wcslen(keywords[i].keyword) == length &&
+            // Use lexer->start for the beginning of the potential keyword
+            wcsncmp(&lexer->source[lexer->start], keywords[i].keyword, length) == 0)
+        {
+            return make_token(lexer, keywords[i].token);
+        }
+    }
+
+    return make_token(lexer, BAA_TOKEN_IDENTIFIER);
 
     // Check if identifier is a keyword
     size_t length = lexer->current - lexer->start; // Correct length calculation

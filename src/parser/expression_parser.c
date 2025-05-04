@@ -1,5 +1,6 @@
 #include "baa/parser/parser.h"
 #include "baa/parser/parser_helper.h"
+#include "baa/ast/ast.h" // Include ast.h for BaaExpr definition if not already included via expressions.h
 #include "baa/ast/expressions.h"
 #include "baa/ast/statements.h"
 #include "baa/types/types.h"
@@ -15,7 +16,7 @@
 // Forward declarations
 void baa_set_parser_error(BaaParser *parser, const wchar_t *message);
 void baa_unexpected_token_error(BaaParser *parser, const wchar_t *expected);
-void baa_free_expression(BaaExpr* expr);
+// void baa_free_expression(BaaExpr* expr); // Removed, use baa_free_expr from expressions.h
 void baa_token_next(BaaParser *parser);
 
 // Forward declaration of internal functions
@@ -33,19 +34,7 @@ static BaaExpr* parse_assignment(BaaParser* parser);
 // Forward declaration of the public function
 BaaExpr* baa_parse_expression(BaaParser* parser);
 
-// Forward declarations for expression freeing functions (assuming they exist elsewhere)
-void baa_free_binary_expr_data(void* data);
-void baa_free_unary_expr_data(void* data);
-void baa_free_literal_expr_data(void* data);
-void baa_free_variable_expr_data(void* data);
-void baa_free_call_expr_data(void* data);
-void baa_free_cast_expr_data(void* data);
-void baa_free_assign_expr_data(void* data);
-void baa_free_array_expr_data(void* data);
-void baa_free_index_expr_data(void* data);
-void baa_free_compound_assignment_expr_data(void* data);
-void baa_free_inc_dec_expr_data(void* data);
-void baa_free_grouping_expr_data(void* data);
+// Removed forward declarations for baa_free_*_expr_data functions
 
 // Implementation of the literal expression creation functions
 static BaaExpr* baa_create_int_literal_expr(int value) {
@@ -337,7 +326,7 @@ static BaaExpr* parse_primary(BaaParser* parser)
             // Expect closing parenthesis
             if (parser->current_token.type != BAA_TOKEN_RPAREN) {
                 baa_unexpected_token_error(parser, L")");
-                baa_free_expression(expr);
+                baa_free_expr(expr); // Use baa_free_expr
                 return NULL;
             }
 
@@ -348,7 +337,7 @@ static BaaExpr* parse_primary(BaaParser* parser)
             BaaExpr* grouping = baa_create_grouping(expr);
             if (!grouping) {
                 baa_set_parser_error(parser, L"فشل في إنشاء تعبير مجموعة");
-                baa_free_expression(expr);
+                baa_free_expr(expr); // Use baa_free_expr
                 return NULL;
             }
 
@@ -390,14 +379,14 @@ static BaaExpr* parse_call_or_member(BaaParser* parser)
                     // Parse an argument
                     BaaExpr* argument = baa_parse_expression(parser);
                     if (!argument) {
-                        // Free already parsed arguments
-                        for (size_t i = 0; i < argument_count; i++) {
-                            baa_free_expression(arguments[i]);
-                        }
-                        free(arguments);
-                        baa_free_expression(expr);
-                        return NULL;
+                    // Free already parsed arguments
+                    for (size_t i = 0; i < argument_count; i++) {
+                        baa_free_expr(arguments[i]); // Use baa_free_expr
                     }
+                    free(arguments);
+                    baa_free_expr(expr); // Use baa_free_expr
+                    return NULL;
+                }
 
                     // Add argument to the list
                     if (argument_count >= argument_capacity) {
@@ -405,12 +394,12 @@ static BaaExpr* parse_call_or_member(BaaParser* parser)
                         BaaExpr** new_arguments = realloc(arguments, argument_capacity * sizeof(BaaExpr*));
                         if (!new_arguments) {
                             baa_set_parser_error(parser, L"فشل في تخصيص الذاكرة للوسائط");
-                            baa_free_expression(argument);
+                            baa_free_expr(argument); // Use baa_free_expr
                             for (size_t i = 0; i < argument_count; i++) {
-                                baa_free_expression(arguments[i]);
+                                baa_free_expr(arguments[i]); // Use baa_free_expr
                             }
                             free(arguments);
-                            baa_free_expression(expr);
+                            baa_free_expr(expr); // Use baa_free_expr
                             return NULL;
                         }
                         arguments = new_arguments;
@@ -431,10 +420,10 @@ static BaaExpr* parse_call_or_member(BaaParser* parser)
             if (parser->current_token.type != BAA_TOKEN_RPAREN) {
                 baa_unexpected_token_error(parser, L")");
                 for (size_t i = 0; i < argument_count; i++) {
-                    baa_free_expression(arguments[i]);
+                    baa_free_expr(arguments[i]); // Use baa_free_expr
                 }
                 free(arguments);
-                baa_free_expression(expr);
+                baa_free_expr(expr); // Use baa_free_expr
                 return NULL;
             }
 
@@ -446,10 +435,10 @@ static BaaExpr* parse_call_or_member(BaaParser* parser)
             if (!call) {
                 baa_set_parser_error(parser, L"فشل في إنشاء نداء دالة");
                 for (size_t i = 0; i < argument_count; i++) {
-                    baa_free_expression(arguments[i]);
+                    baa_free_expr(arguments[i]); // Use baa_free_expr
                 }
                 free(arguments);
-                baa_free_expression(expr);
+                baa_free_expr(expr); // Use baa_free_expr
                 return NULL;
             }
 
@@ -462,7 +451,7 @@ static BaaExpr* parse_call_or_member(BaaParser* parser)
             // Expect an identifier for the member name
             if (parser->current_token.type != BAA_TOKEN_IDENTIFIER) {
                 baa_unexpected_token_error(parser, L"معرف");
-                baa_free_expression(expr);
+                baa_free_expr(expr); // Use baa_free_expr
                 return NULL;
             }
 
@@ -477,7 +466,7 @@ static BaaExpr* parse_call_or_member(BaaParser* parser)
             BaaExpr* member = baa_create_member_access(expr, name, length);
             if (!member) {
                 baa_set_parser_error(parser, L"فشل في إنشاء وصول للعضو");
-                baa_free_expression(expr);
+                baa_free_expr(expr); // Use baa_free_expr
                 return NULL;
             }
 
@@ -490,15 +479,15 @@ static BaaExpr* parse_call_or_member(BaaParser* parser)
             // Parse the index expression
             BaaExpr* index = baa_parse_expression(parser);
             if (!index) {
-                baa_free_expression(expr);
+                baa_free_expr(expr); // Use baa_free_expr
                 return NULL;
             }
 
             // Expect closing bracket
             if (parser->current_token.type != BAA_TOKEN_RIGHT_BRACKET) {
                 baa_unexpected_token_error(parser, L"]");
-                baa_free_expression(index);
-                baa_free_expression(expr);
+                baa_free_expr(index); // Use baa_free_expr
+                baa_free_expr(expr); // Use baa_free_expr
                 return NULL;
             }
 
@@ -509,8 +498,8 @@ static BaaExpr* parse_call_or_member(BaaParser* parser)
             BaaExpr* array_access = baa_create_array_access(expr, index);
             if (!array_access) {
                 baa_set_parser_error(parser, L"فشل في إنشاء وصول للمصفوفة");
-                baa_free_expression(index);
-                baa_free_expression(expr);
+                baa_free_expr(index); // Use baa_free_expr
+                baa_free_expr(expr); // Use baa_free_expr
                 return NULL;
             }
 
@@ -549,7 +538,7 @@ static BaaExpr* parse_unary(BaaParser* parser)
         BaaExpr* expr = baa_create_inc_dec_expr(operand, op_type, true);
         if (!expr) {
             baa_set_parser_error(parser, L"فشل في إنشاء تعبير زيادة/نقصان");
-            baa_free_expression(operand);
+            baa_free_expr(operand); // Use baa_free_expr
             return NULL;
         }
 
@@ -581,7 +570,7 @@ static BaaExpr* parse_unary(BaaParser* parser)
         BaaExpr* expr = baa_create_unary_expr_wrapper(op_type, operand);
         if (!expr) {
             baa_set_parser_error(parser, L"فشل في إنشاء تعبير أحادي");
-            baa_free_expression(operand);
+            baa_free_expr(operand); // Use baa_free_expr
             return NULL;
         }
 
@@ -606,7 +595,7 @@ static BaaExpr* parse_unary(BaaParser* parser)
         BaaExpr* inc_dec_expr = baa_create_inc_dec_expr(expr, op_type, false);
         if (!inc_dec_expr) {
             baa_set_parser_error(parser, L"فشل في إنشاء تعبير زيادة/نقصان");
-            baa_free_expression(expr);
+            baa_free_expr(expr); // Use baa_free_expr
             return NULL;
         }
 
@@ -648,7 +637,7 @@ static BaaExpr* parse_factor(BaaParser* parser)
         // Parse the right operand
         BaaExpr* right = parse_unary(parser);
         if (!right) {
-            baa_free_expression(left);
+            baa_free_expr(left); // Use baa_free_expr
             return NULL;
         }
 
@@ -656,8 +645,8 @@ static BaaExpr* parse_factor(BaaParser* parser)
         BaaExpr* binary = baa_create_binary_expr_wrapper(left, right, op_type);
         if (!binary) {
             baa_set_parser_error(parser, L"فشل في إنشاء تعبير ثنائي");
-            baa_free_expression(left);
-            baa_free_expression(right);
+            baa_free_expr(left); // Use baa_free_expr
+            baa_free_expr(right); // Use baa_free_expr
             return NULL;
         }
 
@@ -697,7 +686,7 @@ static BaaExpr* parse_term(BaaParser* parser)
         // Parse the right operand
         BaaExpr* right = parse_factor(parser);
         if (!right) {
-            baa_free_expression(left);
+            baa_free_expr(left); // Use baa_free_expr
             return NULL;
         }
 
@@ -705,8 +694,8 @@ static BaaExpr* parse_term(BaaParser* parser)
         BaaExpr* binary = baa_create_binary_expr_wrapper(left, right, op_type);
         if (!binary) {
             baa_set_parser_error(parser, L"فشل في إنشاء تعبير ثنائي");
-            baa_free_expression(left);
-            baa_free_expression(right);
+            baa_free_expr(left); // Use baa_free_expr
+            baa_free_expr(right); // Use baa_free_expr
             return NULL;
         }
 
@@ -752,7 +741,7 @@ static BaaExpr* parse_comparison(BaaParser* parser)
         // Parse the right operand
         BaaExpr* right = parse_term(parser);
         if (!right) {
-            baa_free_expression(left);
+            baa_free_expr(left); // Use baa_free_expr
             return NULL;
         }
 
@@ -760,8 +749,8 @@ static BaaExpr* parse_comparison(BaaParser* parser)
         BaaExpr* binary = baa_create_binary_expr_wrapper(left, right, op_type);
         if (!binary) {
             baa_set_parser_error(parser, L"فشل في إنشاء تعبير ثنائي");
-            baa_free_expression(left);
-            baa_free_expression(right);
+            baa_free_expr(left); // Use baa_free_expr
+            baa_free_expr(right); // Use baa_free_expr
             return NULL;
         }
 
@@ -801,7 +790,7 @@ static BaaExpr* parse_equality(BaaParser* parser)
         // Parse the right operand
         BaaExpr* right = parse_comparison(parser);
         if (!right) {
-            baa_free_expression(left);
+            baa_free_expr(left); // Use baa_free_expr
             return NULL;
         }
 
@@ -809,8 +798,8 @@ static BaaExpr* parse_equality(BaaParser* parser)
         BaaExpr* binary = baa_create_binary_expr_wrapper(left, right, op_type);
         if (!binary) {
             baa_set_parser_error(parser, L"فشل في إنشاء تعبير ثنائي");
-            baa_free_expression(left);
-            baa_free_expression(right);
+            baa_free_expr(left); // Use baa_free_expr
+            baa_free_expr(right); // Use baa_free_expr
             return NULL;
         }
 
@@ -840,7 +829,7 @@ static BaaExpr* parse_logical_and(BaaParser* parser)
         // Parse the right operand
         BaaExpr* right = parse_equality(parser);
         if (!right) {
-            baa_free_expression(left);
+            baa_free_expr(left); // Use baa_free_expr
             return NULL;
         }
 
@@ -848,8 +837,8 @@ static BaaExpr* parse_logical_and(BaaParser* parser)
         BaaExpr* logical = baa_create_binary_expr_wrapper(left, right, BAA_OP_AND);
         if (!logical) {
             baa_set_parser_error(parser, L"فشل في إنشاء تعبير منطقي");
-            baa_free_expression(left);
-            baa_free_expression(right);
+            baa_free_expr(left); // Use baa_free_expr
+            baa_free_expr(right); // Use baa_free_expr
             return NULL;
         }
 
@@ -879,7 +868,7 @@ static BaaExpr* parse_logical_or(BaaParser* parser)
         // Parse the right operand
         BaaExpr* right = parse_logical_and(parser);
         if (!right) {
-            baa_free_expression(left);
+            baa_free_expr(left); // Use baa_free_expr
             return NULL;
         }
 
@@ -887,8 +876,8 @@ static BaaExpr* parse_logical_or(BaaParser* parser)
         BaaExpr* logical = baa_create_binary_expr_wrapper(left, right, BAA_OP_OR);
         if (!logical) {
             baa_set_parser_error(parser, L"فشل في إنشاء تعبير منطقي");
-            baa_free_expression(left);
-            baa_free_expression(right);
+            baa_free_expr(left); // Use baa_free_expr
+            baa_free_expr(right); // Use baa_free_expr
             return NULL;
         }
 
@@ -953,7 +942,7 @@ static BaaExpr* parse_assignment(BaaParser* parser)
         // Parse the right-hand side (an assignment expression)
         BaaExpr* right = parse_assignment(parser);
         if (!right) {
-            baa_free_expression(left);
+            baa_free_expr(left); // Use baa_free_expr
             return NULL;
         }
 
@@ -962,8 +951,8 @@ static BaaExpr* parse_assignment(BaaParser* parser)
             BaaExpr* assignment = baa_create_assignment(left, right);
             if (!assignment) {
                 baa_set_parser_error(parser, L"فشل في إنشاء تعبير تعيين");
-                baa_free_expression(left);
-                baa_free_expression(right);
+                baa_free_expr(left); // Use baa_free_expr
+                baa_free_expr(right); // Use baa_free_expr
                 return NULL;
             }
             return assignment;
@@ -972,8 +961,8 @@ static BaaExpr* parse_assignment(BaaParser* parser)
             BaaExpr* assignment = baa_create_compound_assignment(left, right, op);
             if (!assignment) {
                 baa_set_parser_error(parser, L"فشل في إنشاء تعبير تعيين مركب");
-                baa_free_expression(left);
-                baa_free_expression(right);
+                baa_free_expr(left); // Use baa_free_expr
+                baa_free_expr(right); // Use baa_free_expr
                 return NULL;
             }
             return assignment;
@@ -993,58 +982,6 @@ BaaExpr* baa_parse_expression(BaaParser* parser)
 }
 
 /**
- * Alias baa_free_expr as baa_free_expression for backward compatibility
+ * Alias baa_free_expr as baa_free_expression for backward compatibility - REMOVED
  */
-void baa_free_expression(BaaExpr* expr) {
-    if (!expr) return;
-
-    // Free the expression data based on its type
-    if (expr->data) {
-        switch (expr->kind) { // Use kind
-            case BAA_EXPR_BINARY:
-                baa_free_binary_expr_data(expr->data);
-                break;
-            case BAA_EXPR_UNARY:
-                baa_free_unary_expr_data(expr->data);
-                break;
-            case BAA_EXPR_LITERAL:
-                baa_free_literal_expr_data(expr->data);
-                break;
-            case BAA_EXPR_VARIABLE:
-                baa_free_variable_expr_data(expr->data);
-                break;
-            case BAA_EXPR_CALL:
-                baa_free_call_expr_data(expr->data);
-                break;
-            case BAA_EXPR_ARRAY:
-                baa_free_array_expr_data(expr->data);
-                break;
-            case BAA_EXPR_COMPOUND_ASSIGN:
-                baa_free_compound_assignment_expr_data(expr->data);
-                break;
-            case BAA_EXPR_INC_DEC:
-                baa_free_inc_dec_expr_data(expr->data);
-                break;
-            case BAA_EXPR_GROUPING:
-                baa_free_grouping_expr_data(expr->data);
-                break;
-            case BAA_EXPR_INDEX:
-                baa_free_index_expr_data(expr->data);
-                break;
-            case BAA_EXPR_CAST:
-                baa_free_cast_expr_data(expr->data);
-                break;
-            case BAA_EXPR_ASSIGN:
-                baa_free_assign_expr_data(expr->data);
-                break;
-            default:
-                // Handle unknown expression type or do nothing
-                break;
-        }
-        baa_free(expr->data); // Free the data pointer itself
-    }
-
-    // Free the main expression structure
-    // Note: Does not free the associated AST node (expr->ast_node)
-    baa_free(expr);
-}
+// Removed definition of baa_free_expression

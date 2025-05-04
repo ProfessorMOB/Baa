@@ -60,11 +60,13 @@ int compile_baa_file(const char* filename) {
 
     // Initialize parser
     BaaParser parser;
-    baa_init_parser(&parser, &lexer);
+    // baa_init_parser(&parser, &lexer); // No longer needed if calling baa_parse directly
 
     // Parse program
-    BaaProgram* program = baa_parse_program(&parser);
+    // Note: baa_parse takes source and filename, not parser struct
+    BaaProgram* program = baa_parse(source, wfilename);
     if (!program) {
+        // TODO: Get specific parser error message if available
         fprintf(stderr, "Error: Parsing failed.\\n");
         free(source);
         free(wfilename);
