@@ -9,19 +9,22 @@ Baa (باء) is designed with a modular architecture that separates concerns int
 The initial stage that processes the source file before tokenization:
 - **Directive Handling**: Processes directives like `#تضمين` (include) and `#تعريف` (define).
 - **File Inclusion**: Merges included files into a single stream.
-- **Macro Expansion**: Substitutes defined macros (currently parameterless).
-- **Input Encoding**: Expects UTF-16LE input files.
+- **Macro Expansion**: Substitutes defined object-like and function-like macros. Supports stringification (`#`) and token pasting (`##`). Detects recursive expansion.
+- **Input Encoding**: Expects UTF-16LE input files (checks BOM).
 - **Output**: Produces a single `wchar_t*` stream for the lexer.
 - **Circular Include Detection**: Prevents infinite include loops.
+- **Conditional Compilation**: Handles `#إذا`, `#إذا_عرف`, `#إذا_لم_يعرف`, `#وإلا_إذا`, `#إلا`, `#نهاية_إذا`. Evaluates constant integer expressions for `#إذا`/`#وإلا_إذا` (supports arithmetic, comparison, logical operators, `defined()`; excludes bitwise ops).
+- **Error Reporting**: Reports errors with file path and line number context.
 - **Features & Status:**
   - Implemented as a separate stage.
   - Handles `#تضمين` (relative and standard paths).
-  - Handles parameterless `#تعريف` macros with basic text substitution.
+  - Handles `#تعريف` (object-like and function-like macros, including `#`, `##`).
   - Handles `#الغاء_تعريف` to undefine macros.
-  - Handles basic conditional compilation (`#إذا_عرف`, `#إذا_لم_يعرف`, `#إلا`, `#نهاية_إذا`).
-  - Detects circular includes.
+  - Handles conditional compilation (`#إذا_عرف`, `#إذا_لم_يعرف`, `#إلا`, `#نهاية_إذا`, `#إذا`, `#وإلا_إذا`) with expression evaluation (excluding bitwise operators).
+  - Detects circular includes and recursive macro expansion.
   - Enforces UTF-16LE input.
-  - *Planned:* Function-like macros, `#if` with expressions, improved error reporting.
+  - Provides error messages with file/line context.
+  - *Planned:* Bitwise operators in conditional expressions, predefined macros (`__FILE__`, `__LINE__`), UTF-8 input support.
 
 ### 1. Lexer
 The lexical analyzer responsible for tokenizing source code:

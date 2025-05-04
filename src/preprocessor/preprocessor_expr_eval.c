@@ -1,0 +1,370 @@
+#include "preprocessor_internal.h"
+
+// --- Preprocessor Expression Evaluation Implementation ---
+
+// Helper to create an error token
+static PpExprToken make_error_token(PpExprTokenizer* tz, const wchar_t* message) {
+    if (tz->error_message && !*tz->error_message) { // Set error only once
+        // Use the context-aware formatter if possible, passing the pp_state
+        if (tz->pp_state) {
+             *tz->error_message = format_preprocessor_error_with_context(tz->pp_state, message);
+        } else {
+            // Fallback if pp_state isn't available (shouldn't happen in normal flow)
+            *tz->error_message = format_preprocessor_error(L"خطأ في مقيم التعبير (لا يوجد سياق): %ls", message);
+        }
+    }
+    return (PpExprToken){ .type = PP_EXPR_TOKEN_ERROR };
+}
+
+// Helper to create a simple token
+static PpExprToken make_token(PpExprTokenType type) {
+    return (PpExprToken){ .type = type };
+}
+
+// Helper to create an integer literal token
+static PpExprToken make_int_token(long value) {
+    return (PpExprToken){ .type = PP_EXPR_TOKEN_INT_LITERAL, .value = value };
+}
+
+// Helper to create an identifier or 'defined' token
+static PpExprToken make_identifier_token(PpExprTokenizer* tz) {
+    size_t len = tz->current - tz->start;
+    wchar_t* text = wcsndup_internal(tz->start, len); // Use internal wcsndup
+    if (!text) {
+        return make_error_token(tz, L"فشل في تخصيص ذاكرة للمعرف في التعبير الشرطي.");
+    }
+
+    // Check if it's the 'defined' keyword
+    if (wcscmp(text, L"defined") == 0) {
+        free(text);
+        return make_token(PP_EXPR_TOKEN_DEFINED);
+    }
+
+    return (PpExprToken){ .type = PP_EXPR_TOKEN_IDENTIFIER, .text = text };
+}
+
+
+// Skips whitespace
+static void skip_whitespace(PpExprTokenizer* tz) {
+    while (iswspace(*tz->current)) {
+        tz->current++;
+    }
+}
+
+// Gets the next token from the expression string
+static PpExprToken get_next_pp_expr_token(PpExprTokenizer* tz) {
+    skip_whitespace(tz);
+    tz->start = tz->current;
+
+    if (*tz->current == L'\0') return make_token(PP_EXPR_TOKEN_EOF);
+
+    // Check for operators and parentheses first
+    switch (*tz->current) {
+        case L'(': tz->current++; return make_token(PP_EXPR_TOKEN_LPAREN);
+        case L')': tz->current++; return make_token(PP_EXPR_TOKEN_RPAREN);
+        case L'+': tz->current++; return make_token(PP_EXPR_TOKEN_PLUS);
+        case L'-': tz->current++; return make_token(PP_EXPR_TOKEN_MINUS);
+        case L'*': tz->current++; return make_token(PP_EXPR_TOKEN_STAR);
+        case L'/': tz->current++; return make_token(PP_EXPR_TOKEN_SLASH);
+        case L'%': tz->current++; return make_token(PP_EXPR_TOKEN_PERCENT);
+        case L'!':
+            if (*(tz->current + 1) == L'=') { tz->current += 2; return make_token(PP_EXPR_TOKEN_BANGEQ); }
+            tz->current++; return make_token(PP_EXPR_TOKEN_BANG);
+        case L'=':
+            if (*(tz->current + 1) == L'=') { tz->current += 2; return make_token(PP_EXPR_TOKEN_EQEQ); }
+            // Single '=' is assignment, invalid in preprocessor expr
+            return make_error_token(tz, L"المعامل '=' غير صالح في التعبير الشرطي.");
+        case L'<':
+            if (*(tz->current + 1) == L'=') { tz->current += 2; return make_token(PP_EXPR_TOKEN_LTEQ); }
+            // TODO: Handle << later if needed
+            tz->current++; return make_token(PP_EXPR_TOKEN_LT);
+        case L'>':
+            if (*(tz->current + 1) == L'=') { tz->current += 2; return make_token(PP_EXPR_TOKEN_GTEQ); }
+            // TODO: Handle >> later if needed
+            tz->current++; return make_token(PP_EXPR_TOKEN_GT);
+        case L'&':
+            if (*(tz->current + 1) == L'&') { tz->current += 2; return make_token(PP_EXPR_TOKEN_AMPAMP); }
+            // TODO: Handle single '&' later if needed
+            return make_error_token(tz, L"المعامل '&' غير مدعوم حاليًا في التعبير الشرطي.");
+        case L'|':
+            if (*(tz->current + 1) == L'|') { tz->current += 2; return make_token(PP_EXPR_TOKEN_PIPEPIPE); }
+             // TODO: Handle single '|' later if needed
+            return make_error_token(tz, L"المعامل '|' غير مدعوم حاليًا في التعبير الشرطي.");
+        // TODO: Add cases for other operators like ^, ~
+    }
+
+    // Check for integer literals
+    if (iswdigit(*tz->current)) {
+        wchar_t* endptr;
+        long value = wcstol(tz->start, &endptr, 10); // Base 10 only for now
+        if (endptr == tz->start) { // Should not happen if iswdigit passed, but safety
+             return make_error_token(tz, L"حرف رقمي غير صالح في التعبير الشرطي.");
+        }
+        tz->current = endptr; // Advance tokenizer past the number
+        return make_int_token(value);
+    }
+
+    // Check for identifiers (including 'defined')
+    if (iswalpha(*tz->current) || *tz->current == L'_') {
+        while (iswalnum(*tz->current) || *tz->current == L'_') {
+            tz->current++;
+        }
+        return make_identifier_token(tz);
+    }
+
+    // Unknown character
+    return make_error_token(tz, L"رمز غير متوقع في التعبير الشرطي.");
+}
+
+// --- Actual Expression Evaluation Function ---
+
+// Forward declarations for the expression parser/evaluator
+static bool parse_and_evaluate_pp_expr(PpExprTokenizer* tz, long* result);
+static bool parse_primary_pp_expr(PpExprTokenizer* tz, long* result);
+static bool parse_unary_pp_expr(PpExprTokenizer* tz, long* result);
+static bool parse_binary_expression_rhs(PpExprTokenizer* tz, int min_prec, long* lhs, long* result);
+static int get_token_precedence(PpExprTokenType type);
+
+// Evaluates preprocessor constant expressions.
+bool evaluate_preprocessor_expression(BaaPreprocessor *pp_state, const wchar_t* expression, bool* value, wchar_t** error_message, const char* abs_path) {
+    *error_message = NULL;
+    *value = false; // Default to false
+
+    PpExprTokenizer tz = {
+        .current = expression,
+        .start = expression,
+        .pp_state = pp_state, // Pass the state for context
+        .abs_path = abs_path, // abs_path is not strictly needed if pp_state has current_file_path
+        .error_message = error_message
+    };
+
+    long result_value = 0;
+    if (!parse_and_evaluate_pp_expr(&tz, &result_value)) {
+        // Error message should be set by the parser/evaluator
+        return false;
+    }
+
+    // Check if the entire expression was consumed
+    PpExprToken eof_token = get_next_pp_expr_token(&tz);
+    if (eof_token.type != PP_EXPR_TOKEN_EOF) {
+        if (eof_token.type != PP_EXPR_TOKEN_ERROR) { // Avoid overwriting tokenizer error
+            make_error_token(&tz, L"رموز زائدة في نهاية التعبير الشرطي.");
+        }
+        return false;
+    }
+
+    *value = (result_value != 0); // Final result: 0 is false, non-zero is true
+    return true;
+}
+
+// Main parsing function - starts with unary operators
+static bool parse_and_evaluate_pp_expr(PpExprTokenizer* tz, long* result) {
+    long lhs;
+    if (!parse_unary_pp_expr(tz, &lhs)) {
+        return false;
+    }
+
+    // Now parse binary operators with precedence climbing
+    if (!parse_binary_expression_rhs(tz, 0, &lhs, result)) {
+        return false;
+    }
+
+    return true;
+}
+
+// Parses unary expressions: + - ! ~ primary
+static bool parse_unary_pp_expr(PpExprTokenizer* tz, long* result) {
+    const wchar_t* unary_start_pos = tz->current; // Remember position before token read
+    PpExprToken op_token = get_next_pp_expr_token(tz);
+
+    if (op_token.type == PP_EXPR_TOKEN_PLUS) {
+        // Unary plus - parse operand and return its value
+        return parse_unary_pp_expr(tz, result);
+    } else if (op_token.type == PP_EXPR_TOKEN_MINUS) {
+        // Unary minus - parse operand, then negate
+        if (!parse_unary_pp_expr(tz, result)) return false;
+        *result = -(*result);
+        return true;
+    } else if (op_token.type == PP_EXPR_TOKEN_BANG) {
+        // Logical NOT - parse operand, then apply !
+        if (!parse_unary_pp_expr(tz, result)) return false;
+        *result = (*result == 0); // 0 -> 1, non-zero -> 0
+        return true;
+    // } else if (op_token.type == PP_EXPR_TOKEN_TILDE) { // TODO: Bitwise NOT
+    //     if (!parse_unary_pp_expr(tz, result)) return false;
+    //     *result = ~(*result);
+    //     return true;
+    } else {
+        // Not a unary operator we handle, put token back and parse primary
+        tz->current = unary_start_pos; // Reset position
+        return parse_primary_pp_expr(tz, result);
+    }
+}
+
+
+// Parses primary expressions: integer literals, defined(MACRO), ( expression )
+static bool parse_primary_pp_expr(PpExprTokenizer* tz, long* result) {
+     PpExprToken token = get_next_pp_expr_token(tz);
+
+     if (token.type == PP_EXPR_TOKEN_INT_LITERAL) {
+         *result = token.value;
+         return true;
+     } else if (token.type == PP_EXPR_TOKEN_DEFINED) {
+         // Expect '(' or identifier
+         bool parens = false;
+         PpExprToken next_token = get_next_pp_expr_token(tz);
+         if (next_token.type == PP_EXPR_TOKEN_LPAREN) {
+             parens = true;
+             next_token = get_next_pp_expr_token(tz); // Get token inside parens
+         }
+
+         if (next_token.type != PP_EXPR_TOKEN_IDENTIFIER) {
+             if (next_token.type != PP_EXPR_TOKEN_ERROR) {
+                  make_error_token(tz, L"تنسيق defined() غير صالح: متوقع معرف.");
+             }
+             if (next_token.type == PP_EXPR_TOKEN_IDENTIFIER) free(next_token.text); // Free if allocated
+             return false;
+         }
+
+         // Check if the identifier macro is defined
+         *result = (find_macro(tz->pp_state, next_token.text) != NULL) ? 1L : 0L; // Result is 1 or 0
+         free(next_token.text);
+
+         // Check for closing parenthesis if needed
+         if (parens) {
+             PpExprToken closing_paren = get_next_pp_expr_token(tz);
+             if (closing_paren.type != PP_EXPR_TOKEN_RPAREN) {
+                  if (closing_paren.type != PP_EXPR_TOKEN_ERROR) {
+                      make_error_token(tz, L"تنسيق defined() غير صالح: قوس الإغلاق ')' مفقود.");
+                  }
+                  return false;
+             }
+         }
+         return true; // Successfully evaluated defined()
+     } else if (token.type == PP_EXPR_TOKEN_LPAREN) {
+         // Parse expression inside parentheses
+         if (!parse_and_evaluate_pp_expr(tz, result)) {
+             return false; // Error inside parentheses
+         }
+         // Expect closing parenthesis
+         PpExprToken closing_paren = get_next_pp_expr_token(tz);
+         if (closing_paren.type != PP_EXPR_TOKEN_RPAREN) {
+              if (closing_paren.type != PP_EXPR_TOKEN_ERROR) {
+                  make_error_token(tz, L"قوس الإغلاق ')' مفقود بعد التعبير.");
+              }
+              return false;
+         }
+         return true;
+     } else if (token.type == PP_EXPR_TOKEN_IDENTIFIER) {
+         // Undefined identifiers evaluate to 0 in preprocessor expressions
+         // TODO: Should we attempt macro expansion here first? C standard says yes.
+         // For now, treat as 0.
+         *result = 0L;
+         free(token.text);
+         return true;
+     } else if (token.type == PP_EXPR_TOKEN_ERROR) {
+         // Error already set by tokenizer
+         return false;
+     } else {
+         // Unexpected token
+         make_error_token(tz, L"رمز غير متوقع في بداية التعبير الأولي.");
+         return false;
+     }
+}
+
+
+// --- Precedence Climbing Parser Implementation ---
+
+// Gets the precedence level of a binary operator token. Returns -1 if not a binary operator.
+static int get_token_precedence(PpExprTokenType type) {
+    switch (type) {
+        // Lower precedence binds looser
+        case PP_EXPR_TOKEN_PIPEPIPE: return 10; // ||
+        case PP_EXPR_TOKEN_AMPAMP:   return 20; // &&
+        // TODO: Bitwise OR | (30)
+        // TODO: Bitwise XOR ^ (40)
+        // TODO: Bitwise AND & (50)
+        case PP_EXPR_TOKEN_EQEQ:
+        case PP_EXPR_TOKEN_BANGEQ:   return 60; // == !=
+        case PP_EXPR_TOKEN_LT:
+        case PP_EXPR_TOKEN_GT:
+        case PP_EXPR_TOKEN_LTEQ:
+        case PP_EXPR_TOKEN_GTEQ:     return 70; // < > <= >=
+        // TODO: Bitwise Shift << >> (80)
+        case PP_EXPR_TOKEN_PLUS:
+        case PP_EXPR_TOKEN_MINUS:    return 90; // + -
+        case PP_EXPR_TOKEN_STAR:
+        case PP_EXPR_TOKEN_SLASH:
+        case PP_EXPR_TOKEN_PERCENT:  return 100; // * / %
+        // Higher precedence binds tighter (Unary operators handled separately)
+        default:                     return -1; // Not a binary operator we handle yet
+    }
+}
+
+// Parses the right-hand side of binary expressions using precedence climbing.
+static bool parse_binary_expression_rhs(PpExprTokenizer* tz, int min_prec, long* lhs, long* result) {
+    while (true) {
+        // Peek at the next token to see if it's a binary operator
+        const wchar_t* current_pos_backup = tz->current; // Backup position
+        PpExprToken op_token = get_next_pp_expr_token(tz);
+        int token_prec = get_token_precedence(op_token.type);
+
+        // If it's not a binary operator OR its precedence is too low, we're done with this level.
+        if (token_prec < min_prec) {
+            tz->current = current_pos_backup; // Put the token back by resetting position
+            *result = *lhs; // The LHS is the final result for this precedence level
+            return true;
+        }
+
+        // We have a binary operator with sufficient precedence. Consume it (already done by get_next_pp_expr_token).
+
+        // Parse the RHS operand (starting with unary)
+        long rhs = 0;
+        if (!parse_unary_pp_expr(tz, &rhs)) {
+            // Error parsing RHS operand
+            return false;
+        }
+
+        // Peek at the *next* operator to handle right-associativity or higher precedence.
+        const wchar_t* next_op_pos_backup = tz->current;
+        PpExprToken next_op_token = get_next_pp_expr_token(tz);
+        int next_prec = get_token_precedence(next_op_token.type);
+        tz->current = next_op_pos_backup; // Reset position after peeking
+
+        // If the next operator has higher precedence, recursively parse its RHS first.
+        // Note: For right-associative operators (like assignment, not handled here),
+        // we would use `token_prec` instead of `token_prec + 1`.
+        if (next_prec > token_prec) {
+            if (!parse_binary_expression_rhs(tz, token_prec + 1, &rhs, &rhs)) {
+                // Error parsing nested RHS
+                return false;
+            }
+        }
+        // --- Perform the operation for the current operator ---
+        long current_lhs = *lhs; // Capture LHS before potential modification by recursive calls
+        switch (op_token.type) {
+            case PP_EXPR_TOKEN_PLUS:     *lhs = current_lhs + rhs; break;
+            case PP_EXPR_TOKEN_MINUS:    *lhs = current_lhs - rhs; break;
+            case PP_EXPR_TOKEN_STAR:     *lhs = current_lhs * rhs; break;
+            case PP_EXPR_TOKEN_SLASH:
+                if (rhs == 0) { make_error_token(tz, L"قسمة على صفر في التعبير الشرطي."); return false; }
+                *lhs = current_lhs / rhs; break;
+            case PP_EXPR_TOKEN_PERCENT:
+                 if (rhs == 0) { make_error_token(tz, L"قسمة على صفر (معامل الباقي) في التعبير الشرطي."); return false; }
+                *lhs = current_lhs % rhs; break;
+            case PP_EXPR_TOKEN_EQEQ:     *lhs = (current_lhs == rhs); break;
+            case PP_EXPR_TOKEN_BANGEQ:   *lhs = (current_lhs != rhs); break;
+            case PP_EXPR_TOKEN_LT:       *lhs = (current_lhs < rhs); break;
+            case PP_EXPR_TOKEN_GT:       *lhs = (current_lhs > rhs); break;
+            case PP_EXPR_TOKEN_LTEQ:     *lhs = (current_lhs <= rhs); break;
+            case PP_EXPR_TOKEN_GTEQ:     *lhs = (current_lhs >= rhs); break;
+            case PP_EXPR_TOKEN_AMPAMP:   *lhs = (current_lhs != 0 && rhs != 0); break; // Use integer logic
+            case PP_EXPR_TOKEN_PIPEPIPE: *lhs = (current_lhs != 0 || rhs != 0); break; // Use integer logic
+            default:
+                // Should not happen if get_token_precedence is correct
+                make_error_token(tz, L"معامل ثنائي غير متوقع أو غير مدعوم.");
+                return false;
+        }
+        // The result of the operation becomes the new LHS for the next iteration of the loop.
+    }
+}

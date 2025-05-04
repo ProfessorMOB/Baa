@@ -16,15 +16,8 @@ if(NOT SKIP_PARSER)
         ${CMAKE_CURRENT_SOURCE_DIR}
     )
 
-    target_link_libraries(baa_parser
-        PRIVATE
-        baa_ast
-        baa_utils
-        baa_operators
-        baa_lexer
-    )
-
     # Install header files
+    # Dependencies are linked by the final executable, not the static library itself.
     install(FILES
         ${PROJECT_SOURCE_DIR}/include/baa/parser/parser.h
         ${PROJECT_SOURCE_DIR}/include/baa/parser/expression_parser.h

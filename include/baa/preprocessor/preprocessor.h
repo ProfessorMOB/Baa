@@ -14,39 +14,9 @@ typedef struct {
     wchar_t** param_names;  // Array of parameter names (NULL if not function-like)
 } BaaMacro;
 
-// Forward declaration if needed, or include necessary headers
-
-// Structure to hold preprocessor state (example, will expand later)
-typedef struct {
-    // TODO: Add fields for include paths, defined macros, file stack, etc.
-    const char** include_paths; // Array of paths to search for <...>
-    size_t include_path_count;
-    // To detect circular includes:
-    char** open_files_stack;    // Stack of full paths currently being processed
-    size_t open_files_count;
-    size_t open_files_capacity;
-    // Defined macros
-    BaaMacro* macros;           // Dynamically allocated array of macros
-    size_t macro_count;
-    size_t macro_capacity;
-    // Conditional compilation state
-    bool* conditional_stack;        // Stack: true if current block's condition was met (ignoring parent state)
-    size_t conditional_stack_count;
-    size_t conditional_stack_capacity;
-    bool* conditional_branch_taken_stack; // Stack: true if a branch (#if, #elif, #else) has been taken at this level
-    size_t conditional_branch_taken_stack_count; // Should always == conditional_stack_count
-    size_t conditional_branch_taken_stack_capacity;
-    bool skipping_lines;            // True if currently skipping lines (determined by combining stack states)
-
-    // Macro expansion recursion detection
-    const BaaMacro** expanding_macros_stack; // Stack of macros currently being expanded
-    size_t expanding_macros_count;
-    size_t expanding_macros_capacity;
-
-    // Error Reporting Context
-    const char* current_file_path; // Absolute path of the file currently being processed
-    size_t current_line_number;    // Current line number in the file
-} BaaPreprocessor;
+// Forward declaration for the preprocessor state structure (Opaque Pointer)
+// The actual definition is internal to the preprocessor library.
+typedef struct BaaPreprocessor BaaPreprocessor;
 
 /**
  * @brief Processes a Baa source file, handling preprocessor directives.

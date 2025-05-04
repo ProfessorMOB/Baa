@@ -9,7 +9,4 @@ target_include_directories(baa_types
     ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
-target_link_libraries(baa_types
-    PRIVATE
-    baa_utils
-)
+# Dependencies are linked by the final executable, not the static library itself.

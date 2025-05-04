@@ -12,14 +12,8 @@ target_include_directories(baa_flow_analysis
         ${PROJECT_SOURCE_DIR}/include # Access to baa/ast/, baa/types/, etc.
 )
 
-target_link_libraries(baa_flow_analysis
-    PRIVATE
-        baa_utils
-        baa_types
-        baa_ast
-)
-
 # Optional: Install header files if this is part of a public API
+# Dependencies are linked by the final executable, not the static library itself.
 # install(FILES
 #     ${CMAKE_CURRENT_SOURCE_DIR}/../include/baa/analysis/flow_analysis.h
 #     ${CMAKE_CURRENT_SOURCE_DIR}/../include/baa/analysis/flow_errors.h

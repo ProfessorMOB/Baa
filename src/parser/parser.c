@@ -12,18 +12,18 @@
 #include <wchar.h>
 
 // Forward declarations from other parser modules
-extern BaaStmt* baa_parse_declaration(BaaParser *parser);       // From declaration_parser.c
-extern BaaFunction* baa_parse_function_declaration(BaaParser *parser); // From declaration_parser.c (or function_parser.c)
-extern BaaStmt* baa_parse_if(BaaParser* parser);            // Added
-extern BaaStmt* baa_parse_while(BaaParser* parser);            // From statement_parser.c / control_flow_parser.c
-extern BaaStmt* baa_parse_for(BaaParser* parser);            // Added
-extern BaaStmt* baa_parse_return(BaaParser* parser);            // Added
-extern void synchronize(BaaParser *parser);                     // From parser_helper.c
+extern BaaStmt *baa_parse_declaration(BaaParser *parser);              // From declaration_parser.c
+extern BaaFunction *baa_parse_function_declaration(BaaParser *parser); // From declaration_parser.c (or function_parser.c)
+extern BaaStmt *baa_parse_if(BaaParser *parser);                       // Added
+extern BaaStmt *baa_parse_while(BaaParser *parser);                    // From statement_parser.c / control_flow_parser.c
+extern BaaStmt *baa_parse_for(BaaParser *parser);                      // Added
+extern BaaStmt *baa_parse_return(BaaParser *parser);                   // Added
+extern void synchronize(BaaParser *parser);                            // From parser_helper.c
 
 // Forward declarations for functions in this file
-static BaaFunction* parse_function(BaaParser *parser); // Changed return type
-static BaaStmt* parse_block(BaaParser *parser); // Changed return type
-static BaaStmt* parse_statement(BaaParser *parser);   // Changed return type
+static BaaFunction *parse_function(BaaParser *parser); // Changed return type
+static BaaStmt *parse_block(BaaParser *parser);        // Changed return type
+static BaaStmt *parse_statement(BaaParser *parser);    // Changed return type
 static BaaNode *parse_import_directive(BaaParser *parser);
 void baa_set_parser_error(BaaParser *parser, const wchar_t *message);
 static void baa_add_node_to_program(BaaProgram *program, BaaNode *node);
@@ -35,7 +35,6 @@ extern void baa_free_expression(BaaExpr *expr);
 
 // Forward declarations for functions not yet defined in headers
 static void baa_add_child(BaaNode *parent, BaaNode *child);
-BaaBlock *baa_create_block(void);
 
 // Implementation of baa_token_next for expression_parser.c
 void baa_token_next(BaaParser *parser)
@@ -367,13 +366,15 @@ void baa_clear_parser_error(BaaParser *parser)
 static BaaNode *parse_declaration(BaaParser *parser)
 {
     BaaStmt *stmt = baa_parse_declaration(parser);
-    if (!stmt) {
+    if (!stmt)
+    {
         // baa_parse_declaration handles setting the error or returned NULL for function
         return NULL;
     }
 
     BaaNode *node = baa_create_node(BAA_NODE_STMT, stmt);
-    if (!node) {
+    if (!node)
+    {
         baa_set_parser_error(parser, L"فشل في إنشاء عقدة AST للتصريح");
         baa_free_stmt(stmt);
         return NULL;
@@ -384,10 +385,11 @@ static BaaNode *parse_declaration(BaaParser *parser)
     return node;
 }
 
-static BaaStmt* parse_block(BaaParser *parser)
+static BaaStmt *parse_block(BaaParser *parser)
 {
     BaaBlock *block = baa_create_block();
-    if (!block) {
+    if (!block)
+    {
         baa_set_parser_error(parser, L"فشل في إنشاء كتلة نصية");
         return NULL;
     }
@@ -398,13 +400,16 @@ static BaaStmt* parse_block(BaaParser *parser)
     while (parser->current_token.type != BAA_TOKEN_RIGHT_BRACE &&
            parser->current_token.type != BAA_TOKEN_EOF)
     {
-        BaaStmt* stmt = baa_parse_statement(parser);
-        if (parser->had_error) {
+        BaaStmt *stmt = baa_parse_statement(parser);
+        if (parser->had_error)
+        {
             baa_free_block(block);
             return NULL;
         }
-        if (stmt) {
-             if (!baa_add_stmt_to_block(block, stmt)) {
+        if (stmt)
+        {
+            if (!baa_add_stmt_to_block(block, stmt))
+            {
                 baa_set_parser_error(parser, L"فشل في إضافة عبارة إلى الكتلة");
                 baa_free_stmt(stmt);
                 baa_free_block(block);
@@ -413,7 +418,8 @@ static BaaStmt* parse_block(BaaParser *parser)
         } // Might be NULL if it was a function declaration, handled in caller
     }
 
-    if (parser->current_token.type != BAA_TOKEN_RIGHT_BRACE) {
+    if (parser->current_token.type != BAA_TOKEN_RIGHT_BRACE)
+    {
         baa_unexpected_token_error(parser, L"}");
         baa_free_block(block);
         return NULL;
@@ -423,8 +429,9 @@ static BaaStmt* parse_block(BaaParser *parser)
     baa_token_next(parser);
 
     // Create the wrapping BaaStmt for the block
-    BaaStmt* block_stmt = baa_create_block_stmt();
-    if (!block_stmt) {
+    BaaStmt *block_stmt = baa_create_block_stmt();
+    if (!block_stmt)
+    {
         baa_set_parser_error(parser, L"فشل في إنشاء عبارة الكتلة");
         baa_free_block(block);
         return NULL;
@@ -432,18 +439,19 @@ static BaaStmt* parse_block(BaaParser *parser)
     block_stmt->data = block;
 
     // Create the AST Node for the statement
-    BaaNode* node = baa_create_node(BAA_NODE_STMT, block_stmt);
-    if (!node) {
-         baa_set_parser_error(parser, L"فشل في إنشاء عقدة الكتلة");
-         baa_free_stmt(block_stmt); // This will free the block via baa_free_block
-         return NULL;
+    BaaNode *node = baa_create_node(BAA_NODE_STMT, block_stmt);
+    if (!node)
+    {
+        baa_set_parser_error(parser, L"فشل في إنشاء عقدة الكتلة");
+        baa_free_stmt(block_stmt); // This will free the block via baa_free_block
+        return NULL;
     }
     block_stmt->ast_node = node; // Link statement back to node
 
     return block_stmt;
 }
 
-static BaaStmt* parse_statement(BaaParser *parser)
+static BaaStmt *parse_statement(BaaParser *parser)
 {
     // Skip potential leading whitespace/comments
     skip_whitespace(parser);
@@ -490,12 +498,13 @@ static BaaStmt* parse_statement(BaaParser *parser)
         {
             baa_set_parser_error(parser, L"توقع كتلة نصية لـ if");
             baa_free_expression(condition);
-            if(if_body_stmt) baa_free_stmt(if_body_stmt);
+            if (if_body_stmt)
+                baa_free_stmt(if_body_stmt);
             return NULL;
         }
-        if_body = (BaaBlock*)if_body_stmt->data; // Extract block data
-        if_body_stmt->data = NULL; // Prevent double free
-        baa_free(if_body_stmt); // Free wrapper stmt
+        if_body = (BaaBlock *)if_body_stmt->data; // Extract block data
+        if_body_stmt->data = NULL;                // Prevent double free
+        baa_free(if_body_stmt);                   // Free wrapper stmt
 
         skip_whitespace(parser);
 
@@ -503,43 +512,52 @@ static BaaStmt* parse_statement(BaaParser *parser)
         if (match_keyword(parser, L"وإلا")) // Assuming 'وإلا' is 'else'
         {
             skip_whitespace(parser);
-            if (match_keyword(parser, L"لو")) { // Else if
-                 BaaStmt* else_if_stmt = baa_parse_if(parser); // Recursive call
-                 if (!else_if_stmt) {
-                     baa_free_expression(condition);
-                     baa_free_block(if_body);
-                     return NULL;
-                 }
-                 // Wrap the 'else if' statement in a block for consistency
-                 else_body = baa_create_block();
-                 if (!else_body || !baa_add_stmt_to_block(else_body, else_if_stmt)) {
-                      baa_set_parser_error(parser, L"فشل في إنشاء كتلة لـ else if");
-                      baa_free_expression(condition);
-                      baa_free_block(if_body);
-                      baa_free_stmt(else_if_stmt);
-                      if (else_body) baa_free_block(else_body);
-                      return NULL;
-                 }
-            } else if (expect_char(parser, L'{')) { // Else block
-                 BaaStmt *else_body_stmt = parse_block(parser); // Changed type to BaaStmt*
-                 if (!else_body_stmt || else_body_stmt->kind != BAA_STMT_BLOCK)
-                 {
-                     baa_set_parser_error(parser, L"توقع كتلة نصية لـ else");
-                     baa_free_expression(condition);
-                     baa_free_block(if_body);
-                     if(else_body_stmt) baa_free_stmt(else_body_stmt);
-                     return NULL;
-                 }
-                 else_body = (BaaBlock*)else_body_stmt->data; // Extract block data
-                 else_body_stmt->data = NULL; // Prevent double free
-                 baa_free(else_body_stmt); // Free wrapper stmt
-             } else {
-                 // Error: expected '{' after 'else'
-                 baa_unexpected_token_error(parser, L"{");
-                 baa_free_expression(condition);
-                 baa_free_block(if_body);
-                 return NULL;
-             }
+            if (match_keyword(parser, L"لو"))
+            {                                                 // Else if
+                BaaStmt *else_if_stmt = baa_parse_if(parser); // Recursive call
+                if (!else_if_stmt)
+                {
+                    baa_free_expression(condition);
+                    baa_free_block(if_body);
+                    return NULL;
+                }
+                // Wrap the 'else if' statement in a block for consistency
+                else_body = baa_create_block();
+                if (!else_body || !baa_add_stmt_to_block(else_body, else_if_stmt))
+                {
+                    baa_set_parser_error(parser, L"فشل في إنشاء كتلة لـ else if");
+                    baa_free_expression(condition);
+                    baa_free_block(if_body);
+                    baa_free_stmt(else_if_stmt);
+                    if (else_body)
+                        baa_free_block(else_body);
+                    return NULL;
+                }
+            }
+            else if (expect_char(parser, L'{'))
+            {                                                  // Else block
+                BaaStmt *else_body_stmt = parse_block(parser); // Changed type to BaaStmt*
+                if (!else_body_stmt || else_body_stmt->kind != BAA_STMT_BLOCK)
+                {
+                    baa_set_parser_error(parser, L"توقع كتلة نصية لـ else");
+                    baa_free_expression(condition);
+                    baa_free_block(if_body);
+                    if (else_body_stmt)
+                        baa_free_stmt(else_body_stmt);
+                    return NULL;
+                }
+                else_body = (BaaBlock *)else_body_stmt->data; // Extract block data
+                else_body_stmt->data = NULL;                  // Prevent double free
+                baa_free(else_body_stmt);                     // Free wrapper stmt
+            }
+            else
+            {
+                // Error: expected '{' after 'else'
+                baa_unexpected_token_error(parser, L"{");
+                baa_free_expression(condition);
+                baa_free_block(if_body);
+                return NULL;
+            }
         }
 
         // Create if statement
@@ -548,8 +566,10 @@ static BaaStmt* parse_statement(BaaParser *parser)
         {
             // Error handling: free condition, if_body, else_body
             baa_free_expression(condition);
-            if (if_body) baa_free_block(if_body);
-            if (else_body) baa_free_block(else_body);
+            if (if_body)
+                baa_free_block(if_body);
+            if (else_body)
+                baa_free_block(else_body);
             return NULL;
         }
 
@@ -567,22 +587,29 @@ static BaaStmt* parse_statement(BaaParser *parser)
     {
         return baa_parse_return(parser);
     }
-    else if (parser->current_token.type == BAA_TOKEN_LEFT_BRACE) {
+    else if (parser->current_token.type == BAA_TOKEN_LEFT_BRACE)
+    {
         return parse_block(parser); // parse_block now returns BaaStmt*
     }
-    else if (parser->current_token.type == BAA_TOKEN_VAR || parser->current_token.type == BAA_TOKEN_CONST) {
+    else if (parser->current_token.type == BAA_TOKEN_VAR || parser->current_token.type == BAA_TOKEN_CONST)
+    {
         // Variable declarations are handled by baa_parse_declaration
         // which is called from parse_declaration() wrapper
-        BaaStmt* decl_stmt = baa_parse_declaration(parser);
+        BaaStmt *decl_stmt = baa_parse_declaration(parser);
         // Need semicolon check here or within baa_parse_declaration
-        if (decl_stmt && parser->current_token.type == BAA_TOKEN_DOT) { // Assuming DOT is semicolon
-             advance(parser);
-             return decl_stmt;
-        } else if (decl_stmt) {
-             baa_unexpected_token_error(parser, L".");
-             baa_free_stmt(decl_stmt);
-             return NULL;
-        } else {
+        if (decl_stmt && parser->current_token.type == BAA_TOKEN_DOT)
+        { // Assuming DOT is semicolon
+            advance(parser);
+            return decl_stmt;
+        }
+        else if (decl_stmt)
+        {
+            baa_unexpected_token_error(parser, L".");
+            baa_free_stmt(decl_stmt);
+            return NULL;
+        }
+        else
+        {
             // Error already set by baa_parse_declaration
             return NULL;
         }
@@ -591,29 +618,33 @@ static BaaStmt* parse_statement(BaaParser *parser)
     else
     {
         // Default to expression statement
-        BaaExpr* expr = baa_parse_expression(parser);
-        if (!expr) {
-             // If expression parsing failed, check if it was because no expression was found
-             // vs. a syntax error within an attempted expression.
-             // If it was just not an expression, don't set error here.
-             if (parser->had_error) {
-                 return NULL; // Error already set
-             }
-             // else: Not an expression, maybe a keyword we didn't handle?
-             baa_unexpected_token_error(parser, L"عبارة أو تعبير");
-             return NULL;
+        BaaExpr *expr = baa_parse_expression(parser);
+        if (!expr)
+        {
+            // If expression parsing failed, check if it was because no expression was found
+            // vs. a syntax error within an attempted expression.
+            // If it was just not an expression, don't set error here.
+            if (parser->had_error)
+            {
+                return NULL; // Error already set
+            }
+            // else: Not an expression, maybe a keyword we didn't handle?
+            baa_unexpected_token_error(parser, L"عبارة أو تعبير");
+            return NULL;
         }
 
         // Expect semicolon after expression statement
-        if (parser->current_token.type != BAA_TOKEN_DOT) { // Assuming DOT is semicolon
+        if (parser->current_token.type != BAA_TOKEN_DOT)
+        { // Assuming DOT is semicolon
             baa_unexpected_token_error(parser, L".");
             baa_free_expr(expr);
             return NULL;
         }
         advance(parser);
 
-        BaaStmt* expr_stmt = baa_create_expr_stmt(expr);
-        if (!expr_stmt) {
+        BaaStmt *expr_stmt = baa_create_expr_stmt(expr);
+        if (!expr_stmt)
+        {
             baa_free_expr(expr);
             return NULL;
         }
@@ -624,11 +655,12 @@ static BaaStmt* parse_statement(BaaParser *parser)
 /**
  * Parse a function definition
  */
-static BaaFunction* parse_function(BaaParser *parser)
+static BaaFunction *parse_function(BaaParser *parser)
 {
     // Delegate to the function declaration parser
-    BaaFunction* func = baa_parse_function_declaration(parser);
-    if (!func) {
+    BaaFunction *func = baa_parse_function_declaration(parser);
+    if (!func)
+    {
         // Error handled in baa_parse_function_declaration
         return NULL;
     }
@@ -640,16 +672,19 @@ static BaaFunction* parse_function(BaaParser *parser)
 }
 
 // Placeholder - TODO: Implement this function properly, likely in src/ast/statements.c
-BaaStmt* baa_create_import_stmt(const wchar_t* path, const wchar_t* alias) {
-    BaaImportStmt* import_data = baa_malloc(sizeof(BaaImportStmt));
-    if (!import_data) return NULL;
+BaaStmt *baa_create_import_stmt(const wchar_t *path, const wchar_t *alias)
+{
+    BaaImportStmt *import_data = baa_malloc(sizeof(BaaImportStmt));
+    if (!import_data)
+        return NULL;
     import_data->path = baa_strdup(path);
     import_data->alias = alias ? baa_strdup(alias) : NULL;
 
-    BaaStmt* stmt = baa_malloc(sizeof(BaaStmt));
-    if (!stmt) {
-        baa_free((void*)import_data->path);
-        baa_free((void*)import_data->alias);
+    BaaStmt *stmt = baa_malloc(sizeof(BaaStmt));
+    if (!stmt)
+    {
+        baa_free((void *)import_data->path);
+        baa_free((void *)import_data->alias);
         baa_free(import_data);
         return NULL;
     }
@@ -671,15 +706,17 @@ static BaaNode *parse_import_directive(BaaParser *parser)
     skip_whitespace(parser);
 
     wchar_t *clean_path = NULL;
-    wchar_t* alias = NULL;
-    BaaStmt* import_stmt = NULL;
-    BaaNode* node = NULL;
+    wchar_t *alias = NULL;
+    BaaStmt *import_stmt = NULL;
+    BaaNode *node = NULL;
 
-    if (parser->current_token.type == BAA_TOKEN_LESS) {
+    if (parser->current_token.type == BAA_TOKEN_LESS)
+    {
         // System import <...>
         // ... code to parse path into clean_path ...
         // Make sure clean_path is allocated
-        if (!clean_path) {
+        if (!clean_path)
+        {
             baa_set_parser_error(parser, L"Failed to extract system import path");
             return NULL;
         }
@@ -689,24 +726,28 @@ static BaaNode *parse_import_directive(BaaParser *parser)
         baa_free(clean_path);
         // baa_free(alias); // If alias is implemented
 
-        if (!import_stmt) {
+        if (!import_stmt)
+        {
             return NULL;
         }
 
         // Create the AST node
         // FIXED: Use import_stmt instead of loc
         node = baa_create_node(BAA_NODE_STMT, import_stmt);
-        if (!node) {
+        if (!node)
+        {
             baa_set_parser_error(parser, L"Failed to create system import node");
             baa_free_stmt(import_stmt);
             return NULL;
         }
         // TODO: Mark system import node if necessary
-
-    } else if (parser->current_token.type == BAA_TOKEN_STRING_LIT) {
+    }
+    else if (parser->current_token.type == BAA_TOKEN_STRING_LIT)
+    {
         // String literal import "..."
         // ... code to parse path_literal into clean_path ...
-        if (!clean_path) {
+        if (!clean_path)
+        {
             baa_set_parser_error(parser, L"Failed to extract string import path");
             return NULL;
         }
@@ -716,20 +757,23 @@ static BaaNode *parse_import_directive(BaaParser *parser)
         baa_free(clean_path);
         // baa_free(alias); // If alias is implemented
 
-        if (!import_stmt) {
+        if (!import_stmt)
+        {
             return NULL;
         }
 
         // Create the AST node AFTER creating stmt
         // FIXED: Ensure import_stmt is defined before this line
         node = baa_create_node(BAA_NODE_STMT, import_stmt);
-        if (!node) {
+        if (!node)
+        {
             baa_set_parser_error(parser, L"Failed to create import node");
             baa_free_stmt(import_stmt);
             return NULL;
         }
-
-    } else {
+    }
+    else
+    {
         baa_unexpected_token_error(parser, L"'<' or string literal");
         return NULL;
     }
@@ -743,7 +787,8 @@ static BaaNode *parse_import_directive(BaaParser *parser)
 
     // Expect semicolon
     skip_whitespace(parser);
-    if (parser->current_token.type != BAA_TOKEN_DOT) {
+    if (parser->current_token.type != BAA_TOKEN_DOT)
+    {
         baa_unexpected_token_error(parser, L".");
         baa_free_node(node); // Frees node and linked import_stmt
         return NULL;
@@ -758,17 +803,20 @@ BaaProgram *baa_parse(const wchar_t *input, const wchar_t *filename)
 {
     BaaParser parser;
     BaaLexer *lexer = baa_create_lexer(input);
-    if (!lexer) return NULL;
+    if (!lexer)
+        return NULL;
 
     BaaProgram *program = baa_create_program();
-    if (!program) {
+    if (!program)
+    {
         baa_free_lexer(lexer);
         return NULL;
     }
 
     // Create the root AST node for the program
     program->ast_node = baa_create_node(BAA_NODE_PROGRAM, program);
-    if (!program->ast_node) {
+    if (!program->ast_node)
+    {
         baa_free_program(program); // Frees the inner program struct too
         baa_free_lexer(lexer);
         return NULL;
@@ -782,14 +830,19 @@ BaaProgram *baa_parse(const wchar_t *input, const wchar_t *filename)
     while (parser.current_token.type != BAA_TOKEN_EOF)
     {
         // Try parsing top-level declarations (functions or global vars)
-        if (parser.current_token.type == BAA_TOKEN_FUNC) {
-            BaaFunction* func = parse_function(&parser);
-            if (func) {
-                BaaNode* func_node = baa_create_node(BAA_NODE_FUNCTION, func);
-                if (func_node) {
+        if (parser.current_token.type == BAA_TOKEN_FUNC)
+        {
+            BaaFunction *func = parse_function(&parser);
+            if (func)
+            {
+                BaaNode *func_node = baa_create_node(BAA_NODE_FUNCTION, func);
+                if (func_node)
+                {
                     func->ast_node = func_node; // Link function back to node
                     baa_add_node_to_program(program, func_node);
-                } else {
+                }
+                else
+                {
                     baa_free_function(func); // Cleanup if node creation fails
                     parser.had_error = true; // Signal error
                 }
@@ -798,7 +851,8 @@ BaaProgram *baa_parse(const wchar_t *input, const wchar_t *filename)
         }
         // TODO: Add support for top-level variable declarations if needed
         // else if (parser.current_token.type == BAA_TOKEN_VAR) { ... }
-        else {
+        else
+        {
             // If it's not a known top-level declaration, report error or skip
             baa_unexpected_token_error(&parser, L"تصريح دالة أو نهاية الملف");
             // Attempt error recovery
@@ -807,21 +861,26 @@ BaaProgram *baa_parse(const wchar_t *input, const wchar_t *filename)
 
         if (parser.had_error)
         {
-            if (!parser.panic_mode) {
+            if (!parser.panic_mode)
+            {
                 // Report error details if needed
                 parser.panic_mode = true; // Enter panic mode after first error
             }
             // Attempt to recover or break
-             synchronize(&parser);
-             if (parser.current_token.type == BAA_TOKEN_EOF) break; // Stop if EOF reached after error
-        } else {
-             parser.panic_mode = false; // Reset panic mode on successful parse
+            synchronize(&parser);
+            if (parser.current_token.type == BAA_TOKEN_EOF)
+                break; // Stop if EOF reached after error
+        }
+        else
+        {
+            parser.panic_mode = false; // Reset panic mode on successful parse
         }
     }
 
     baa_free_lexer(lexer);
 
-    if (parser.had_error) {
+    if (parser.had_error)
+    {
         baa_free_program(program);
         return NULL;
     }
@@ -882,12 +941,13 @@ BaaStmt *baa_parse_statement(BaaParser *parser)
         {
             baa_set_parser_error(parser, L"توقع كتلة نصية لـ if");
             baa_free_expression(condition);
-            if(if_body_stmt) baa_free_stmt(if_body_stmt);
+            if (if_body_stmt)
+                baa_free_stmt(if_body_stmt);
             return NULL;
         }
-        if_body = (BaaBlock*)if_body_stmt->data; // Extract block data
-        if_body_stmt->data = NULL; // Prevent double free
-        baa_free(if_body_stmt); // Free wrapper stmt
+        if_body = (BaaBlock *)if_body_stmt->data; // Extract block data
+        if_body_stmt->data = NULL;                // Prevent double free
+        baa_free(if_body_stmt);                   // Free wrapper stmt
 
         skip_whitespace(parser);
 
@@ -895,43 +955,52 @@ BaaStmt *baa_parse_statement(BaaParser *parser)
         if (match_keyword(parser, L"وإلا")) // Assuming 'وإلا' is 'else'
         {
             skip_whitespace(parser);
-            if (match_keyword(parser, L"لو")) { // Else if
-                 BaaStmt* else_if_stmt = baa_parse_if(parser); // Recursive call
-                 if (!else_if_stmt) {
-                     baa_free_expression(condition);
-                     baa_free_block(if_body);
-                     return NULL;
-                 }
-                 // Wrap the 'else if' statement in a block for consistency
-                 else_body = baa_create_block();
-                 if (!else_body || !baa_add_stmt_to_block(else_body, else_if_stmt)) {
-                      baa_set_parser_error(parser, L"فشل في إنشاء كتلة لـ else if");
-                      baa_free_expression(condition);
-                      baa_free_block(if_body);
-                      baa_free_stmt(else_if_stmt);
-                      if (else_body) baa_free_block(else_body);
-                      return NULL;
-                 }
-            } else if (expect_char(parser, L'{')) { // Else block
-                 BaaStmt *else_body_stmt = parse_block(parser); // Changed type to BaaStmt*
-                 if (!else_body_stmt || else_body_stmt->kind != BAA_STMT_BLOCK)
-                 {
-                     baa_set_parser_error(parser, L"توقع كتلة نصية لـ else");
-                     baa_free_expression(condition);
-                     baa_free_block(if_body);
-                     if(else_body_stmt) baa_free_stmt(else_body_stmt);
-                     return NULL;
-                 }
-                 else_body = (BaaBlock*)else_body_stmt->data; // Extract block data
-                 else_body_stmt->data = NULL; // Prevent double free
-                 baa_free(else_body_stmt); // Free wrapper stmt
-             } else {
-                 // Error: expected '{' after 'else'
-                 baa_unexpected_token_error(parser, L"{");
-                 baa_free_expression(condition);
-                 baa_free_block(if_body);
-                 return NULL;
-             }
+            if (match_keyword(parser, L"لو"))
+            {                                                 // Else if
+                BaaStmt *else_if_stmt = baa_parse_if(parser); // Recursive call
+                if (!else_if_stmt)
+                {
+                    baa_free_expression(condition);
+                    baa_free_block(if_body);
+                    return NULL;
+                }
+                // Wrap the 'else if' statement in a block for consistency
+                else_body = baa_create_block();
+                if (!else_body || !baa_add_stmt_to_block(else_body, else_if_stmt))
+                {
+                    baa_set_parser_error(parser, L"فشل في إنشاء كتلة لـ else if");
+                    baa_free_expression(condition);
+                    baa_free_block(if_body);
+                    baa_free_stmt(else_if_stmt);
+                    if (else_body)
+                        baa_free_block(else_body);
+                    return NULL;
+                }
+            }
+            else if (expect_char(parser, L'{'))
+            {                                                  // Else block
+                BaaStmt *else_body_stmt = parse_block(parser); // Changed type to BaaStmt*
+                if (!else_body_stmt || else_body_stmt->kind != BAA_STMT_BLOCK)
+                {
+                    baa_set_parser_error(parser, L"توقع كتلة نصية لـ else");
+                    baa_free_expression(condition);
+                    baa_free_block(if_body);
+                    if (else_body_stmt)
+                        baa_free_stmt(else_body_stmt);
+                    return NULL;
+                }
+                else_body = (BaaBlock *)else_body_stmt->data; // Extract block data
+                else_body_stmt->data = NULL;                  // Prevent double free
+                baa_free(else_body_stmt);                     // Free wrapper stmt
+            }
+            else
+            {
+                // Error: expected '{' after 'else'
+                baa_unexpected_token_error(parser, L"{");
+                baa_free_expression(condition);
+                baa_free_block(if_body);
+                return NULL;
+            }
         }
 
         // Create if statement
@@ -940,8 +1009,10 @@ BaaStmt *baa_parse_statement(BaaParser *parser)
         {
             // Error handling: free condition, if_body, else_body
             baa_free_expression(condition);
-            if (if_body) baa_free_block(if_body);
-            if (else_body) baa_free_block(else_body);
+            if (if_body)
+                baa_free_block(if_body);
+            if (else_body)
+                baa_free_block(else_body);
             return NULL;
         }
 
@@ -951,8 +1022,9 @@ BaaStmt *baa_parse_statement(BaaParser *parser)
     // Parse while loop
     if (match_keyword(parser, L"طالما"))
     {
-        BaaStmt* while_stmt = baa_parse_while(parser);
-        if (!while_stmt) return NULL;
+        BaaStmt *while_stmt = baa_parse_while(parser);
+        if (!while_stmt)
+            return NULL;
 
         // Node creation should happen in the main parse loop or caller
         // if this statement can appear top-level, otherwise it's
@@ -1011,36 +1083,19 @@ static void baa_add_child(BaaNode *parent, BaaNode *child)
     // For now, we're just setting the parent-child relationship.
 }
 
-BaaBlock *baa_create_block(void)
-{
-    BaaBlock *block = baa_malloc(sizeof(BaaBlock));
-    if (!block)
-    {
-        return NULL;
-    }
-
-    // Initialize the block
-    block->statements = NULL;
-    block->count = 0;
-    block->capacity = 0;
-
-    // Remove AST node creation from here
-    // The AST node should wrap the BaaStmt of kind BAA_STMT_BLOCK
-
-    return block;
-}
-
 // Helper to add a node to a program
 static void baa_add_node_to_program(BaaProgram *program, BaaNode *node)
 {
-    if (!program || !node) return;
+    if (!program || !node)
+        return;
 
     // Set parent link
     node->parent = program->ast_node; // Link to the program's AST node
 
     // Add function specifically if it's a function node
-    if (node->kind == BAA_NODE_FUNCTION && node->data) {
-        baa_add_function_to_program(program, (BaaFunction*)node->data);
+    if (node->kind == BAA_NODE_FUNCTION && node->data)
+    {
+        baa_add_function_to_program(program, (BaaFunction *)node->data);
     }
     // TODO: Handle top-level statements if allowed
 }

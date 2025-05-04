@@ -1,0 +1,152 @@
+#ifndef BAA_PREPROCESSOR_INTERNAL_H
+#define BAA_PREPROCESSOR_INTERNAL_H
+
+#include "baa/preprocessor/preprocessor.h" // Include public header (for BaaMacro, baa_preprocess signature)
+#include "baa/utils/utils.h"               // For BaaBool, etc. if needed, or maybe include specific headers
+#include <wchar.h>
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <stdarg.h>
+#include <ctype.h> // For expression evaluator
+
+// Platform specific includes needed by utils/core
+#ifdef _WIN32
+#include <windows.h>
+#include <direct.h> // _getcwd
+#define PATH_SEPARATOR '\\'
+#define MAX_PATH_LEN MAX_PATH
+#else
+#include <unistd.h> // getcwd
+#include <limits.h> // PATH_MAX
+#include <libgen.h> // dirname
+#define PATH_SEPARATOR '/'
+#define MAX_PATH_LEN PATH_MAX
+#endif
+
+// --- Struct Definitions ---
+
+// Structure to hold preprocessor state
+// Define the struct fully here for internal use. The public header only has a forward declaration.
+struct BaaPreprocessor {
+    const char **include_paths;
+    size_t include_path_count;
+    char **open_files_stack;
+    size_t open_files_count;
+    size_t open_files_capacity;
+    BaaMacro *macros;
+    size_t macro_count;
+    size_t macro_capacity;
+    bool *conditional_stack;
+    size_t conditional_stack_count;
+    size_t conditional_stack_capacity;
+    bool *conditional_branch_taken_stack;
+    size_t conditional_branch_taken_stack_count;
+    size_t conditional_branch_taken_stack_capacity;
+    bool skipping_lines;
+    const BaaMacro **expanding_macros_stack;
+    size_t expanding_macros_count;
+    size_t expanding_macros_capacity;
+    const char *current_file_path;
+    size_t current_line_number;
+}; // Note: No typedef name here
+
+// Dynamic Buffer for Output
+typedef struct
+{
+    wchar_t *buffer;
+    size_t length;
+    size_t capacity;
+} DynamicWcharBuffer;
+
+// Token types for the expression evaluator
+typedef enum
+{
+    PP_EXPR_TOKEN_EOF,
+    PP_EXPR_TOKEN_ERROR,
+    PP_EXPR_TOKEN_INT_LITERAL,
+    PP_EXPR_TOKEN_IDENTIFIER,
+    PP_EXPR_TOKEN_DEFINED,
+    PP_EXPR_TOKEN_LPAREN,
+    PP_EXPR_TOKEN_RPAREN,
+    PP_EXPR_TOKEN_PLUS,
+    PP_EXPR_TOKEN_MINUS,
+    PP_EXPR_TOKEN_STAR,
+    PP_EXPR_TOKEN_SLASH,
+    PP_EXPR_TOKEN_PERCENT,
+    PP_EXPR_TOKEN_EQEQ,
+    PP_EXPR_TOKEN_BANGEQ,
+    PP_EXPR_TOKEN_LT,
+    PP_EXPR_TOKEN_GT,
+    PP_EXPR_TOKEN_LTEQ,
+    PP_EXPR_TOKEN_GTEQ,
+    PP_EXPR_TOKEN_AMPAMP,
+    PP_EXPR_TOKEN_PIPEPIPE,
+    PP_EXPR_TOKEN_BANG,
+} PpExprTokenType;
+
+// Token structure for expression evaluator
+typedef struct
+{
+    PpExprTokenType type;
+    wchar_t *text;
+    long value;
+} PpExprToken;
+
+// Tokenizer state for expression evaluator
+typedef struct
+{
+    const wchar_t *current;
+    const wchar_t *start;
+    BaaPreprocessor *pp_state; // Now points to the struct, not the typedef
+    const char *abs_path;
+    wchar_t **error_message;
+} PpExprTokenizer;
+
+// --- Function Declarations (Internal Interface) ---
+
+// From preprocessor_utils.c
+bool init_dynamic_buffer(DynamicWcharBuffer *db, size_t initial_capacity);
+bool append_to_dynamic_buffer(DynamicWcharBuffer *db, const wchar_t *str_to_append);
+bool append_dynamic_buffer_n(DynamicWcharBuffer *db, const wchar_t *str_to_append, size_t n);
+void free_dynamic_buffer(DynamicWcharBuffer *db);
+wchar_t *wcsndup_internal(const wchar_t *s, size_t n); // Renamed to avoid potential conflicts if wcsndup exists
+wchar_t *read_file_content_utf16le(BaaPreprocessor *pp_state, const char *file_path, wchar_t **error_message);
+char *get_absolute_path(const char *file_path);
+char *get_directory_part(const char *file_path);
+wchar_t *format_preprocessor_error_with_context(BaaPreprocessor *pp_state, const wchar_t *format, ...);
+wchar_t *format_preprocessor_error(const wchar_t *format, ...);
+bool push_file_stack(BaaPreprocessor *pp, const char *abs_path);
+void pop_file_stack(BaaPreprocessor *pp);
+void free_file_stack(BaaPreprocessor *pp);
+
+// From preprocessor_macros.c
+bool add_macro(BaaPreprocessor *pp_state, const wchar_t *name, const wchar_t *body, bool is_function_like, size_t param_count, wchar_t **param_names);
+const BaaMacro *find_macro(const BaaPreprocessor *pp_state, const wchar_t *name);
+bool undefine_macro(BaaPreprocessor *pp_state, const wchar_t *name);
+void free_macros(BaaPreprocessor *pp);
+
+// From preprocessor_expansion.c
+bool push_macro_expansion(BaaPreprocessor *pp_state, const BaaMacro *macro);
+void pop_macro_expansion(BaaPreprocessor *pp_state);
+bool is_macro_expanding(const BaaPreprocessor *pp_state, const BaaMacro *macro);
+void free_macro_expansion_stack(BaaPreprocessor *pp_state);
+wchar_t **parse_macro_arguments(BaaPreprocessor *pp_state, const wchar_t **invocation_ptr_ref, size_t expected_arg_count, size_t *actual_arg_count, wchar_t **error_message);
+bool substitute_macro_body(BaaPreprocessor *pp_state, DynamicWcharBuffer *output_buffer, const BaaMacro *macro, wchar_t **arguments, size_t arg_count, wchar_t **error_message);
+bool stringify_argument(BaaPreprocessor *pp_state, DynamicWcharBuffer *output_buffer, const wchar_t *argument, wchar_t **error_message);
+
+// From preprocessor_conditionals.c
+bool push_conditional(BaaPreprocessor *pp_state, bool condition_met);
+bool pop_conditional(BaaPreprocessor *pp_state);
+void update_skipping_state(BaaPreprocessor *pp_state);
+void free_conditional_stack(BaaPreprocessor *pp);
+
+// From preprocessor_expr_eval.c
+bool evaluate_preprocessor_expression(BaaPreprocessor *pp_state, const wchar_t *expression, bool *value, wchar_t **error_message, const char *abs_path);
+
+// From preprocessor_core.c
+wchar_t *process_file(BaaPreprocessor *pp_state, const char *file_path, wchar_t **error_message);
+
+#endif // BAA_PREPROCESSOR_INTERNAL_H
