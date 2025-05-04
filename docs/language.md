@@ -369,14 +369,14 @@ Repeats a statement/block as long as a condition is true.
 #### 6.4.2 `for` Loop
 
 Provides initialization, condition, and post-iteration expressions for controlled looping.
-*   **Syntax:** `من_أجل '(' init_expr? '.' condition_expr? '.' incr_expr? ')' statement_or_block` - *[Partial - AST/Parsing exists, uses '.' separators. Semantics?]*.
+*   **Syntax:** `من_أجل '(' init_expr? ';' condition_expr? ';' incr_expr? ')' statement_or_block` - *[Implemented - Note: Uses semicolons ';', not dots '.' as separators inside parentheses]*.
 *   **Components:**
     *   `init_expr`: Evaluated once before the loop.
     *   `condition_expr`: Evaluated before each iteration. Loop continues if true.
     *   `incr_expr`: Evaluated after each iteration.
 ```baa
-// Example - Syntax needs verification against parser
-من_أجل (عدد_صحيح i = 0. i < 10. i++.) {
+// Example - Note the use of semicolons inside the parentheses
+من_أجل (عدد_صحيح i = 0; i < 10; i++) {
     اطبع(i).
 }
 ```
@@ -411,10 +411,10 @@ Skips the remainder of the current iteration of the innermost enclosing loop (`w
 Unconditional jump to a labeled statement within the same function.
 *   **Syntax:** `اذهب identifier '.'` and `identifier ':' statement` - *[Planned]*.
 
-### 6.6 `switch` Statement (Partial)
+### 6.6 `switch` Statement
 
 Selects a block of code to execute based on the value of an expression.
-*   **Syntax:** `اختر '(' expression ')' '{' case_group* '}'` - *[Partial - AST/Parsing exists, semantics?]*.
+*   **Syntax:** `اختر '(' expression ')' '{' case_group* '}'` - *[Implemented]*.
 *   **`case_group`:** Consists of one or more `حالة constant_expression ':'` labels or a `افتراضي ':'` (default) label, followed by statements. Execution falls through cases unless `توقف` is used.
 ```baa
 // Example - Syntax/Semantics need verification

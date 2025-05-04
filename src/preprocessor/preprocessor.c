@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdarg.h>
+#include <ctype.h> // For isdigit in expression evaluator
 
 // TODO: Include necessary headers for file operations, path manipulation
 #ifdef _WIN32
@@ -19,31 +20,48 @@
 #define MAX_PATH_LEN PATH_MAX
 #endif
 
+// --- Dynamic Buffer for Output ---
+
+typedef struct
+{
+    wchar_t *buffer;
+    size_t length;
+    size_t capacity;
+} DynamicWcharBuffer;
+
+bool init_dynamic_buffer(DynamicWcharBuffer *db, size_t initial_capacity);
+bool append_to_dynamic_buffer(DynamicWcharBuffer *db, const wchar_t *str_to_append);
+bool append_dynamic_buffer_n(DynamicWcharBuffer *db, const wchar_t *str_to_append, size_t n);
+void free_dynamic_buffer(DynamicWcharBuffer *db);
+
 // Implementation of wcsndup for Windows compatibility
 static wchar_t *wcsndup(const wchar_t *s, size_t n)
 {
     wchar_t *result = (wchar_t *)malloc((n + 1) * sizeof(wchar_t));
     if (result)
     {
+#ifdef _WIN32
+        wcsncpy_s(result, n + 1, s, n);
+#else
         wcsncpy(result, s, n);
         result[n] = L'\0';
+#endif
     }
     return result;
 }
 
 // Forward declarations for static functions
-// Updated add_macro signature
 static bool add_macro(BaaPreprocessor *pp_state, const wchar_t *name, const wchar_t *body, bool is_function_like, size_t param_count, wchar_t **param_names);
 static const BaaMacro *find_macro(const BaaPreprocessor *pp_state, const wchar_t *name);
-static bool undefine_macro(BaaPreprocessor *pp_state, const wchar_t *name); // Added for #undef
-static bool push_conditional(BaaPreprocessor *pp_state, bool is_active);    // Added for #ifdef
-static bool pop_conditional(BaaPreprocessor *pp_state);                     // Added for #endif
-static void update_skipping_state(BaaPreprocessor *pp_state);               // Added for conditional state
-void free_conditional_stack(BaaPreprocessor *pp);                           // Added for cleanup
+static bool undefine_macro(BaaPreprocessor *pp_state, const wchar_t *name);
+static bool push_conditional(BaaPreprocessor *pp_state, bool is_active);
+static bool pop_conditional(BaaPreprocessor *pp_state);
+static void update_skipping_state(BaaPreprocessor *pp_state);
+void free_conditional_stack(BaaPreprocessor *pp);
 
 // --- Preprocessor Expression Evaluation ---
-// Placeholder for now. Returns true on success, false on error. Result is in 'value'.
-static bool evaluate_preprocessor_expression(BaaPreprocessor *pp_state, const wchar_t* expression, bool* value, wchar_t** error_message, const char* abs_path);
+// Updated signature: removed abs_path parameter
+static bool evaluate_preprocessor_expression(BaaPreprocessor *pp_state, const wchar_t *expression, bool *value, wchar_t **error_message);
 
 // --- Macro Expansion Stack Helpers ---
 static bool push_macro_expansion(BaaPreprocessor *pp_state, const BaaMacro *macro);
@@ -52,14 +70,140 @@ static bool is_macro_expanding(const BaaPreprocessor *pp_state, const BaaMacro *
 static void free_macro_expansion_stack(BaaPreprocessor *pp_state);
 
 // Forward declaration for argument parsing
-static wchar_t **parse_macro_arguments(const wchar_t **invocation_ptr_ref, size_t expected_arg_count, size_t *actual_arg_count, wchar_t **error_message, const char *abs_path);
+static wchar_t **parse_macro_arguments(BaaPreprocessor *pp_state, const wchar_t **invocation_ptr_ref, size_t expected_arg_count, size_t *actual_arg_count, wchar_t **error_message);
 
 // Forward declaration for substitution
-static bool substitute_macro_body(DynamicWcharBuffer *output_buffer, const BaaMacro *macro, wchar_t **arguments, size_t arg_count, wchar_t **error_message, const char *abs_path);
+static bool substitute_macro_body(BaaPreprocessor *pp_state, DynamicWcharBuffer *output_buffer, const BaaMacro *macro, wchar_t **arguments, size_t arg_count, wchar_t **error_message);
+
+// Forward declaration for stringification helper
+static bool stringify_argument(BaaPreprocessor *pp_state, DynamicWcharBuffer *output_buffer, const wchar_t *argument, wchar_t **error_message);
+
+// Forward declaration for file reading
+static wchar_t *read_file_content_utf16le(BaaPreprocessor *pp_state, const char *file_path, wchar_t **error_message);
 
 // --- Helper Functions ---
 
-// Helper to format error messages (similar to make_error_token)
+// Helper to format error messages *with* file/line context
+// Prepends "filepath:line: error: " to the message.
+wchar_t *format_preprocessor_error_with_context(BaaPreprocessor *pp_state, const wchar_t *format, ...)
+{
+    // Prepare the prefix
+    // Estimate buffer size: path len + ~10 for line num + ~20 for ": error: " + null
+    size_t prefix_base_len = wcslen(L":%zu: خطأ: ");
+    size_t path_len = pp_state->current_file_path ? strlen(pp_state->current_file_path) : strlen("(unknown file)");
+    size_t prefix_buffer_size = path_len + prefix_base_len + 20; // Extra space for line number digits
+    char *prefix_mb = malloc(prefix_buffer_size);
+    if (!prefix_mb)
+    {
+        // Fallback if prefix allocation fails - return original format attempt
+        // This is suboptimal but better than crashing.
+        va_list args_fallback;
+        va_start(args_fallback, format);
+        // Determine required size for original format
+        va_list args_copy_fallback;
+        va_copy(args_copy_fallback, args_fallback);
+        int needed_fallback = vswprintf(NULL, 0, format, args_copy_fallback);
+        va_end(args_copy_fallback);
+        if (needed_fallback < 0)
+        {
+            va_end(args_fallback);
+            return wcsdup(L"فشل في تنسيق رسالة الخطأ (وفشل تخصيص البادئة).");
+        }
+        size_t buffer_size_fallback = (size_t)needed_fallback + 1;
+        wchar_t *buffer_fallback = malloc(buffer_size_fallback * sizeof(wchar_t));
+        if (!buffer_fallback)
+        {
+            va_end(args_fallback);
+            return wcsdup(L"فشل في تنسيق رسالة الخطأ (وفشل تخصيص البادئة والمخزن المؤقت).");
+        }
+        vswprintf(buffer_fallback, buffer_size_fallback, format, args_fallback);
+        va_end(args_fallback);
+        return buffer_fallback;
+    }
+
+    snprintf(prefix_mb, prefix_buffer_size, "%hs:%zu: خطأ: ",
+             pp_state->current_file_path ? pp_state->current_file_path : "(unknown file)",
+             pp_state->current_line_number);
+
+    // Convert prefix to wchar_t
+    wchar_t *prefix_w = NULL;
+    int required_wchars = MultiByteToWideChar(CP_UTF8, 0, prefix_mb, -1, NULL, 0);
+    if (required_wchars > 0)
+    {
+        prefix_w = malloc(required_wchars * sizeof(wchar_t));
+        if (prefix_w)
+        {
+            MultiByteToWideChar(CP_UTF8, 0, prefix_mb, -1, prefix_w, required_wchars);
+        }
+    }
+    free(prefix_mb); // Free the multibyte prefix buffer
+
+    if (!prefix_w)
+    {
+        // Fallback if prefix conversion fails - similar to allocation failure above
+        va_list args_fallback;
+        va_start(args_fallback, format);
+        va_list args_copy_fallback;
+        va_copy(args_copy_fallback, args_fallback);
+        int needed_fallback = vswprintf(NULL, 0, format, args_copy_fallback);
+        va_end(args_copy_fallback);
+        if (needed_fallback < 0)
+        {
+            va_end(args_fallback);
+            return wcsdup(L"فشل في تنسيق رسالة الخطأ (وفشل تحويل البادئة).");
+        }
+        size_t buffer_size_fallback = (size_t)needed_fallback + 1;
+        wchar_t *buffer_fallback = malloc(buffer_size_fallback * sizeof(wchar_t));
+        if (!buffer_fallback)
+        {
+            va_end(args_fallback);
+            return wcsdup(L"فشل في تنسيق رسالة الخطأ (وفشل تحويل البادئة والمخزن المؤقت).");
+        }
+        vswprintf(buffer_fallback, buffer_size_fallback, format, args_fallback);
+        va_end(args_fallback);
+        return buffer_fallback;
+    }
+
+    // Now format the user's message part
+    va_list args;
+    va_start(args, format);
+    va_list args_copy;
+    va_copy(args_copy, args);
+    int needed_msg = vswprintf(NULL, 0, format, args_copy);
+    va_end(args_copy);
+
+    if (needed_msg < 0)
+    {
+        va_end(args);
+        free(prefix_w);
+        return wcsdup(L"فشل في تنسيق جزء الرسالة من خطأ المعالج المسبق."); // Basic fallback
+    }
+
+    // Combine prefix and message
+    size_t prefix_len = wcslen(prefix_w);
+    size_t msg_len = (size_t)needed_msg;
+    size_t total_len = prefix_len + msg_len;
+    wchar_t *final_buffer = malloc((total_len + 1) * sizeof(wchar_t));
+
+    if (!final_buffer)
+    {
+        va_end(args);
+        free(prefix_w);
+        return wcsdup(L"فشل في تخصيص الذاكرة لرسالة خطأ المعالج المسبق الكاملة."); // Basic fallback
+    }
+
+    // Copy prefix
+    wcscpy(final_buffer, prefix_w);
+    free(prefix_w); // Free the wide prefix buffer now
+
+    // Append formatted message
+    vswprintf(final_buffer + prefix_len, msg_len + 1, format, args);
+    va_end(args);
+
+    return final_buffer;
+}
+
+// Original error formatter (without context) - kept for potential use where context is unavailable
 wchar_t *format_preprocessor_error(const wchar_t *format, ...)
 {
     va_list args;
@@ -76,7 +220,12 @@ wchar_t *format_preprocessor_error(const wchar_t *format, ...)
         va_end(args);
         // Fallback error message
         const wchar_t *fallback = L"فشل في تنسيق رسالة خطأ المعالج المسبق.";
-        wchar_t *error_msg = wcsdup(fallback);
+        wchar_t *error_msg;
+#ifdef _WIN32
+        error_msg = _wcsdup(fallback);
+#else
+        error_msg = wcsdup(fallback);
+#endif
         return error_msg;
     }
 
@@ -86,7 +235,12 @@ wchar_t *format_preprocessor_error(const wchar_t *format, ...)
     {
         va_end(args);
         const wchar_t *fallback = L"فشل في تخصيص الذاكرة لرسالة خطأ المعالج المسبق.";
-        wchar_t *error_msg = wcsdup(fallback);
+        wchar_t *error_msg;
+#ifdef _WIN32
+        error_msg = _wcsdup(fallback);
+#else
+        error_msg = wcsdup(fallback);
+#endif
         return error_msg; // Allocation failed
     }
 
@@ -99,7 +253,7 @@ wchar_t *format_preprocessor_error(const wchar_t *format, ...)
 // Reads the content of a UTF-16LE encoded file.
 // Returns a dynamically allocated wchar_t* string (caller must free).
 // Returns NULL on error and sets error_message.
-static wchar_t *read_file_content_utf16le(const char *file_path, wchar_t **error_message)
+static wchar_t *read_file_content_utf16le(BaaPreprocessor *pp_state, const char *file_path, wchar_t **error_message)
 {
     *error_message = NULL;
     FILE *file = NULL;
@@ -111,13 +265,14 @@ static wchar_t *read_file_content_utf16le(const char *file_path, wchar_t **error
     int required_wchars = MultiByteToWideChar(CP_UTF8, 0, file_path, -1, NULL, 0);
     if (required_wchars <= 0)
     {
-        *error_message = format_preprocessor_error(L"فشل في تحويل مسار الملف '%hs' إلى UTF-16.", file_path);
+        // Context might not be fully set here if this is the *first* file, but attempt anyway.
+        *error_message = format_preprocessor_error_with_context(pp_state, L"فشل في تحويل مسار الملف '%hs' إلى UTF-16.", file_path);
         return NULL;
     }
     wchar_t *w_file_path = malloc(required_wchars * sizeof(wchar_t));
     if (!w_file_path)
     {
-        *error_message = format_preprocessor_error(L"فشل في تخصيص الذاكرة لمسار الملف (UTF-16) '%hs'.", file_path);
+        *error_message = format_preprocessor_error_with_context(pp_state, L"فشل في تخصيص الذاكرة لمسار الملف (UTF-16) '%hs'.", file_path);
         return NULL;
     }
     MultiByteToWideChar(CP_UTF8, 0, file_path, -1, w_file_path, required_wchars);
@@ -130,7 +285,7 @@ static wchar_t *read_file_content_utf16le(const char *file_path, wchar_t **error
 
     if (!file)
     {
-        *error_message = format_preprocessor_error(L"فشل في فتح الملف '%hs'.", file_path);
+        *error_message = format_preprocessor_error_with_context(pp_state, L"فشل في فتح الملف '%hs'.", file_path);
         return NULL;
     }
 
@@ -138,7 +293,7 @@ static wchar_t *read_file_content_utf16le(const char *file_path, wchar_t **error
     unsigned char bom[2];
     if (fread(bom, 1, 2, file) != 2)
     {
-        *error_message = format_preprocessor_error(L"فشل في قراءة BOM من الملف '%hs'.", file_path);
+        *error_message = format_preprocessor_error_with_context(pp_state, L"فشل في قراءة BOM من الملف '%hs'.", file_path);
         fclose(file);
         return NULL;
     }
@@ -147,11 +302,11 @@ static wchar_t *read_file_content_utf16le(const char *file_path, wchar_t **error
         // Check for UTF-16BE BOM (0xFE, 0xFF) - specific error?
         if (bom[0] == 0xFE && bom[1] == 0xFF)
         {
-            *error_message = format_preprocessor_error(L"الملف '%hs' يستخدم ترميز UTF-16BE (Big Endian)، مطلوب UTF-16LE (Little Endian).", file_path);
+            *error_message = format_preprocessor_error_with_context(pp_state, L"الملف '%hs' يستخدم ترميز UTF-16BE (Big Endian)، مطلوب UTF-16LE (Little Endian).", file_path);
         }
         else
         {
-            *error_message = format_preprocessor_error(L"الملف '%hs' ليس UTF-16LE (BOM غير موجود أو غير صحيح).", file_path);
+            *error_message = format_preprocessor_error_with_context(pp_state, L"الملف '%hs' ليس UTF-16LE (BOM غير موجود أو غير صحيح).", file_path);
         }
         fclose(file);
         return NULL;
@@ -169,7 +324,7 @@ static wchar_t *read_file_content_utf16le(const char *file_path, wchar_t **error
         buffer = malloc(sizeof(wchar_t)); // Allocate space for null terminator
         if (!buffer)
         {
-            *error_message = format_preprocessor_error(L"فشل في تخصيص الذاكرة لملف فارغ (بعد BOM) '%hs'.", file_path);
+            *error_message = format_preprocessor_error_with_context(pp_state, L"فشل في تخصيص الذاكرة لملف فارغ (بعد BOM) '%hs'.", file_path);
             return NULL;
         }
         buffer[0] = L'\0';
@@ -179,7 +334,7 @@ static wchar_t *read_file_content_utf16le(const char *file_path, wchar_t **error
     long content_size_bytes = file_size_bytes - 2;
     if (content_size_bytes % sizeof(wchar_t) != 0)
     {
-        *error_message = format_preprocessor_error(L"حجم محتوى الملف '%hs' (بعد BOM) ليس من مضاعفات حجم wchar_t.", file_path);
+        *error_message = format_preprocessor_error_with_context(pp_state, L"حجم محتوى الملف '%hs' (بعد BOM) ليس من مضاعفات حجم wchar_t.", file_path);
         fclose(file);
         return NULL;
     }
@@ -190,7 +345,7 @@ static wchar_t *read_file_content_utf16le(const char *file_path, wchar_t **error
     buffer = malloc((num_wchars + 1) * sizeof(wchar_t));
     if (!buffer)
     {
-        *error_message = format_preprocessor_error(L"فشل في تخصيص الذاكرة لمحتوى الملف '%hs'.", file_path);
+        *error_message = format_preprocessor_error_with_context(pp_state, L"فشل في تخصيص الذاكرة لمحتوى الملف '%hs'.", file_path);
         fclose(file);
         return NULL;
     }
@@ -199,7 +354,7 @@ static wchar_t *read_file_content_utf16le(const char *file_path, wchar_t **error
     size_t bytes_read = fread(buffer, 1, content_size_bytes, file);
     if (bytes_read != (size_t)content_size_bytes)
     {
-        *error_message = format_preprocessor_error(L"فشل في قراءة محتوى الملف بالكامل من '%hs'.", file_path);
+        *error_message = format_preprocessor_error_with_context(pp_state, L"فشل في قراءة محتوى الملف بالكامل من '%hs'.", file_path);
         free(buffer);
         fclose(file);
         return NULL;
@@ -240,20 +395,26 @@ char *get_absolute_path(const char *file_path)
 // Gets the directory part of a file path. Returns allocated string (caller frees) or NULL.
 char *get_directory_part(const char *file_path)
 {
+#ifdef _WIN32
+    char *path_copy = _strdup(file_path);
+#else
     char *path_copy = strdup(file_path);
+#endif
     if (!path_copy)
         return NULL;
 
 #ifdef _WIN32
     char drive[_MAX_DRIVE];
     char dir[_MAX_DIR];
-    _splitpath(path_copy, drive, dir, NULL, NULL);
+    errno_t err = _splitpath_s(path_copy, drive, _MAX_DRIVE, dir, _MAX_DIR, NULL, 0, NULL, 0);
     free(path_copy);
+    if (err != 0)
+        return NULL;
     char *dir_part = malloc((strlen(drive) + strlen(dir) + 1) * sizeof(char));
     if (!dir_part)
         return NULL;
-    strcpy(dir_part, drive);
-    strcat(dir_part, dir);
+    strcpy_s(dir_part, strlen(drive) + 1, drive);
+    strcat_s(dir_part, strlen(drive) + strlen(dir) + 1, dir);
     // Remove trailing separator if present and not just root
     size_t len = strlen(dir_part);
     if (len > 0 && (dir_part[len - 1] == '\\' || dir_part[len - 1] == '/'))
@@ -271,15 +432,6 @@ char *get_directory_part(const char *file_path)
     return dir_part;
 #endif
 }
-
-// --- Dynamic Buffer for Output ---
-
-typedef struct
-{
-    wchar_t *buffer;
-    size_t length;
-    size_t capacity;
-} DynamicWcharBuffer;
 
 bool init_dynamic_buffer(DynamicWcharBuffer *db, size_t initial_capacity)
 {
@@ -314,7 +466,11 @@ bool append_to_dynamic_buffer(DynamicWcharBuffer *db, const wchar_t *str_to_appe
         db->buffer = new_buffer;
         db->capacity = new_capacity;
     }
+#ifdef _WIN32
+    wcscat_s(db->buffer, db->capacity, str_to_append);
+#else
     wcscat(db->buffer, str_to_append);
+#endif
     db->length += append_len;
     return true;
 }
@@ -501,38 +657,56 @@ static wchar_t *process_file(BaaPreprocessor *pp_state, const char *file_path, w
 {
     *error_message = NULL;
 
+    // Store previous context for restoration after include
+    const char *prev_file_path = pp_state->current_file_path;
+    size_t prev_line_number = pp_state->current_line_number;
+
     char *abs_path = get_absolute_path(file_path);
     if (!abs_path)
     {
         *error_message = format_preprocessor_error(L"فشل في الحصول على المسار المطلق للملف '%hs'.", file_path);
+        // Restore context before returning on error
+        pp_state->current_file_path = prev_file_path;
+        pp_state->current_line_number = prev_line_number;
         return NULL;
     }
+
+    // Set current context for this file
+    pp_state->current_file_path = abs_path; // Use the allocated absolute path
+    pp_state->current_line_number = 1;      // Start at line 1
 
     // 1. Circular Include Check
     if (!push_file_stack(pp_state, abs_path))
     {
-        *error_message = format_preprocessor_error(L"تم اكتشاف تضمين دائري: الملف '%hs' مضمن بالفعل.", abs_path);
+        *error_message = format_preprocessor_error_with_context(pp_state, L"تم اكتشاف تضمين دائري: الملف '%hs' مضمن بالفعل.", abs_path);
         free(abs_path);
+        pp_state->current_file_path = prev_file_path; // Restore before returning
+        pp_state->current_line_number = prev_line_number;
         return NULL;
     }
 
     // 2. Read File Content
-    wchar_t *file_content = read_file_content_utf16le(abs_path, error_message);
+    wchar_t *file_content = read_file_content_utf16le(pp_state, abs_path, error_message);
     if (!file_content)
     {
-        // error_message should be set by read_file_content_utf16le
+        // error_message should be set by read_file_content_utf16le (will be updated next)
+        // TODO: Ensure error message includes file/line context if possible
         pop_file_stack(pp_state); // Pop before returning error
         free(abs_path);
+        pp_state->current_file_path = prev_file_path; // Restore before returning
+        pp_state->current_line_number = prev_line_number;
         return NULL;
     }
 
     DynamicWcharBuffer output_buffer;
     if (!init_dynamic_buffer(&output_buffer, wcslen(file_content) + 1024))
     { // Initial capacity
-        *error_message = format_preprocessor_error(L"فشل في تخصيص الذاكرة لمخزن الإخراج المؤقت للملف '%hs'.", abs_path);
+        *error_message = format_preprocessor_error_with_context(pp_state, L"فشل في تخصيص الذاكرة لمخزن الإخراج المؤقت.");
         free(file_content);
         pop_file_stack(pp_state);
         free(abs_path);
+        pp_state->current_file_path = prev_file_path; // Restore before returning
+        pp_state->current_line_number = prev_line_number;
         return NULL;
     }
 
@@ -564,7 +738,7 @@ static wchar_t *process_file(BaaPreprocessor *pp_state, const char *file_path, w
         wchar_t *current_line = wcsndup(line_start, line_len);
         if (!current_line)
         {
-            *error_message = format_preprocessor_error(L"فشل في تخصيص الذاكرة لسطر في الملف '%hs'.", abs_path);
+            *error_message = format_preprocessor_error_with_context(pp_state, L"فشل في تخصيص الذاكرة لسطر.");
             success = false;
             break;
         }
@@ -591,7 +765,6 @@ static wchar_t *process_file(BaaPreprocessor *pp_state, const char *file_path, w
             const wchar_t *if_directive = L"#إذا"; // Keyword for #if
             size_t if_directive_len = wcslen(if_directive);
 
-
             bool is_conditional_directive = false;
 
             // --- Process Conditional Directives FIRST, regardless of skipping state ---
@@ -601,20 +774,30 @@ static wchar_t *process_file(BaaPreprocessor *pp_state, const char *file_path, w
                 is_conditional_directive = true;
                 // Found #إذا (#if) directive
                 wchar_t *expr_start = current_line + if_directive_len;
-                while (iswspace(*expr_start)) expr_start++; // Skip space
+                while (iswspace(*expr_start))
+                    expr_start++; // Skip space
 
-                if (*expr_start == L'\0') {
-                    *error_message = format_preprocessor_error(L"تنسيق #إذا غير صالح في الملف '%hs': التعبير مفقود.", abs_path);
+                if (*expr_start == L'\0')
+                {
+                    *error_message = format_preprocessor_error_with_context(pp_state, L"تنسيق #إذا غير صالح: التعبير مفقود.");
                     success = false;
-                } else {
+                }
+                else
+                {
                     bool expr_value = false;
-                    // TODO: Implement evaluate_preprocessor_expression
-                    if (!evaluate_preprocessor_expression(pp_state, expr_start, &expr_value, error_message, abs_path)) {
-                        // Error message should be set by evaluator
+                    // TODO: Pass pp_state to evaluate_preprocessor_expression and update its error reporting
+                    if (!evaluate_preprocessor_expression(pp_state, expr_start, &expr_value, error_message))
+                    {
+                        // Error message should be set by evaluator (needs update)
+                        if (!*error_message) // Set a generic one if evaluator didn't
+                            *error_message = format_preprocessor_error_with_context(pp_state, L"خطأ في تقييم تعبير #إذا.");
                         success = false;
-                    } else {
-                        if (!push_conditional(pp_state, expr_value)) {
-                            *error_message = format_preprocessor_error(L"فشل في دفع الحالة الشرطية لـ #إذا في '%hs'.", abs_path);
+                    }
+                    else
+                    {
+                        if (!push_conditional(pp_state, expr_value))
+                        {
+                            *error_message = format_preprocessor_error_with_context(pp_state, L"فشل في دفع الحالة الشرطية لـ #إذا (نفاد الذاكرة؟).");
                             success = false;
                         }
                     }
@@ -635,7 +818,7 @@ static wchar_t *process_file(BaaPreprocessor *pp_state, const char *file_path, w
 
                 if (name_start == name_end)
                 {
-                    *error_message = format_preprocessor_error(L"تنسيق #إذا_عرف غير صالح في الملف '%hs': اسم الماكرو مفقود.", abs_path);
+                    *error_message = format_preprocessor_error_with_context(pp_state, L"تنسيق #إذا_عرف غير صالح: اسم الماكرو مفقود.");
                     success = false;
                 }
                 else
@@ -644,7 +827,7 @@ static wchar_t *process_file(BaaPreprocessor *pp_state, const char *file_path, w
                     wchar_t *macro_name = wcsndup(name_start, name_len);
                     if (!macro_name)
                     {
-                        *error_message = format_preprocessor_error(L"فشل في تخصيص ذاكرة لاسم الماكرو في #إذا_عرف في '%hs'.", abs_path);
+                        *error_message = format_preprocessor_error_with_context(pp_state, L"فشل في تخصيص ذاكرة لاسم الماكرو في #إذا_عرف.");
                         success = false;
                     }
                     else
@@ -652,7 +835,7 @@ static wchar_t *process_file(BaaPreprocessor *pp_state, const char *file_path, w
                         bool is_defined = (find_macro(pp_state, macro_name) != NULL);
                         if (!push_conditional(pp_state, is_defined))
                         {
-                            *error_message = format_preprocessor_error(L"فشل في دفع الحالة الشرطية لـ #إذا_عرف في '%hs'.", abs_path);
+                            *error_message = format_preprocessor_error_with_context(pp_state, L"فشل في دفع الحالة الشرطية لـ #إذا_عرف (نفاد الذاكرة؟).");
                             success = false;
                         }
                         free(macro_name);
@@ -674,7 +857,7 @@ static wchar_t *process_file(BaaPreprocessor *pp_state, const char *file_path, w
 
                 if (name_start == name_end)
                 {
-                    *error_message = format_preprocessor_error(L"تنسيق #إذا_لم_يعرف غير صالح في الملف '%hs': اسم الماكرو مفقود.", abs_path);
+                    *error_message = format_preprocessor_error_with_context(pp_state, L"تنسيق #إذا_لم_يعرف غير صالح: اسم الماكرو مفقود.");
                     success = false;
                 }
                 else
@@ -683,7 +866,7 @@ static wchar_t *process_file(BaaPreprocessor *pp_state, const char *file_path, w
                     wchar_t *macro_name = wcsndup(name_start, name_len);
                     if (!macro_name)
                     {
-                        *error_message = format_preprocessor_error(L"فشل في تخصيص ذاكرة لاسم الماكرو في #إذا_لم_يعرف في '%hs'.", abs_path);
+                        *error_message = format_preprocessor_error_with_context(pp_state, L"فشل في تخصيص ذاكرة لاسم الماكرو في #إذا_لم_يعرف.");
                         success = false;
                     }
                     else
@@ -692,7 +875,7 @@ static wchar_t *process_file(BaaPreprocessor *pp_state, const char *file_path, w
                         // Push the *negated* definition status
                         if (!push_conditional(pp_state, !is_defined))
                         {
-                            *error_message = format_preprocessor_error(L"فشل في دفع الحالة الشرطية لـ #إذا_لم_يعرف في '%hs'.", abs_path);
+                            *error_message = format_preprocessor_error_with_context(pp_state, L"فشل في دفع الحالة الشرطية لـ #إذا_لم_يعرف (نفاد الذاكرة؟).");
                             success = false;
                         }
                         free(macro_name);
@@ -707,7 +890,7 @@ static wchar_t *process_file(BaaPreprocessor *pp_state, const char *file_path, w
                 // Found #نهاية_إذا directive
                 if (!pop_conditional(pp_state))
                 {
-                    *error_message = format_preprocessor_error(L"#نهاية_إذا بدون #إذا_عرف مطابق في الملف '%hs'.", abs_path);
+                    *error_message = format_preprocessor_error_with_context(pp_state, L"#نهاية_إذا بدون #إذا/#إذا_عرف/#إذا_لم_يعرف مطابق.");
                     success = false;
                 }
                 // Directive processed, don't append to output
@@ -719,7 +902,7 @@ static wchar_t *process_file(BaaPreprocessor *pp_state, const char *file_path, w
                 // Found #إلا directive
                 if (pp_state->conditional_stack_count == 0)
                 {
-                    *error_message = format_preprocessor_error(L"#إلا بدون #إذا_عرف مطابق في الملف '%hs'.", abs_path);
+                    *error_message = format_preprocessor_error_with_context(pp_state, L"#إلا بدون #إذا/#إذا_عرف/#إذا_لم_يعرف مطابق.");
                     success = false;
                 }
                 else
@@ -749,7 +932,7 @@ static wchar_t *process_file(BaaPreprocessor *pp_state, const char *file_path, w
                 // Found #وإلا_إذا (#elif) directive
                 if (pp_state->conditional_stack_count == 0)
                 {
-                    *error_message = format_preprocessor_error(L"#وإلا_إذا بدون #إذا_عرف مطابق في الملف '%hs'.", abs_path);
+                    *error_message = format_preprocessor_error_with_context(pp_state, L"#وإلا_إذا بدون #إذا/#إذا_عرف/#إذا_لم_يعرف مطابق.");
                     success = false;
                 }
                 else
@@ -773,27 +956,32 @@ static wchar_t *process_file(BaaPreprocessor *pp_state, const char *file_path, w
 
                         if (name_start == name_end)
                         {
-                            *error_message = format_preprocessor_error(L"تنسيق #وإلا_إذا غير صالح في الملف '%hs': اسم الماكرو مفقود.", abs_path);
+                            *error_message = format_preprocessor_error_with_context(pp_state, L"تنسيق #وإلا_إذا غير صالح: التعبير مفقود.");
                             success = false;
                         }
                         else
                         {
                             size_t name_len = name_end - name_start;
-                            wchar_t *macro_name = wcsndup(name_start, name_len);
+                            wchar_t *macro_name = wcsndup(name_start, name_len); // Temporary for error message if needed
                             if (!macro_name)
                             {
-                                *error_message = format_preprocessor_error(L"فشل في تخصيص ذاكرة لاسم الماكرو في #وإلا_إذا في '%hs'.", abs_path);
+                                *error_message = format_preprocessor_error_with_context(pp_state, L"فشل في تخصيص ذاكرة لاسم الماكرو في #وإلا_إذا.");
                                 success = false;
                             }
                             else
                             {
                                 // Evaluate the condition using the new expression evaluator
                                 bool condition_met = false;
-                                // TODO: Implement evaluate_preprocessor_expression
-                                if (!evaluate_preprocessor_expression(pp_state, name_start, &condition_met, error_message, abs_path)) {
-                                    // Error message should be set by evaluator
+                                // TODO: Pass pp_state to evaluate_preprocessor_expression and update its error reporting
+                                if (!evaluate_preprocessor_expression(pp_state, name_start, &condition_met, error_message))
+                                {
+                                    // Error message should be set by evaluator (needs update)
+                                    if (!*error_message) // Set a generic one if evaluator didn't
+                                        *error_message = format_preprocessor_error_with_context(pp_state, L"خطأ في تقييم تعبير #وإلا_إذا.");
                                     success = false;
-                                } else {
+                                }
+                                else
+                                {
                                     // Proceed with the evaluated condition
                                     if (condition_met)
                                     {
@@ -808,7 +996,7 @@ static wchar_t *process_file(BaaPreprocessor *pp_state, const char *file_path, w
                                         // Don't mark branch taken yet
                                     }
                                 }
-                                free(macro_name); // Free the duplicated name (still needed for error messages potentially)
+                                free(macro_name); // Free the temporary name
                                 // Original defined() check removed, now uses expression evaluator
                                 /* Old logic:
                                 if (condition_met)
@@ -866,7 +1054,7 @@ static wchar_t *process_file(BaaPreprocessor *pp_state, const char *file_path, w
                     }
                     else
                     {
-                        *error_message = format_preprocessor_error(L"تنسيق #تضمين غير صالح في الملف '%hs': يجب أن يتبع اسم الملف بـ \" أو <.", abs_path);
+                        *error_message = format_preprocessor_error_with_context(pp_state, L"تنسيق #تضمين غير صالح: يجب أن يتبع اسم الملف بـ \" أو <.");
                         success = false;
                     }
 
@@ -875,7 +1063,7 @@ static wchar_t *process_file(BaaPreprocessor *pp_state, const char *file_path, w
                         size_t include_path_len = path_end - path_start;
                         if (include_path_len == 0)
                         {
-                            *error_message = format_preprocessor_error(L"تنسيق #تضمين غير صالح في الملف '%hs': مسار الملف فارغ.", abs_path);
+                            *error_message = format_preprocessor_error_with_context(pp_state, L"تنسيق #تضمين غير صالح: مسار الملف فارغ.");
                             success = false;
                         }
                         else
@@ -883,7 +1071,7 @@ static wchar_t *process_file(BaaPreprocessor *pp_state, const char *file_path, w
                             wchar_t *include_path_w = wcsndup(path_start, include_path_len);
                             if (!include_path_w)
                             {
-                                *error_message = format_preprocessor_error(L"فشل في تخصيص ذاكرة لمسار التضمين في '%hs'.", abs_path);
+                                *error_message = format_preprocessor_error_with_context(pp_state, L"فشل في تخصيص ذاكرة لمسار التضمين.");
                                 success = false;
                             }
                             else
@@ -900,13 +1088,13 @@ static wchar_t *process_file(BaaPreprocessor *pp_state, const char *file_path, w
                                     }
                                     else
                                     {
-                                        *error_message = format_preprocessor_error(L"فشل في تخصيص ذاكرة لمسار التضمين (MB) في '%hs'.", abs_path);
+                                        *error_message = format_preprocessor_error_with_context(pp_state, L"فشل في تخصيص ذاكرة لمسار التضمين (MB).");
                                         success = false;
                                     }
                                 }
                                 else
                                 {
-                                    *error_message = format_preprocessor_error(L"فشل في تحويل مسار التضمين إلى UTF-8 في '%hs'.", abs_path);
+                                    *error_message = format_preprocessor_error_with_context(pp_state, L"فشل في تحويل مسار التضمين إلى UTF-8.");
                                     success = false;
                                 }
 
@@ -921,8 +1109,14 @@ static wchar_t *process_file(BaaPreprocessor *pp_state, const char *file_path, w
                                         {
                                             char temp_path[MAX_PATH_LEN];
                                             snprintf(temp_path, MAX_PATH_LEN, "%s%c%s", pp_state->include_paths[i], PATH_SEPARATOR, include_path_mb);
-                                            FILE *test_file = fopen(temp_path, "rb"); // Test existence
+                                            FILE *test_file = NULL;
+#ifdef _WIN32
+                                            errno_t err = fopen_s(&test_file, temp_path, "rb"); // Test existence
+                                            if (test_file && err == 0)
+#else
+                                            test_file = fopen(temp_path, "rb"); // Test existence
                                             if (test_file)
+#endif
                                             {
                                                 fclose(test_file);
                                                 full_include_path = strdup(temp_path);
@@ -932,17 +1126,17 @@ static wchar_t *process_file(BaaPreprocessor *pp_state, const char *file_path, w
                                         }
                                         if (!found)
                                         {
-                                            *error_message = format_preprocessor_error(L"تعذر العثور على ملف التضمين '%hs' في مسارات التضمين.", include_path_mb);
+                                            *error_message = format_preprocessor_error_with_context(pp_state, L"تعذر العثور على ملف التضمين '<%hs>' في مسارات التضمين.", include_path_mb);
                                             success = false;
                                         }
                                     }
                                     else
                                     {
                                         // Relative path: combine with current file's directory
-                                        char *current_dir = get_directory_part(abs_path);
+                                        char *current_dir = get_directory_part(pp_state->current_file_path); // Use current file path from state
                                         if (!current_dir)
                                         {
-                                            *error_message = format_preprocessor_error(L"فشل في الحصول على دليل الملف الحالي '%hs'.", abs_path);
+                                            *error_message = format_preprocessor_error_with_context(pp_state, L"فشل في الحصول على دليل الملف الحالي.");
                                             success = false;
                                         }
                                         else
@@ -968,17 +1162,20 @@ static wchar_t *process_file(BaaPreprocessor *pp_state, const char *file_path, w
                                             // Append result to output buffer
                                             if (!append_to_dynamic_buffer(&output_buffer, included_content))
                                             {
-                                                *error_message = format_preprocessor_error(L"فشل في إلحاق المحتوى المضمن من '%hs' بمخزن الإخراج المؤقت.", full_include_path);
+                                                // Error message from recursive call might be more specific, but provide a fallback
+                                                if (!*error_message)
+                                                    *error_message = format_preprocessor_error_with_context(pp_state, L"فشل في إلحاق المحتوى المضمن من '%hs'.", full_include_path);
                                                 success = false;
                                             }
                                             free(included_content);
                                         }
                                     }
-                                    else if (success)
-                                    { // full_include_path was NULL or creation failed
-                                        *error_message = format_preprocessor_error(L"فشل في بناء المسار الكامل لملف التضمين '%hs'.", include_path_mb);
+                                    else if (success && !use_include_paths)
+                                    { // full_include_path creation failed only for relative paths here
+                                        *error_message = format_preprocessor_error_with_context(pp_state, L"فشل في بناء المسار الكامل لملف التضمين '\"%hs\"'.", include_path_mb);
                                         success = false;
                                     }
+                                    // 'found' handles the error message for include paths case
                                     free(full_include_path);
                                 }
                                 free(include_path_mb);
@@ -988,7 +1185,7 @@ static wchar_t *process_file(BaaPreprocessor *pp_state, const char *file_path, w
                     }
                     else if (success)
                     { // path_end was NULL
-                        *error_message = format_preprocessor_error(L"تنسيق #تضمين غير صالح في الملف '%hs': علامة الاقتباس أو القوس الختامي مفقود.", abs_path);
+                        *error_message = format_preprocessor_error_with_context(pp_state, L"تنسيق #تضمين غير صالح: علامة الاقتباس أو القوس الختامي مفقود.");
                         success = false;
                     }
                 }
@@ -1009,7 +1206,7 @@ static wchar_t *process_file(BaaPreprocessor *pp_state, const char *file_path, w
 
                     if (name_start == name_end)
                     {
-                        *error_message = format_preprocessor_error(L"تنسيق #تعريف غير صالح في الملف '%hs': اسم الماكرو مفقود.", abs_path);
+                        *error_message = format_preprocessor_error_with_context(pp_state, L"تنسيق #تعريف غير صالح: اسم الماكرو مفقود.");
                         success = false;
                     }
                     else
@@ -1018,7 +1215,7 @@ static wchar_t *process_file(BaaPreprocessor *pp_state, const char *file_path, w
                         wchar_t *macro_name = wcsndup(name_start, name_len);
                         if (!macro_name)
                         {
-                            *error_message = format_preprocessor_error(L"فشل في تخصيص ذاكرة لاسم الماكرو في #تعريف في '%hs'.", abs_path);
+                            *error_message = format_preprocessor_error_with_context(pp_state, L"فشل في تخصيص ذاكرة لاسم الماكرو في #تعريف.");
                             success = false;
                             break; // Exit directive processing for this line
                         }
@@ -1052,7 +1249,7 @@ static wchar_t *process_file(BaaPreprocessor *pp_state, const char *file_path, w
                                 // If not ')', expect an identifier (parameter name)
                                 if (!iswalpha(*param_ptr) && *param_ptr != L'_')
                                 {
-                                    *error_message = format_preprocessor_error(L"تنسيق #تعريف غير صالح في '%hs': متوقع اسم معامل أو ')' بعد '('.", abs_path);
+                                    *error_message = format_preprocessor_error_with_context(pp_state, L"تنسيق #تعريف غير صالح: متوقع اسم معامل أو ')' بعد '('.");
                                     success = false;
                                     break;
                                 }
@@ -1068,7 +1265,7 @@ static wchar_t *process_file(BaaPreprocessor *pp_state, const char *file_path, w
 
                                 if (param_name_len == 0)
                                 { // Should not happen if check above is correct, but safety
-                                    *error_message = format_preprocessor_error(L"تنسيق #تعريف غير صالح في '%hs': اسم معامل فارغ.", abs_path);
+                                    *error_message = format_preprocessor_error_with_context(pp_state, L"تنسيق #تعريف غير صالح: اسم معامل فارغ.");
                                     success = false;
                                     break;
                                 }
@@ -1077,7 +1274,7 @@ static wchar_t *process_file(BaaPreprocessor *pp_state, const char *file_path, w
                                 wchar_t *param_name = wcsndup(param_name_start, param_name_len);
                                 if (!param_name)
                                 {
-                                    *error_message = format_preprocessor_error(L"فشل في تخصيص ذاكرة لاسم المعامل في #تعريف في '%hs'.", abs_path);
+                                    *error_message = format_preprocessor_error_with_context(pp_state, L"فشل في تخصيص ذاكرة لاسم المعامل في #تعريف.");
                                     success = false;
                                     break;
                                 }
@@ -1090,7 +1287,7 @@ static wchar_t *process_file(BaaPreprocessor *pp_state, const char *file_path, w
                                     if (!new_params)
                                     {
                                         free(param_name); // Free the name we just allocated
-                                        *error_message = format_preprocessor_error(L"فشل في إعادة تخصيص الذاكرة لمعاملات الماكرو في #تعريف في '%hs'.", abs_path);
+                                        *error_message = format_preprocessor_error_with_context(pp_state, L"فشل في إعادة تخصيص الذاكرة لمعاملات الماكرو في #تعريف.");
                                         success = false;
                                         break;
                                     }
@@ -1115,7 +1312,7 @@ static wchar_t *process_file(BaaPreprocessor *pp_state, const char *file_path, w
                                 }
                                 else
                                 {
-                                    *error_message = format_preprocessor_error(L"تنسيق #تعريف غير صالح في '%hs': متوقع ',' أو ')' بعد اسم المعامل.", abs_path);
+                                    *error_message = format_preprocessor_error_with_context(pp_state, L"تنسيق #تعريف غير صالح: متوقع ',' أو ')' بعد اسم المعامل.");
                                     success = false;
                                     break;
                                 }
@@ -1155,7 +1352,7 @@ static wchar_t *process_file(BaaPreprocessor *pp_state, const char *file_path, w
                             if (!add_macro(pp_state, macro_name, body_start, is_function_like, param_count, params))
                             {
                                 // add_macro should free params if it fails internally after taking ownership
-                                *error_message = format_preprocessor_error(L"فشل في إضافة تعريف الماكرو '%ls' في الملف '%hs'. قد يكون بسبب خطأ في الذاكرة.", macro_name, abs_path);
+                                *error_message = format_preprocessor_error_with_context(pp_state, L"فشل في إضافة تعريف الماكرو '%ls' (نفاد الذاكرة؟).", macro_name);
                                 success = false;
                                 // If add_macro failed but we allocated params, they should be freed by add_macro
                                 params = NULL; // Ensure we don't double-free if add_macro failed early
@@ -1186,7 +1383,7 @@ static wchar_t *process_file(BaaPreprocessor *pp_state, const char *file_path, w
 
                     if (name_start == name_end)
                     {
-                        *error_message = format_preprocessor_error(L"تنسيق #الغاء_تعريف غير صالح في الملف '%hs': اسم الماكرو مفقود.", abs_path);
+                        *error_message = format_preprocessor_error_with_context(pp_state, L"تنسيق #الغاء_تعريف غير صالح: اسم الماكرو مفقود.");
                         success = false;
                     }
                     else
@@ -1195,7 +1392,7 @@ static wchar_t *process_file(BaaPreprocessor *pp_state, const char *file_path, w
                         wchar_t *macro_name = wcsndup(name_start, name_len);
                         if (!macro_name)
                         {
-                            *error_message = format_preprocessor_error(L"فشل في تخصيص ذاكرة لاسم الماكرو في #الغاء_تعريف في '%hs'.", abs_path);
+                            *error_message = format_preprocessor_error_with_context(pp_state, L"فشل في تخصيص ذاكرة لاسم الماكرو في #الغاء_تعريف.");
                             success = false;
                         }
                         else
@@ -1216,7 +1413,7 @@ static wchar_t *process_file(BaaPreprocessor *pp_state, const char *file_path, w
                     if (success && !append_to_dynamic_buffer(&output_buffer, L"\n"))
                         success = false;
                     if (!success && !*error_message)
-                        *error_message = format_preprocessor_error(L"فشل في إلحاق السطر بمخزن الإخراج المؤقت في '%hs'.", abs_path);
+                        *error_message = format_preprocessor_error_with_context(pp_state, L"فشل في إلحاق السطر بمخزن الإخراج المؤقت.");
                 }
             }
             // If it was a conditional directive OR we are skipping, we do nothing further with this line.
@@ -1227,7 +1424,7 @@ static wchar_t *process_file(BaaPreprocessor *pp_state, const char *file_path, w
             DynamicWcharBuffer substituted_line_buffer;
             if (!init_dynamic_buffer(&substituted_line_buffer, line_len + 64))
             { // Initial capacity estimate
-                *error_message = format_preprocessor_error(L"فشل في تخصيص الذاكرة لمخزن السطر المؤقت للاستبدال في '%hs'.", abs_path);
+                *error_message = format_preprocessor_error_with_context(pp_state, L"فشل في تخصيص الذاكرة لمخزن السطر المؤقت للاستبدال.");
                 success = false;
             }
             else
@@ -1247,7 +1444,7 @@ static wchar_t *process_file(BaaPreprocessor *pp_state, const char *file_path, w
                         wchar_t *identifier = wcsndup(id_start, id_len);
                         if (!identifier)
                         {
-                            *error_message = format_preprocessor_error(L"فشل في تخصيص ذاكرة للمعرف للاستبدال في '%hs'.", abs_path);
+                            *error_message = format_preprocessor_error_with_context(pp_state, L"فشل في تخصيص ذاكرة للمعرف للاستبدال.");
                             success = false;
                             break;
                         }
@@ -1257,7 +1454,7 @@ static wchar_t *process_file(BaaPreprocessor *pp_state, const char *file_path, w
                             // --- Recursion Check ---
                             if (is_macro_expanding(pp_state, macro))
                             {
-                                *error_message = format_preprocessor_error(L"تم اكتشاف استدعاء ذاتي للماكرو '%ls' في '%hs'.", macro->name, abs_path);
+                                *error_message = format_preprocessor_error_with_context(pp_state, L"تم اكتشاف استدعاء ذاتي للماكرو '%ls'.", macro->name);
                                 success = false;
                                 free(identifier); // Free identifier before breaking
                                 break;
@@ -1266,7 +1463,7 @@ static wchar_t *process_file(BaaPreprocessor *pp_state, const char *file_path, w
                             // --- Push macro onto expansion stack ---
                             if (!push_macro_expansion(pp_state, macro))
                             {
-                                *error_message = format_preprocessor_error(L"فشل في دفع الماكرو '%ls' إلى مكدس التوسيع في '%hs'.", macro->name, abs_path);
+                                *error_message = format_preprocessor_error_with_context(pp_state, L"فشل في دفع الماكرو '%ls' إلى مكدس التوسيع (نفاد الذاكرة؟).", macro->name);
                                 success = false;
                                 free(identifier);
                                 break;
@@ -1289,11 +1486,13 @@ static wchar_t *process_file(BaaPreprocessor *pp_state, const char *file_path, w
                                     // const wchar_t* args_start_ptr = invocation_ptr; // Save start for advancing line_ptr
 
                                     size_t actual_arg_count = 0;
-                                    wchar_t **arguments = parse_macro_arguments(&invocation_ptr, macro->param_count, &actual_arg_count, error_message, abs_path);
+                                    wchar_t **arguments = parse_macro_arguments(pp_state, &invocation_ptr, macro->param_count, &actual_arg_count, error_message);
 
                                     if (!arguments)
                                     {
-                                        // Error occurred during argument parsing
+                                        // Error occurred during argument parsing (needs update)
+                                        if (!*error_message)
+                                            *error_message = format_preprocessor_error_with_context(pp_state, L"خطأ في تحليل وسيطات الماكرو '%ls'.", macro->name);
                                         success = false;
                                     }
                                     else
@@ -1301,15 +1500,18 @@ static wchar_t *process_file(BaaPreprocessor *pp_state, const char *file_path, w
                                         // Check argument count
                                         if (actual_arg_count != macro->param_count)
                                         {
-                                            *error_message = format_preprocessor_error(L"عدد وسيطات غير صحيح للماكرو '%ls' في '%hs' (متوقع %zu، تم الحصول على %zu).",
-                                                                                       macro->name, abs_path, macro->param_count, actual_arg_count);
+                                            *error_message = format_preprocessor_error_with_context(pp_state, L"عدد وسيطات غير صحيح للماكرو '%ls' (متوقع %zu، تم الحصول على %zu).",
+                                                                                                    macro->name, macro->param_count, actual_arg_count);
                                             success = false;
                                         }
                                         else
                                         {
                                             // Perform substitution
-                                            if (!substitute_macro_body(&substituted_line_buffer, macro, arguments, actual_arg_count, error_message, abs_path))
+                                            if (!substitute_macro_body(pp_state, &substituted_line_buffer, macro, arguments, actual_arg_count, error_message))
                                             {
+                                                // Error during substitution
+                                                if (!*error_message)
+                                                    *error_message = format_preprocessor_error_with_context(pp_state, L"خطأ أثناء استبدال نص الماكرو '%ls'.", macro->name);
                                                 success = false;
                                             }
                                         }
@@ -1336,8 +1538,11 @@ static wchar_t *process_file(BaaPreprocessor *pp_state, const char *file_path, w
                             else
                             {
                                 // Simple object-like macro substitution
-                                if (!substitute_macro_body(&substituted_line_buffer, macro, NULL, 0, error_message, abs_path))
+                                if (!substitute_macro_body(pp_state, &substituted_line_buffer, macro, NULL, 0, error_message))
                                 {
+                                    // Error during substitution
+                                    if (!*error_message)
+                                        *error_message = format_preprocessor_error_with_context(pp_state, L"خطأ أثناء استبدال نص الماكرو '%ls'.", macro->name);
                                     expansion_success = false;
                                 }
                             }
@@ -1379,14 +1584,15 @@ static wchar_t *process_file(BaaPreprocessor *pp_state, const char *file_path, w
             if (success && !append_to_dynamic_buffer(&output_buffer, L"\n"))
                 success = false; // Append newline
             if (!success && !*error_message)
-                *error_message = format_preprocessor_error(L"فشل في إلحاق السطر بمخزن الإخراج المؤقت في '%hs'.", abs_path);
+                *error_message = format_preprocessor_error_with_context(pp_state, L"فشل في إلحاق السطر بمخزن الإخراج المؤقت.");
         }
 
         free(current_line); // Free the duplicated line
 
         if (line_end != NULL)
         {
-            line_start = line_end + 1; // Move to the next line
+            line_start = line_end + 1;       // Move to the next line
+            pp_state->current_line_number++; // Increment line number
         }
         else
         {
@@ -1401,14 +1607,18 @@ static wchar_t *process_file(BaaPreprocessor *pp_state, const char *file_path, w
         free(file_content);
         pop_file_stack(pp_state);
         free(abs_path);
+        pp_state->current_file_path = prev_file_path; // Restore before returning
+        pp_state->current_line_number = prev_line_number;
         return NULL;
     }
 
     free(file_content); // Original content buffer no longer needed
 
-    // 4. Clean up stack for this file
+    // 4. Clean up stack and restore context for this file
     pop_file_stack(pp_state);
-    free(abs_path);
+    free(abs_path); // Free the absolute path string we allocated
+    pp_state->current_file_path = prev_file_path;
+    pp_state->current_line_number = prev_line_number;
 
     // Return the final concatenated buffer (ownership transferred)
     return output_buffer.buffer;
@@ -1419,14 +1629,14 @@ static wchar_t *process_file(BaaPreprocessor *pp_state, const char *file_path, w
 // Helper function to convert an argument to a string literal, escaping necessary characters.
 // Appends the result (including quotes) to output_buffer.
 // Returns true on success, false on error.
-static bool stringify_argument(DynamicWcharBuffer *output_buffer, const wchar_t *argument, wchar_t **error_message, const char *abs_path)
+static bool stringify_argument(BaaPreprocessor *pp_state, DynamicWcharBuffer *output_buffer, const wchar_t *argument, wchar_t **error_message)
 {
     // Estimate needed capacity: quotes + original length + potential escapes
     size_t initial_capacity = wcslen(argument) + 10; // Add some buffer for escapes + quotes
     DynamicWcharBuffer temp_buffer;
     if (!init_dynamic_buffer(&temp_buffer, initial_capacity))
     {
-        *error_message = format_preprocessor_error(L"فشل في تخصيص ذاكرة مؤقتة لتسلسل الوسيطة في '%hs'.", abs_path);
+        *error_message = format_preprocessor_error_with_context(pp_state, L"فشل في تخصيص ذاكرة مؤقتة لتسلسل الوسيطة.");
         return false;
     }
 
@@ -1473,7 +1683,7 @@ static bool stringify_argument(DynamicWcharBuffer *output_buffer, const wchar_t 
     {
         if (!append_to_dynamic_buffer(output_buffer, temp_buffer.buffer))
         {
-            *error_message = format_preprocessor_error(L"فشل في إلحاق الوسيطة المتسلسلة للمخرج في '%hs'.", abs_path);
+            *error_message = format_preprocessor_error_with_context(pp_state, L"فشل في إلحاق الوسيطة المتسلسلة للمخرج.");
             success = false;
         }
     }
@@ -1488,7 +1698,7 @@ static bool stringify_argument(DynamicWcharBuffer *output_buffer, const wchar_t 
 // Returns NULL on error and sets error_message.
 // NOTE: This is a simplified implementation. It doesn't handle nested parentheses,
 //       commas inside strings/chars, or complex whitespace correctly yet.
-static wchar_t **parse_macro_arguments(const wchar_t **invocation_ptr_ref, size_t expected_arg_count, size_t *actual_arg_count, wchar_t **error_message, const char *abs_path)
+static wchar_t **parse_macro_arguments(BaaPreprocessor *pp_state, const wchar_t **invocation_ptr_ref, size_t expected_arg_count, size_t *actual_arg_count, wchar_t **error_message)
 {
     *actual_arg_count = 0;
     *error_message = NULL;
@@ -1521,7 +1731,7 @@ static wchar_t **parse_macro_arguments(const wchar_t **invocation_ptr_ref, size_
             }
             else
             {
-                *error_message = format_preprocessor_error(L"تنسيق استدعاء الماكرو غير صالح في '%hs': متوقع ',' أو ')' بين الوسيطات.", abs_path);
+                *error_message = format_preprocessor_error_with_context(pp_state, L"تنسيق استدعاء الماكرو غير صالح: متوقع ',' أو ')' بين الوسيطات.");
                 goto parse_error; // Use goto for cleanup
             }
         }
@@ -1570,7 +1780,7 @@ static wchar_t **parse_macro_arguments(const wchar_t **invocation_ptr_ref, size_
                     paren_level--;
                     if (paren_level < 0)
                     { // Mismatched parentheses
-                        *error_message = format_preprocessor_error(L"تنسيق استدعاء الماكرو غير صالح في '%hs': أقواس غير متطابقة في الوسيطات.", abs_path);
+                        *error_message = format_preprocessor_error_with_context(pp_state, L"تنسيق استدعاء الماكرو غير صالح: أقواس غير متطابقة في الوسيطات.");
                         goto parse_error;
                     }
                 }
@@ -1603,12 +1813,12 @@ static wchar_t **parse_macro_arguments(const wchar_t **invocation_ptr_ref, size_
 
         if (paren_level != 0)
         { // Mismatched parentheses at the end
-            *error_message = format_preprocessor_error(L"تنسيق استدعاء الماكرو غير صالح في '%hs': أقواس غير متطابقة في نهاية الوسيطات.", abs_path);
+            *error_message = format_preprocessor_error_with_context(pp_state, L"تنسيق استدعاء الماكرو غير صالح: أقواس غير متطابقة في نهاية الوسيطات.");
             goto parse_error;
         }
         if (in_string || in_char)
         { // Unterminated literal at the end
-            *error_message = format_preprocessor_error(L"تنسيق استدعاء الماكرو غير صالح في '%hs': علامة اقتباس غير منتهية في الوسيطات.", abs_path);
+            *error_message = format_preprocessor_error_with_context(pp_state, L"تنسيق استدعاء الماكرو غير صالح: علامة اقتباس غير منتهية في الوسيطات.");
             goto parse_error;
         }
 
@@ -1626,7 +1836,7 @@ static wchar_t **parse_macro_arguments(const wchar_t **invocation_ptr_ref, size_
         wchar_t *arg_str = wcsndup(arg_start, arg_len);
         if (!arg_str)
         {
-            *error_message = format_preprocessor_error(L"فشل في تخصيص ذاكرة لوسيطة الماكرو في '%hs'.", abs_path);
+            *error_message = format_preprocessor_error_with_context(pp_state, L"فشل في تخصيص ذاكرة لوسيطة الماكرو.");
             goto parse_error;
         }
 
@@ -1638,7 +1848,7 @@ static wchar_t **parse_macro_arguments(const wchar_t **invocation_ptr_ref, size_
             if (!new_args)
             {
                 free(arg_str);
-                *error_message = format_preprocessor_error(L"فشل في إعادة تخصيص الذاكرة لوسيطات الماكرو في '%hs'.", abs_path);
+                *error_message = format_preprocessor_error_with_context(pp_state, L"فشل في إعادة تخصيص الذاكرة لوسيطات الماكرو.");
                 goto parse_error;
             }
             args = new_args;
@@ -1650,7 +1860,7 @@ static wchar_t **parse_macro_arguments(const wchar_t **invocation_ptr_ref, size_
         // ptr should already be pointing at the delimiter (',' or ')') or end of string
         if (*ptr == L'\0')
         { // Reached end of string unexpectedly
-            *error_message = format_preprocessor_error(L"تنسيق استدعاء الماكرو غير صالح في '%hs': قوس الإغلاق ')' مفقود.", abs_path);
+            *error_message = format_preprocessor_error_with_context(pp_state, L"تنسيق استدعاء الماكرو غير صالح: قوس الإغلاق ')' مفقود.");
             goto parse_error;
         }
         // If it was ',', the next loop iteration will consume it.
@@ -1661,7 +1871,7 @@ static wchar_t **parse_macro_arguments(const wchar_t **invocation_ptr_ref, size_
     // Check if we exited loop because of ')'
     if (*(ptr - 1) != L')')
     { // Check the character before the current ptr position
-        *error_message = format_preprocessor_error(L"تنسيق استدعاء الماكرو غير صالح في '%hs': قوس الإغلاق ')' مفقود بعد الوسيطات.", abs_path);
+        *error_message = format_preprocessor_error_with_context(pp_state, L"تنسيق استدعاء الماكرو غير صالح: قوس الإغلاق ')' مفقود بعد الوسيطات.");
         goto parse_error;
     }
 
@@ -1686,7 +1896,7 @@ parse_error:
 // Appends the result to the output_buffer.
 // Returns true on success, false on error (setting error_message).
 // Handles parameter substitution, stringification (#), and token pasting (##).
-static bool substitute_macro_body(DynamicWcharBuffer *output_buffer, const BaaMacro *macro, wchar_t **arguments, size_t arg_count, wchar_t **error_message, const char *abs_path)
+static bool substitute_macro_body(BaaPreprocessor *pp_state, DynamicWcharBuffer *output_buffer, const BaaMacro *macro, wchar_t **arguments, size_t arg_count, wchar_t **error_message)
 {
     const wchar_t *body_ptr = macro->body;
     bool success = true;
@@ -1695,7 +1905,7 @@ static bool substitute_macro_body(DynamicWcharBuffer *output_buffer, const BaaMa
 
     if (!init_dynamic_buffer(&pending_token_buffer, 64))
     {
-        *error_message = format_preprocessor_error(L"فشل في تهيئة المخزن المؤقت للرمز المميز المعلق في '%hs'.", abs_path);
+        *error_message = format_preprocessor_error_with_context(pp_state, L"فشل في تهيئة المخزن المؤقت للرمز المميز المعلق.");
         return false;
     }
 
@@ -1736,7 +1946,7 @@ static bool substitute_macro_body(DynamicWcharBuffer *output_buffer, const BaaMa
             if (!pending_token_active)
             {
                 // ## cannot appear at the start or after whitespace without a preceding token
-                *error_message = format_preprocessor_error(L"المعامل ## يظهر في موقع غير صالح في الماكرو '%ls' في '%hs'.", macro->name, abs_path);
+                *error_message = format_preprocessor_error_with_context(pp_state, L"المعامل ## يظهر في موقع غير صالح في الماكرو '%ls'.", macro->name);
                 success = false;
                 break;
             }
@@ -1748,7 +1958,7 @@ static bool substitute_macro_body(DynamicWcharBuffer *output_buffer, const BaaMa
             // Parse RHS token (must be identifier/parameter for now)
             if (!(iswalpha(*body_ptr) || *body_ptr == L'_'))
             {
-                *error_message = format_preprocessor_error(L"المعامل ## يجب أن يتبعه معرف في الماكرو '%ls' في '%hs'.", macro->name, abs_path);
+                *error_message = format_preprocessor_error_with_context(pp_state, L"المعامل ## يجب أن يتبعه معرف في الماكرو '%ls'.", macro->name);
                 success = false;
                 break;
             }
@@ -1759,7 +1969,7 @@ static bool substitute_macro_body(DynamicWcharBuffer *output_buffer, const BaaMa
             wchar_t *rhs_identifier = wcsndup(rhs_id_start, rhs_id_len);
             if (!rhs_identifier)
             {
-                *error_message = format_preprocessor_error(L"فشل في تخصيص ذاكرة لمعرف RHS لـ ## في '%hs'.", abs_path);
+                *error_message = format_preprocessor_error_with_context(pp_state, L"فشل في تخصيص ذاكرة لمعرف RHS لـ ##.");
                 success = false;
                 break;
             }
@@ -1789,7 +1999,7 @@ static bool substitute_macro_body(DynamicWcharBuffer *output_buffer, const BaaMa
             free(rhs_identifier);
             if (!rhs_value)
             {
-                *error_message = format_preprocessor_error(L"فشل في تخصيص ذاكرة لقيمة RHS لـ ## في '%hs'.", abs_path);
+                *error_message = format_preprocessor_error_with_context(pp_state, L"فشل في تخصيص ذاكرة لقيمة RHS لـ ##.");
                 success = false;
                 break;
             }
@@ -1801,7 +2011,7 @@ static bool substitute_macro_body(DynamicWcharBuffer *output_buffer, const BaaMa
             wchar_t *pasted_token = malloc((combined_len + 1) * sizeof(wchar_t));
             if (!pasted_token)
             {
-                *error_message = format_preprocessor_error(L"فشل في تخصيص ذاكرة للرمز المميز الملصق ## في '%hs'.", abs_path);
+                *error_message = format_preprocessor_error_with_context(pp_state, L"فشل في تخصيص ذاكرة للرمز المميز الملصق ##.");
                 free(rhs_value);
                 success = false;
                 break;
@@ -1818,14 +2028,14 @@ static bool substitute_macro_body(DynamicWcharBuffer *output_buffer, const BaaMa
             free_dynamic_buffer(&pending_token_buffer); // Free old pending buffer
             if (!init_dynamic_buffer(&pending_token_buffer, combined_len + 64))
             { // Re-init with better capacity
-                *error_message = format_preprocessor_error(L"فشل في إعادة تهيئة المخزن المؤقت للرمز المميز المعلق بعد ## في '%hs'.", abs_path);
+                *error_message = format_preprocessor_error_with_context(pp_state, L"فشل في إعادة تهيئة المخزن المؤقت للرمز المميز المعلق بعد ##.");
                 free(pasted_token);
                 success = false;
                 break;
             }
             if (!append_to_dynamic_buffer(&pending_token_buffer, pasted_token))
             {
-                *error_message = format_preprocessor_error(L"فشل في إلحاق الرمز المميز الملصق بالمخزن المؤقت المعلق في '%hs'.", abs_path);
+                *error_message = format_preprocessor_error_with_context(pp_state, L"فشل في إلحاق الرمز المميز الملصق بالمخزن المؤقت المعلق.");
                 free(pasted_token);
                 success = false;
                 break;
@@ -1872,7 +2082,7 @@ static bool substitute_macro_body(DynamicWcharBuffer *output_buffer, const BaaMa
                 wchar_t *identifier = wcsndup(id_start, id_len);
                 if (!identifier)
                 {
-                    *error_message = format_preprocessor_error(L"فشل في تخصيص ذاكرة للمعرف بعد '#' في نص الماكرو '%ls' في '%hs'.", macro->name, abs_path);
+                    *error_message = format_preprocessor_error_with_context(pp_state, L"فشل في تخصيص ذاكرة للمعرف بعد '#' في نص الماكرو '%ls'.", macro->name);
                     success = false;
                     break;
                 }
@@ -1883,9 +2093,12 @@ static bool substitute_macro_body(DynamicWcharBuffer *output_buffer, const BaaMa
                     if (wcscmp(identifier, macro->param_names[i]) == 0)
                     {
                         // Found #param, perform stringification directly into output buffer
-                        if (!stringify_argument(output_buffer, arguments[i], error_message, abs_path))
+                        if (!stringify_argument(pp_state, output_buffer, arguments[i], error_message))
                         {
-                            success = false; // Error message set by helper
+                            // Error message set by helper (needs update)
+                            if (!*error_message)
+                                *error_message = format_preprocessor_error_with_context(pp_state, L"خطأ في تسلسل الوسيطة '%ls' للماكرو '%ls'.", arguments[i], macro->name);
+                            success = false;
                         }
                         param_found = true;
                         break;
@@ -1901,7 +2114,7 @@ static bool substitute_macro_body(DynamicWcharBuffer *output_buffer, const BaaMa
                     // '#' was not followed by a valid parameter name. Treat '#' literally.
                     if (!append_dynamic_buffer_n(output_buffer, operator_ptr, 1))
                     {
-                        *error_message = format_preprocessor_error(L"فشل في إلحاق '#' الحرفية من نص الماكرو '%ls' في '%hs'.", macro->name, abs_path);
+                        *error_message = format_preprocessor_error_with_context(pp_state, L"فشل في إلحاق '#' الحرفية من نص الماكرو '%ls'.", macro->name);
                         success = false;
                         break;
                     }
@@ -1915,7 +2128,7 @@ static bool substitute_macro_body(DynamicWcharBuffer *output_buffer, const BaaMa
                 // '#' not followed by identifier, treat '#' as literal
                 if (!append_dynamic_buffer_n(output_buffer, operator_ptr, 1))
                 {
-                    *error_message = format_preprocessor_error(L"فشل في إلحاق '#' الحرفية من نص الماكرو '%ls' في '%hs'.", macro->name, abs_path);
+                    *error_message = format_preprocessor_error_with_context(pp_state, L"فشل في إلحاق '#' الحرفية من نص الماكرو '%ls'.", macro->name);
                     success = false;
                     break;
                 }
@@ -1935,7 +2148,7 @@ static bool substitute_macro_body(DynamicWcharBuffer *output_buffer, const BaaMa
             wchar_t *identifier = wcsndup(id_start, id_len);
             if (!identifier)
             {
-                *error_message = format_preprocessor_error(L"فشل في تخصيص ذاكرة للمعرف في نص الماكرو '%ls' في '%hs'.", macro->name, abs_path);
+                *error_message = format_preprocessor_error_with_context(pp_state, L"فشل في تخصيص ذاكرة للمعرف في نص الماكرو '%ls'.", macro->name);
                 success = false;
                 break;
             }
@@ -1997,7 +2210,7 @@ static bool substitute_macro_body(DynamicWcharBuffer *output_buffer, const BaaMa
             success = false;
             if (!*error_message)
             { // Set error if not already set
-                *error_message = format_preprocessor_error(L"فشل في إلحاق الرمز المميز المعلق الأخير في الماكرو '%ls' في '%hs'.", macro->name, abs_path);
+                *error_message = format_preprocessor_error_with_context(pp_state, L"فشل في إلحاق الرمز المميز المعلق الأخير في الماكرو '%ls'.", macro->name);
             }
         }
     }
@@ -2160,7 +2373,6 @@ static bool add_macro(BaaPreprocessor *pp_state, const wchar_t *name, const wcha
 
     // Add the new macro
     BaaMacro *new_entry = &pp_state->macros[pp_state->macro_count];
-    BaaMacro *new_entry = &pp_state->macros[pp_state->macro_count];
     new_entry->name = wcsdup(name);
     new_entry->body = wcsdup(body);
     new_entry->is_function_like = is_function_like;
@@ -2254,7 +2466,11 @@ wchar_t *baa_preprocess(const char *main_file_path, const char **include_paths, 
     if (!main_file_path || !error_message)
     {
         if (error_message)
+#ifdef _WIN32
+            *error_message = _wcsdup(L"وسيطات غير صالحة تم تمريرها إلى المعالج المسبق.");
+#else
             *error_message = wcsdup(L"وسيطات غير صالحة تم تمريرها إلى المعالج المسبق.");
+#endif
         return NULL;
     }
     *error_message = NULL; // Initialize error message to NULL
@@ -2289,6 +2505,9 @@ wchar_t *baa_preprocess(const char *main_file_path, const char **include_paths, 
     pp_state.expanding_macros_stack = NULL;
     pp_state.expanding_macros_count = 0;
     pp_state.expanding_macros_capacity = 0;
+    // Initialize error reporting context
+    pp_state.current_file_path = NULL; // Will be set within process_file
+    pp_state.current_line_number = 0;  // Will be set within process_file
     // --- End Initialize ---
 
     // Start recursive processing
@@ -2322,13 +2541,13 @@ wchar_t *baa_preprocess(const char *main_file_path, const char **include_paths, 
     // return NULL;
 }
 
-
 // --- Preprocessor Expression Evaluation Implementation ---
 
 #include <ctype.h> // For isdigit
 
 // Token types for the expression evaluator
-typedef enum {
+typedef enum
+{
     PP_EXPR_TOKEN_EOF,
     PP_EXPR_TOKEN_ERROR,
     PP_EXPR_TOKEN_INT_LITERAL, // Integer literal
@@ -2337,138 +2556,197 @@ typedef enum {
     PP_EXPR_TOKEN_LPAREN,      // (
     PP_EXPR_TOKEN_RPAREN,      // )
     // Operators
-    PP_EXPR_TOKEN_PLUS,        // +
-    PP_EXPR_TOKEN_MINUS,       // -
-    PP_EXPR_TOKEN_STAR,        // *
-    PP_EXPR_TOKEN_SLASH,       // /
-    PP_EXPR_TOKEN_PERCENT,     // %
-    PP_EXPR_TOKEN_EQEQ,        // ==
-    PP_EXPR_TOKEN_BANGEQ,      // !=
-    PP_EXPR_TOKEN_LT,          // <
-    PP_EXPR_TOKEN_GT,          // >
-    PP_EXPR_TOKEN_LTEQ,        // <=
-    PP_EXPR_TOKEN_GTEQ,        // >=
-    PP_EXPR_TOKEN_AMPAMP,      // &&
-    PP_EXPR_TOKEN_PIPEPIPE,    // ||
-    PP_EXPR_TOKEN_BANG,        // !
+    PP_EXPR_TOKEN_PLUS,     // +
+    PP_EXPR_TOKEN_MINUS,    // -
+    PP_EXPR_TOKEN_STAR,     // *
+    PP_EXPR_TOKEN_SLASH,    // /
+    PP_EXPR_TOKEN_PERCENT,  // %
+    PP_EXPR_TOKEN_EQEQ,     // ==
+    PP_EXPR_TOKEN_BANGEQ,   // !=
+    PP_EXPR_TOKEN_LT,       // <
+    PP_EXPR_TOKEN_GT,       // >
+    PP_EXPR_TOKEN_LTEQ,     // <=
+    PP_EXPR_TOKEN_GTEQ,     // >=
+    PP_EXPR_TOKEN_AMPAMP,   // &&
+    PP_EXPR_TOKEN_PIPEPIPE, // ||
+    PP_EXPR_TOKEN_BANG,     // !
     // TODO: Add bitwise operators? &, |, ^, ~, <<, >>
 } PpExprTokenType;
 
 // Token structure
-typedef struct {
+typedef struct
+{
     PpExprTokenType type;
-    wchar_t* text; // For identifiers
+    wchar_t *text; // For identifiers
     long value;    // For integer literals
 } PpExprToken;
 
 // Simple tokenizer state
-typedef struct {
-    const wchar_t* current;
-    const wchar_t* start;
-    BaaPreprocessor* pp_state; // Access to macro definitions
-    const char* abs_path;      // For error reporting
-    wchar_t** error_message;
+typedef struct
+{
+    const wchar_t *current;
+    const wchar_t *start;
+    BaaPreprocessor *pp_state; // Access to macro definitions
+    // const char *abs_path;      // For error reporting - REMOVED
+    wchar_t **error_message;
 } PpExprTokenizer;
 
 // Helper to create an error token
-static PpExprToken make_error_token(PpExprTokenizer* tz, const wchar_t* message) {
-    if (tz->error_message && !*tz->error_message) { // Set error only once
-        *tz->error_message = format_preprocessor_error(message, tz->abs_path);
+static PpExprToken make_error_token(PpExprTokenizer *tz, const wchar_t *message)
+{
+    if (tz->error_message && !*tz->error_message)
+    { // Set error only once
+        // Use the context-aware error formatter now
+        *tz->error_message = format_preprocessor_error_with_context(tz->pp_state, message);
     }
-    return (PpExprToken){ .type = PP_EXPR_TOKEN_ERROR };
+    return (PpExprToken){.type = PP_EXPR_TOKEN_ERROR};
 }
 
 // Helper to create a simple token
-static PpExprToken make_token(PpExprTokenType type) {
-    return (PpExprToken){ .type = type };
+static PpExprToken make_token(PpExprTokenType type)
+{
+    return (PpExprToken){.type = type};
 }
 
 // Helper to create an integer literal token
-static PpExprToken make_int_token(long value) {
-    return (PpExprToken){ .type = PP_EXPR_TOKEN_INT_LITERAL, .value = value };
+static PpExprToken make_int_token(long value)
+{
+    return (PpExprToken){.type = PP_EXPR_TOKEN_INT_LITERAL, .value = value};
 }
 
 // Helper to create an identifier or 'defined' token
-static PpExprToken make_identifier_token(PpExprTokenizer* tz) {
+static PpExprToken make_identifier_token(PpExprTokenizer *tz)
+{
     size_t len = tz->current - tz->start;
-    wchar_t* text = wcsndup(tz->start, len);
-    if (!text) {
+    wchar_t *text = wcsndup(tz->start, len);
+    if (!text)
+    {
         return make_error_token(tz, L"فشل في تخصيص ذاكرة للمعرف في التعبير الشرطي في '%hs'.");
     }
 
     // Check if it's the 'defined' keyword
-    if (wcscmp(text, L"defined") == 0) {
+    if (wcscmp(text, L"defined") == 0)
+    {
         free(text);
         return make_token(PP_EXPR_TOKEN_DEFINED);
     }
 
-    return (PpExprToken){ .type = PP_EXPR_TOKEN_IDENTIFIER, .text = text };
+    return (PpExprToken){.type = PP_EXPR_TOKEN_IDENTIFIER, .text = text};
 }
 
-
 // Skips whitespace
-static void skip_whitespace(PpExprTokenizer* tz) {
-    while (iswspace(*tz->current)) {
+static void skip_whitespace(PpExprTokenizer *tz)
+{
+    while (iswspace(*tz->current))
+    {
         tz->current++;
     }
 }
 
 // Gets the next token from the expression string
-static PpExprToken get_next_pp_expr_token(PpExprTokenizer* tz) {
+static PpExprToken get_next_pp_expr_token(PpExprTokenizer *tz)
+{
     skip_whitespace(tz);
     tz->start = tz->current;
 
-    if (*tz->current == L'\0') return make_token(PP_EXPR_TOKEN_EOF);
+    if (*tz->current == L'\0')
+        return make_token(PP_EXPR_TOKEN_EOF);
 
     // Check for operators and parentheses first
-    switch (*tz->current) {
-        case L'(': tz->current++; return make_token(PP_EXPR_TOKEN_LPAREN);
-        case L')': tz->current++; return make_token(PP_EXPR_TOKEN_RPAREN);
-        case L'+': tz->current++; return make_token(PP_EXPR_TOKEN_PLUS);
-        case L'-': tz->current++; return make_token(PP_EXPR_TOKEN_MINUS);
-        case L'*': tz->current++; return make_token(PP_EXPR_TOKEN_STAR);
-        case L'/': tz->current++; return make_token(PP_EXPR_TOKEN_SLASH);
-        case L'%': tz->current++; return make_token(PP_EXPR_TOKEN_PERCENT);
-        case L'!':
-            if (*(tz->current + 1) == L'=') { tz->current += 2; return make_token(PP_EXPR_TOKEN_BANGEQ); }
-            tz->current++; return make_token(PP_EXPR_TOKEN_BANG);
-        case L'=':
-            if (*(tz->current + 1) == L'=') { tz->current += 2; return make_token(PP_EXPR_TOKEN_EQEQ); }
-            // Single '=' is assignment, invalid in preprocessor expr
-            return make_error_token(tz, L"المعامل '=' غير صالح في التعبير الشرطي في '%hs'.");
-        case L'<':
-            if (*(tz->current + 1) == L'=') { tz->current += 2; return make_token(PP_EXPR_TOKEN_LTEQ); }
-            // TODO: Handle << later if needed
-            tz->current++; return make_token(PP_EXPR_TOKEN_LT);
-        case L'>':
-            if (*(tz->current + 1) == L'=') { tz->current += 2; return make_token(PP_EXPR_TOKEN_GTEQ); }
-            // TODO: Handle >> later if needed
-            tz->current++; return make_token(PP_EXPR_TOKEN_GT);
-        case L'&':
-            if (*(tz->current + 1) == L'&') { tz->current += 2; return make_token(PP_EXPR_TOKEN_AMPAMP); }
-            // TODO: Handle single '&' later if needed
-            return make_error_token(tz, L"المعامل '&' غير مدعوم حاليًا في التعبير الشرطي في '%hs'.");
-        case L'|':
-            if (*(tz->current + 1) == L'|') { tz->current += 2; return make_token(PP_EXPR_TOKEN_PIPEPIPE); }
-             // TODO: Handle single '|' later if needed
-            return make_error_token(tz, L"المعامل '|' غير مدعوم حاليًا في التعبير الشرطي في '%hs'.");
+    switch (*tz->current)
+    {
+    case L'(':
+        tz->current++;
+        return make_token(PP_EXPR_TOKEN_LPAREN);
+    case L')':
+        tz->current++;
+        return make_token(PP_EXPR_TOKEN_RPAREN);
+    case L'+':
+        tz->current++;
+        return make_token(PP_EXPR_TOKEN_PLUS);
+    case L'-':
+        tz->current++;
+        return make_token(PP_EXPR_TOKEN_MINUS);
+    case L'*':
+        tz->current++;
+        return make_token(PP_EXPR_TOKEN_STAR);
+    case L'/':
+        tz->current++;
+        return make_token(PP_EXPR_TOKEN_SLASH);
+    case L'%':
+        tz->current++;
+        return make_token(PP_EXPR_TOKEN_PERCENT);
+    case L'!':
+        if (*(tz->current + 1) == L'=')
+        {
+            tz->current += 2;
+            return make_token(PP_EXPR_TOKEN_BANGEQ);
+        }
+        tz->current++;
+        return make_token(PP_EXPR_TOKEN_BANG);
+    case L'=':
+        if (*(tz->current + 1) == L'=')
+        {
+            tz->current += 2;
+            return make_token(PP_EXPR_TOKEN_EQEQ);
+        }
+        // Single '=' is assignment, invalid in preprocessor expr
+        return make_error_token(tz, L"المعامل '=' غير صالح في التعبير الشرطي في '%hs'.");
+    case L'<':
+        if (*(tz->current + 1) == L'=')
+        {
+            tz->current += 2;
+            return make_token(PP_EXPR_TOKEN_LTEQ);
+        }
+        // TODO: Handle << later if needed
+        tz->current++;
+        return make_token(PP_EXPR_TOKEN_LT);
+    case L'>':
+        if (*(tz->current + 1) == L'=')
+        {
+            tz->current += 2;
+            return make_token(PP_EXPR_TOKEN_GTEQ);
+        }
+        // TODO: Handle >> later if needed
+        tz->current++;
+        return make_token(PP_EXPR_TOKEN_GT);
+    case L'&':
+        if (*(tz->current + 1) == L'&')
+        {
+            tz->current += 2;
+            return make_token(PP_EXPR_TOKEN_AMPAMP);
+        }
+        // TODO: Handle single '&' later if needed
+        return make_error_token(tz, L"المعامل '&' غير مدعوم حاليًا في التعبير الشرطي في '%hs'.");
+    case L'|':
+        if (*(tz->current + 1) == L'|')
+        {
+            tz->current += 2;
+            return make_token(PP_EXPR_TOKEN_PIPEPIPE);
+        }
+        // TODO: Handle single '|' later if needed
+        return make_error_token(tz, L"المعامل '|' غير مدعوم حاليًا في التعبير الشرطي في '%hs'.");
         // TODO: Add cases for other operators like ^, ~
     }
 
     // Check for integer literals
-    if (iswdigit(*tz->current)) {
-        wchar_t* endptr;
+    if (iswdigit(*tz->current))
+    {
+        wchar_t *endptr;
         long value = wcstol(tz->start, &endptr, 10); // Base 10 only for now
-        if (endptr == tz->start) { // Should not happen if iswdigit passed, but safety
-             return make_error_token(tz, L"حرف رقمي غير صالح في التعبير الشرطي في '%hs'.");
+        if (endptr == tz->start)
+        { // Should not happen if iswdigit passed, but safety
+            return make_error_token(tz, L"حرف رقمي غير صالح في التعبير الشرطي في '%hs'.");
         }
         tz->current = endptr; // Advance tokenizer past the number
         return make_int_token(value);
     }
 
     // Check for identifiers (including 'defined')
-    if (iswalpha(*tz->current) || *tz->current == L'_') {
-        while (iswalnum(*tz->current) || *tz->current == L'_') {
+    if (iswalpha(*tz->current) || *tz->current == L'_')
+    {
+        while (iswalnum(*tz->current) || *tz->current == L'_')
+        {
             tz->current++;
         }
         return make_identifier_token(tz);
@@ -2481,15 +2759,16 @@ static PpExprToken get_next_pp_expr_token(PpExprTokenizer* tz) {
 // --- Actual Expression Evaluation Function ---
 
 // Forward declarations for the expression parser/evaluator
-static bool parse_and_evaluate_pp_expr(PpExprTokenizer* tz, long* result);
-static bool parse_primary_pp_expr(PpExprTokenizer* tz, long* result);
-static bool parse_binary_expression_rhs(PpExprTokenizer* tz, int expr_prec, long* lhs, long* result);
+static bool parse_and_evaluate_pp_expr(PpExprTokenizer *tz, long *result);
+static bool parse_primary_pp_expr(PpExprTokenizer *tz, long *result);
+static bool parse_binary_expression_rhs(PpExprTokenizer *tz, int expr_prec, long *lhs, long *result);
 static int get_token_precedence(PpExprTokenType type);
 
 // Evaluates preprocessor constant expressions.
 // Currently handles integer literals, defined(MACRO), and unary !.
 // Needs expansion for full operator precedence (e.g., using Shunting-yard).
-static bool evaluate_preprocessor_expression(BaaPreprocessor *pp_state, const wchar_t* expression, bool* value, wchar_t** error_message, const char* abs_path) {
+static bool evaluate_preprocessor_expression(BaaPreprocessor *pp_state, const wchar_t *expression, bool *value, wchar_t **error_message)
+{
     *error_message = NULL;
     *value = false; // Default to false
 
@@ -2497,21 +2776,24 @@ static bool evaluate_preprocessor_expression(BaaPreprocessor *pp_state, const wc
         .current = expression,
         .start = expression,
         .pp_state = pp_state,
-        .abs_path = abs_path,
-        .error_message = error_message
-    };
+        // .abs_path = abs_path, // REMOVED
+        .error_message = error_message};
 
     long result_value = 0;
-    if (!parse_and_evaluate_pp_expr(&tz, &result_value)) {
+    if (!parse_and_evaluate_pp_expr(&tz, &result_value))
+    {
         // Error message should be set by the parser/evaluator
         return false;
     }
 
     // Check if the entire expression was consumed
     PpExprToken eof_token = get_next_pp_expr_token(&tz);
-    if (eof_token.type != PP_EXPR_TOKEN_EOF) {
-        if (eof_token.type != PP_EXPR_TOKEN_ERROR) { // Avoid overwriting tokenizer error
-            make_error_token(&tz, L"رموز زائدة في نهاية التعبير الشرطي في '%hs'.");
+    if (eof_token.type != PP_EXPR_TOKEN_EOF)
+    {
+        if (eof_token.type != PP_EXPR_TOKEN_ERROR)
+        { // Avoid overwriting tokenizer error
+            // Use make_error_token to ensure consistent context reporting
+            make_error_token(&tz, L"رموز زائدة في نهاية التعبير الشرطي.");
         }
         return false;
     }
@@ -2522,7 +2804,8 @@ static bool evaluate_preprocessor_expression(BaaPreprocessor *pp_state, const wc
 
 // Simple recursive descent parser (starting point)
 // TODO: Expand this to handle operator precedence (e.g., Shunting-yard)
-static bool parse_and_evaluate_pp_expr(PpExprTokenizer* tz, long* result) {
+static bool parse_and_evaluate_pp_expr(PpExprTokenizer *tz, long *result)
+{
     // For now, just parse a primary expression possibly preceded by unary operators
     // This doesn't handle binary operators or precedence yet.
 
@@ -2530,142 +2813,184 @@ static bool parse_and_evaluate_pp_expr(PpExprTokenizer* tz, long* result) {
     // Handle leading unary operators (simple case: only !)
     PpExprToken op_token = get_next_pp_expr_token(tz);
 
-    if (op_token.type == PP_EXPR_TOKEN_BANG) {
+    if (op_token.type == PP_EXPR_TOKEN_BANG)
+    {
         negate = true;
-    } else {
+    }
+    else
+    {
         // Put the token back (or handle other unary ops like -, +)
         // Since we don't have a proper token stream/lookahead, we reset the pointer
         tz->current = tz->start; // Reset to beginning of the token we just read
     }
 
     // Parse the primary expression
-    if (!parse_primary_pp_expr(tz, result)) {
+    if (!parse_primary_pp_expr(tz, result))
+    {
         return false; // Error occurred in primary parsing
     }
 
     // Apply unary operator if present
-    if (negate) {
+    if (negate)
+    {
         *result = (*result == 0); // Logical negation: 0 becomes 1, non-zero becomes 0
     }
 
     // Now parse binary operators with precedence climbing
-    if (!parse_binary_expression_rhs(tz, 0, result, result)) {
+    if (!parse_binary_expression_rhs(tz, 0, result, result))
+    {
         return false;
     }
 
     return true;
 }
 
-
 // Parses primary expressions: integer literals, defined(MACRO), ( expression )
-static bool parse_primary_pp_expr(PpExprTokenizer* tz, long* result) {
-     PpExprToken token = get_next_pp_expr_token(tz);
+static bool parse_primary_pp_expr(PpExprTokenizer *tz, long *result)
+{
+    PpExprToken token = get_next_pp_expr_token(tz);
 
-     if (token.type == PP_EXPR_TOKEN_INT_LITERAL) {
-         *result = token.value;
-         return true;
-     } else if (token.type == PP_EXPR_TOKEN_DEFINED) {
-         // Expect '(' or identifier
-         bool parens = false;
-         PpExprToken next_token = get_next_pp_expr_token(tz);
-         if (next_token.type == PP_EXPR_TOKEN_LPAREN) {
-             parens = true;
-             next_token = get_next_pp_expr_token(tz); // Get token inside parens
-         }
+    if (token.type == PP_EXPR_TOKEN_INT_LITERAL)
+    {
+        *result = token.value;
+        return true;
+    }
+    else if (token.type == PP_EXPR_TOKEN_DEFINED)
+    {
+        // Expect '(' or identifier
+        bool parens = false;
+        PpExprToken next_token = get_next_pp_expr_token(tz);
+        if (next_token.type == PP_EXPR_TOKEN_LPAREN)
+        {
+            parens = true;
+            next_token = get_next_pp_expr_token(tz); // Get token inside parens
+        }
 
-         if (next_token.type != PP_EXPR_TOKEN_IDENTIFIER) {
-             if (next_token.type != PP_EXPR_TOKEN_ERROR) {
-                  make_error_token(tz, L"تنسيق defined() غير صالح في '%hs': متوقع معرف.");
-             }
-             if (next_token.type == PP_EXPR_TOKEN_IDENTIFIER) free(next_token.text);
-             return false;
-         }
+        if (next_token.type != PP_EXPR_TOKEN_IDENTIFIER)
+        {
+            if (next_token.type != PP_EXPR_TOKEN_ERROR)
+            {
+                // Use make_error_token for context
+                make_error_token(tz, L"تنسيق defined() غير صالح: متوقع معرف.");
+            }
+            if (next_token.type == PP_EXPR_TOKEN_IDENTIFIER)
+                free(next_token.text);
+            return false;
+        }
 
-         // Check if the identifier macro is defined
-         *result = (find_macro(tz->pp_state, next_token.text) != NULL) ? 1L : 0L; // Result is 1 or 0
-         free(next_token.text);
+        // Check if the identifier macro is defined
+        *result = (find_macro(tz->pp_state, next_token.text) != NULL) ? 1L : 0L; // Result is 1 or 0
+        free(next_token.text);
 
-         // Check for closing parenthesis if needed
-         if (parens) {
-             PpExprToken closing_paren = get_next_pp_expr_token(tz);
-             if (closing_paren.type != PP_EXPR_TOKEN_RPAREN) {
-                  if (closing_paren.type != PP_EXPR_TOKEN_ERROR) {
-                      make_error_token(tz, L"تنسيق defined() غير صالح في '%hs': قوس الإغلاق ')' مفقود.");
-                  }
-                  return false;
-             }
-         }
-         return true; // Successfully evaluated defined()
-     } else if (token.type == PP_EXPR_TOKEN_LPAREN) {
-         // Parse expression inside parentheses
-         if (!parse_and_evaluate_pp_expr(tz, result)) {
-             return false; // Error inside parentheses
-         }
-         // Expect closing parenthesis
-         PpExprToken closing_paren = get_next_pp_expr_token(tz);
-         if (closing_paren.type != PP_EXPR_TOKEN_RPAREN) {
-              if (closing_paren.type != PP_EXPR_TOKEN_ERROR) {
-                  make_error_token(tz, L"قوس الإغلاق ')' مفقود بعد التعبير في '%hs'.");
-              }
-              return false;
-         }
-         return true;
-     } else if (token.type == PP_EXPR_TOKEN_IDENTIFIER) {
-         // Undefined identifiers evaluate to 0 in preprocessor expressions
-         *result = 0L;
-         free(token.text);
-         return true;
-     } else if (token.type == PP_EXPR_TOKEN_ERROR) {
-         // Error already set by tokenizer
-         return false;
-     } else {
-         // Unexpected token
-         make_error_token(tz, L"رمز غير متوقع في بداية التعبير الأولي في '%hs'.");
-         return false;
-     }
+        // Check for closing parenthesis if needed
+        if (parens)
+        {
+            PpExprToken closing_paren = get_next_pp_expr_token(tz);
+            if (closing_paren.type != PP_EXPR_TOKEN_RPAREN)
+            {
+                if (closing_paren.type != PP_EXPR_TOKEN_ERROR)
+                {
+                    // Use make_error_token for context
+                    make_error_token(tz, L"تنسيق defined() غير صالح: قوس الإغلاق ')' مفقود.");
+                }
+                return false;
+            }
+        }
+        return true; // Successfully evaluated defined()
+    }
+    else if (token.type == PP_EXPR_TOKEN_LPAREN)
+    {
+        // Parse expression inside parentheses
+        if (!parse_and_evaluate_pp_expr(tz, result))
+        {
+            return false; // Error inside parentheses
+        }
+        // Expect closing parenthesis
+        PpExprToken closing_paren = get_next_pp_expr_token(tz);
+        if (closing_paren.type != PP_EXPR_TOKEN_RPAREN)
+        {
+            if (closing_paren.type != PP_EXPR_TOKEN_ERROR)
+            {
+                // Use make_error_token for context
+                make_error_token(tz, L"قوس الإغلاق ')' مفقود بعد التعبير.");
+            }
+            return false;
+        }
+        return true;
+    }
+    else if (token.type == PP_EXPR_TOKEN_IDENTIFIER)
+    {
+        // Undefined identifiers evaluate to 0 in preprocessor expressions
+        *result = 0L;
+        free(token.text);
+        return true;
+    }
+    else if (token.type == PP_EXPR_TOKEN_ERROR)
+    {
+        // Error already set by tokenizer
+        return false;
+    }
+    else
+    {
+        // Unexpected token
+        // Use make_error_token for context
+        make_error_token(tz, L"رمز غير متوقع في بداية التعبير الأولي.");
+        return false;
+    }
 }
-
 
 // --- Precedence Climbing Parser Implementation ---
 
 // Gets the precedence level of a binary operator token. Returns -1 if not a binary operator.
-static int get_token_precedence(PpExprTokenType type) {
-    switch (type) {
-        // Lower precedence binds looser
-        case PP_EXPR_TOKEN_PIPEPIPE: return 10; // ||
-        case PP_EXPR_TOKEN_AMPAMP:   return 20; // &&
-        // TODO: Bitwise OR | (30)
-        // TODO: Bitwise XOR ^ (40)
-        // TODO: Bitwise AND & (50)
-        case PP_EXPR_TOKEN_EQEQ:
-        case PP_EXPR_TOKEN_BANGEQ:   return 60; // == !=
-        case PP_EXPR_TOKEN_LT:
-        case PP_EXPR_TOKEN_GT:
-        case PP_EXPR_TOKEN_LTEQ:
-        case PP_EXPR_TOKEN_GTEQ:     return 70; // < > <= >=
-        // TODO: Bitwise Shift << >> (80)
-        case PP_EXPR_TOKEN_PLUS:
-        case PP_EXPR_TOKEN_MINUS:    return 90; // + -
-        case PP_EXPR_TOKEN_STAR:
-        case PP_EXPR_TOKEN_SLASH:
-        case PP_EXPR_TOKEN_PERCENT:  return 100; // * / %
-        // Higher precedence binds tighter
-        default:                     return -1; // Not a binary operator we handle yet
+static int get_token_precedence(PpExprTokenType type)
+{
+    switch (type)
+    {
+    // Lower precedence binds looser
+    case PP_EXPR_TOKEN_PIPEPIPE:
+        return 10; // ||
+    case PP_EXPR_TOKEN_AMPAMP:
+        return 20; // &&
+    // TODO: Bitwise OR | (30)
+    // TODO: Bitwise XOR ^ (40)
+    // TODO: Bitwise AND & (50)
+    case PP_EXPR_TOKEN_EQEQ:
+    case PP_EXPR_TOKEN_BANGEQ:
+        return 60; // == !=
+    case PP_EXPR_TOKEN_LT:
+    case PP_EXPR_TOKEN_GT:
+    case PP_EXPR_TOKEN_LTEQ:
+    case PP_EXPR_TOKEN_GTEQ:
+        return 70; // < > <= >=
+    // TODO: Bitwise Shift << >> (80)
+    case PP_EXPR_TOKEN_PLUS:
+    case PP_EXPR_TOKEN_MINUS:
+        return 90; // + -
+    case PP_EXPR_TOKEN_STAR:
+    case PP_EXPR_TOKEN_SLASH:
+    case PP_EXPR_TOKEN_PERCENT:
+        return 100; // * / %
+    // Higher precedence binds tighter
+    default:
+        return -1; // Not a binary operator we handle yet
     }
 }
 
 // Parses the right-hand side of binary expressions using precedence climbing.
-static bool parse_binary_expression_rhs(PpExprTokenizer* tz, int min_prec, long* lhs, long* result) {
-    while (true) {
+static bool parse_binary_expression_rhs(PpExprTokenizer *tz, int min_prec, long *lhs, long *result)
+{
+    while (true)
+    {
         // Peek at the next token to see if it's a binary operator
-        const wchar_t* current_pos_backup = tz->current; // Backup position
+        const wchar_t *current_pos_backup = tz->current; // Backup position
         PpExprToken op_token = get_next_pp_expr_token(tz);
         int token_prec = get_token_precedence(op_token.type);
 
         // If it's not a binary operator OR its precedence is too low, we're done with this level.
-        if (token_prec < min_prec) {
+        if (token_prec < min_prec)
+        {
             tz->current = current_pos_backup; // Put the token back by resetting position
-            *result = *lhs; // The LHS is the final result for this precedence level
+            *result = *lhs;                   // The LHS is the final result for this precedence level
             return true;
         }
 
@@ -2673,48 +2998,87 @@ static bool parse_binary_expression_rhs(PpExprTokenizer* tz, int min_prec, long*
 
         // Parse the primary expression after the operator (this will become the RHS)
         long rhs = 0;
-        if (!parse_primary_pp_expr(tz, &rhs)) {
+        if (!parse_primary_pp_expr(tz, &rhs))
+        {
             // Error parsing RHS primary
             return false;
         }
 
         // Peek at the *next* operator to handle right-associativity or higher precedence.
-        const wchar_t* next_op_pos_backup = tz->current;
+        const wchar_t *next_op_pos_backup = tz->current;
         PpExprToken next_op_token = get_next_pp_expr_token(tz);
         int next_prec = get_token_precedence(next_op_token.type);
         tz->current = next_op_pos_backup; // Reset position after peeking
 
         // If the next operator has higher precedence, recursively parse its RHS first.
-        if (next_prec > token_prec) {
-            if (!parse_binary_expression_rhs(tz, token_prec + 1, &rhs, &rhs)) {
+        if (next_prec > token_prec)
+        {
+            if (!parse_binary_expression_rhs(tz, token_prec + 1, &rhs, &rhs))
+            {
                 // Error parsing nested RHS
                 return false;
             }
         }
         // --- Perform the operation for the current operator ---
         long current_lhs = *lhs; // Capture LHS before potential modification by recursive calls
-        switch (op_token.type) {
-            case PP_EXPR_TOKEN_PLUS:     *lhs = current_lhs + rhs; break;
-            case PP_EXPR_TOKEN_MINUS:    *lhs = current_lhs - rhs; break;
-            case PP_EXPR_TOKEN_STAR:     *lhs = current_lhs * rhs; break;
-            case PP_EXPR_TOKEN_SLASH:
-                if (rhs == 0) { make_error_token(tz, L"قسمة على صفر في التعبير الشرطي في '%hs'."); return false; }
-                *lhs = current_lhs / rhs; break;
-            case PP_EXPR_TOKEN_PERCENT:
-                 if (rhs == 0) { make_error_token(tz, L"قسمة على صفر (معامل الباقي) في التعبير الشرطي في '%hs'."); return false; }
-                *lhs = current_lhs % rhs; break;
-            case PP_EXPR_TOKEN_EQEQ:     *lhs = (current_lhs == rhs); break;
-            case PP_EXPR_TOKEN_BANGEQ:   *lhs = (current_lhs != rhs); break;
-            case PP_EXPR_TOKEN_LT:       *lhs = (current_lhs < rhs); break;
-            case PP_EXPR_TOKEN_GT:       *lhs = (current_lhs > rhs); break;
-            case PP_EXPR_TOKEN_LTEQ:     *lhs = (current_lhs <= rhs); break;
-            case PP_EXPR_TOKEN_GTEQ:     *lhs = (current_lhs >= rhs); break;
-            case PP_EXPR_TOKEN_AMPAMP:   *lhs = (current_lhs != 0 && rhs != 0); break; // Use integer logic
-            case PP_EXPR_TOKEN_PIPEPIPE: *lhs = (current_lhs != 0 || rhs != 0); break; // Use integer logic
-            default:
-                // Should not happen if get_token_precedence is correct
-                make_error_token(tz, L"معامل ثنائي غير متوقع أو غير مدعوم في '%hs'.");
+        switch (op_token.type)
+        {
+        case PP_EXPR_TOKEN_PLUS:
+            *lhs = current_lhs + rhs;
+            break;
+        case PP_EXPR_TOKEN_MINUS:
+            *lhs = current_lhs - rhs;
+            break;
+        case PP_EXPR_TOKEN_STAR:
+            *lhs = current_lhs * rhs;
+            break;
+        case PP_EXPR_TOKEN_SLASH:
+            if (rhs == 0)
+            {
+                // Use make_error_token for context
+                make_error_token(tz, L"قسمة على صفر في التعبير الشرطي.");
                 return false;
+            }
+            *lhs = current_lhs / rhs;
+            break;
+        case PP_EXPR_TOKEN_PERCENT:
+            if (rhs == 0)
+            {
+                // Use make_error_token for context
+                make_error_token(tz, L"قسمة على صفر (معامل الباقي) في التعبير الشرطي.");
+                return false;
+            }
+            *lhs = current_lhs % rhs;
+            break;
+        case PP_EXPR_TOKEN_EQEQ:
+            *lhs = (current_lhs == rhs);
+            break;
+        case PP_EXPR_TOKEN_BANGEQ:
+            *lhs = (current_lhs != rhs);
+            break;
+        case PP_EXPR_TOKEN_LT:
+            *lhs = (current_lhs < rhs);
+            break;
+        case PP_EXPR_TOKEN_GT:
+            *lhs = (current_lhs > rhs);
+            break;
+        case PP_EXPR_TOKEN_LTEQ:
+            *lhs = (current_lhs <= rhs);
+            break;
+        case PP_EXPR_TOKEN_GTEQ:
+            *lhs = (current_lhs >= rhs);
+            break;
+        case PP_EXPR_TOKEN_AMPAMP:
+            *lhs = (current_lhs != 0 && rhs != 0);
+            break; // Use integer logic
+        case PP_EXPR_TOKEN_PIPEPIPE:
+            *lhs = (current_lhs != 0 || rhs != 0);
+            break; // Use integer logic
+        default:
+            // Should not happen if get_token_precedence is correct
+            // Use make_error_token for context
+            make_error_token(tz, L"معامل ثنائي غير متوقع أو غير مدعوم.");
+            return false;
         }
         // The result of the operation becomes the new LHS for the next iteration of the loop.
     }

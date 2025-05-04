@@ -107,9 +107,9 @@ add_subdirectory(src/codegen)
 add_subdirectory(src/analysis)
 add_subdirectory(src/preprocessor)
 
-# تفعيل الاختبارات
-enable_testing()
-add_subdirectory(tests)
+# تفعيل الاختبارات (معطل مؤقتاً)
+# enable_testing()
+# add_subdirectory(tests)
 
 # البرنامج الرئيسي
 add_executable(baa

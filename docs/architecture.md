@@ -70,7 +70,7 @@ The AST module provides the foundation for representing code structure:
 - **Tree Operations**: Creation, traversal, and manipulation of the syntax tree
 - **Visitor Pattern**: Support for tree traversal and transformation
 - **Standardized Structure**: Clear hierarchy with expressions, statements, and declarations
-- **Enhanced Function Parameters**: Support for optional parameters, rest parameters, and named arguments
+- **Enhanced Function Parameters**: Support for optional parameters, rest parameters, and named arguments *(Note: AST supports this, but parser implementation is currently limited to basic parameters)*.
 - **Control Flow Support**: If-else, while loops, for loops, switch/case, break/continue statements
 - **Array Support**: Array creation, indexing, and manipulation
 - **Features & Status:**

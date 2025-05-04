@@ -42,6 +42,10 @@ typedef struct {
     const BaaMacro** expanding_macros_stack; // Stack of macros currently being expanded
     size_t expanding_macros_count;
     size_t expanding_macros_capacity;
+
+    // Error Reporting Context
+    const char* current_file_path; // Absolute path of the file currently being processed
+    size_t current_line_number;    // Current line number in the file
 } BaaPreprocessor;
 
 /**

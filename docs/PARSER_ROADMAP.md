@@ -32,7 +32,7 @@ The Baa parser currently implements:
   - ✅ Named arguments
   - ✅ Method vs. function distinction
 
-- 🔲 Extended statement support
+- ✅ Extended statement support
   - ✅ For loops
   - ✅ Switch/case statements
   - ✅ Break and continue statements

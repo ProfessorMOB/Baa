@@ -48,10 +48,10 @@ This document compares K&R C features with their B (باء) equivalents and outl
 | `if`          | `إذا`             | Implemented | AST/Parsing exists. |
 | `else`        | `وإلا`            | Implemented | AST/Parsing exists. |
 | `while`       | `طالما`           | Implemented | AST/Parsing exists. |
-| `do`          | `افعل`            | Partial     | Keyword exists (`BAA_TOKEN_DO`). AST/Parsing implementation status unclear. |
-| `for`         | `من_أجل`          | Partial     | Keyword exists (`BAA_TOKEN_FOR`). AST/Parsing exists (`BaaForStmt`). Semantic analysis likely incomplete. |
-| `switch`      | `اختر`            | Partial     | Keyword exists (`BAA_TOKEN_SWITCH`). AST/Parsing exists (`BaaSwitchStmt`). Semantic analysis likely incomplete. |
-| `case`        | `حالة`            | Partial     | Keyword exists (`BAA_TOKEN_CASE`). AST/Parsing exists (`BaaCaseStmt`). Semantic analysis likely incomplete. |
+| `do`          | `افعل`            | Planned     | Keyword exists (`BAA_TOKEN_DO`), but parsing logic not implemented. |
+| `for`         | `من_أجل`          | Implemented | AST/Parsing exists (`BaaForStmt`). Separators are ';'. |
+| `switch`      | `اختر`            | Implemented | AST/Parsing exists (`BaaSwitchStmt`). |
+| `case`        | `حالة`            | Implemented | AST/Parsing exists (`BaaCaseStmt`). |
 | `break`       | `توقف`            | Implemented | Keyword exists (`BAA_TOKEN_BREAK`). AST/Parsing exists. Basic flow analysis check implemented. |
 | `continue`    | `أكمل` (?)        | Implemented | Keyword exists (`BAA_TOKEN_CONTINUE`). AST/Parsing exists. Basic flow analysis check implemented. |
 | `return`      | `إرجع`            | Implemented | Keyword exists (`BAA_TOKEN_RETURN`). AST/Parsing exists. |
@@ -83,10 +83,10 @@ This document compares K&R C features with their B (باء) equivalents and outl
 | K&R C Feature | B (باء) Extension | Status      | Notes |
 |---------------|-------------------|-------------|-------|
 | Basic parameters | Basic parameters | Implemented | Standard function parameters. |
-| Default values | Optional parameters | Partial?    | AST (`BaaParameter`) supports `is_optional`, `default_value`. Parser/analysis support needs verification. |
-| Variadic functions | Rest parameters | Partial?    | AST (`BaaParameter`) supports `is_rest`. Parser/analysis support needs verification. |
-| - | Named arguments | Partial?    | AST (`BaaCallExpr`) supports `named_args`. Parser/analysis support needs verification. |
-| - | Method distinction | Partial?    | AST (`BaaFunction`) supports `is_method`. Usage/semantics unclear. |
+| Default values | Optional parameters | Planned     | AST (`BaaParameter`) supports feature, but parser implementation is missing. |
+| Variadic functions | Rest parameters | Planned     | AST (`BaaParameter`) supports feature, but parser implementation is missing. |
+| - | Named arguments | Planned     | AST (`BaaCallExpr`) supports feature, but parser implementation is missing. |
+| - | Method distinction | Partial?    | AST (`BaaFunction`) supports `is_method`. Usage/semantics unclear. Parser does not set this. |
 
 ### Preprocessor
 

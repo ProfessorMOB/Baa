@@ -32,6 +32,7 @@ typedef struct {
     BaaToken current_token;    // Current token
     BaaToken previous_token;   // Previous token
     bool had_error;            // Error flag
+    bool panic_mode;           // Error recovery flag
     const wchar_t* error_message;  // Error message if had_error is true
     BaaSourceLocation location;    // Current source location
 } BaaParser;
@@ -55,7 +56,7 @@ typedef struct {
   - Array indexing expressions
 
 ### Statement Parser (statement_parser.c)
-- Parses control flow statements (if, while, for, return, etc.)
+- Parses control flow statements (if, while, for, switch, case, break, continue, return, etc.)
 - Handles blocks and expression statements
 - Implements support for:
   - If-else statements with conditions and multiple branches
@@ -200,3 +201,9 @@ BaaExpr* baa_parse_expression(BaaParser* parser);
 void baa_parser_synchronize(BaaParser* parser);
 const wchar_t* baa_get_parser_error(BaaParser* parser);
 void baa_clear_parser_error(BaaParser* parser);
+
+// Specific statement parsers (potentially internal to statement_parser.c but illustrative)
+// BaaStmt* baa_parse_for_statement(BaaParser* parser);
+// BaaStmt* baa_parse_switch_statement(BaaParser* parser);
+// BaaStmt* baa_parse_break_statement(BaaParser* parser);
+// BaaStmt* baa_parse_continue_statement(BaaParser* parser);

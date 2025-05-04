@@ -57,7 +57,7 @@ static wchar_t* read_file(const wchar_t* path) {
 
 // Test basic token creation
 void test_token_creation(void) { // Changed to standard function definition
-    Token token = {
+    BaaToken token = {
         .type = TOKEN_FUNCTION, // Note: TOKEN_FUNCTION might be undefined if tokens.h isn't included correctly
         .start = L"دالة",
         .length = 4,
@@ -74,9 +74,9 @@ void test_token_creation(void) { // Changed to standard function definition
 // Test basic AST node creation
 void test_ast_creation(void) { // Changed to standard function definition
     // Create a simple expression: 1 + 2
-    Node* num1 = baa_create_node(NODE_NUMBER, L"1"); // Note: Node, baa_create_node, NODE_NUMBER might be undefined
-    Node* plus = baa_create_node(NODE_BINARY_OP, L"+");
-    Node* num2 = baa_create_node(NODE_NUMBER, L"2");
+    BaaNode* num1 = baa_create_node(NODE_NUMBER, L"1"); // Note: Node, baa_create_node, NODE_NUMBER might be undefined
+    BaaNode* plus = baa_create_node(NODE_BINARY_OP, L"+");
+    BaaNode* num2 = baa_create_node(NODE_NUMBER, L"2");
 
     ASSERT(num1 != NULL);
     ASSERT(plus != NULL);
@@ -96,9 +96,9 @@ void test_ast_creation(void) { // Changed to standard function definition
 // Test function declaration parsing
 void test_function_declaration(void) { // Changed to standard function definition
     // Create a simple function: دالة مرحبا() { إرجع 0. }
-    Node* func = baa_create_node(NODE_FUNCTION, L"مرحبا"); // Note: Node, baa_create_node, NODE_FUNCTION might be undefined
-    Node* return_stmt = baa_create_node(NODE_RETURN, NULL);
-    Node* return_val = baa_create_node(NODE_NUMBER, L"0");
+    BaaNode* func = baa_create_node(BAA_NODE_FUNCTION, L"مرحبا"); // Note: Node, baa_create_node, BAA_NODE_FUNCTION might be undefined
+    BaaNode* return_stmt = baa_create_node(BAA_NODE_RETURN, NULL);
+    BaaNode* return_val = baa_create_node(BAA_NODE_NUMBER, L"0");
 
     baa_add_child(return_stmt, return_val);
     baa_add_child(func, return_stmt);
@@ -116,10 +116,10 @@ void test_parse_simple_program(void) { // Changed to standard function definitio
     wchar_t* source = read_file(L"simple.txt"); // Note: read_file might need adjustment if not finding file
     ASSERT(source != NULL);
 
-    Parser* parser = baa_parser_init(source);
+    BaaParser* parser = baa_parser_init(source);
     ASSERT(parser != NULL);
 
-    Node* program = baa_parse_program(parser);
+    BaaNode* program = baa_parse_program(parser);
     ASSERT(program != NULL);
     ASSERT_EQ(false, baa_parser_had_error(parser));
 
@@ -127,12 +127,12 @@ void test_parse_simple_program(void) { // Changed to standard function definitio
     ASSERT_EQ((size_t)2, program->children_count);
 
     // Check square function
-    Node* square_func = program->children[0];
+    BaaNode* square_func = program->children[0];
     ASSERT_EQ(NODE_FUNCTION, square_func->type);
     ASSERT_STR_EQ(L"مربع", square_func->value);
 
     // Check main function
-    Node* main_func = program->children[1];
+    BaaNode* main_func = program->children[1];
     ASSERT_EQ(NODE_FUNCTION, main_func->type);
     ASSERT_STR_EQ(L"رئيسية", main_func->value);
 
@@ -157,11 +157,11 @@ void test_parse_arabic_program(void) { // Changed to standard function definitio
     }
 
     wprintf(L"Initializing parser...\n");
-    Parser* parser = baa_parser_init(source);
+    BaaParser* parser = baa_parser_init(source);
     ASSERT(parser != NULL);
 
     wprintf(L"Parsing program...\n");
-    Node* program = baa_parse_program(parser);
+    BaaNode* program = baa_parse_program(parser);
     if (!program) {
         wprintf(L"Failed to parse program: %s\n", baa_parser_error_message(parser));
         ASSERT(false);
@@ -178,30 +178,30 @@ void test_parse_arabic_program(void) { // Changed to standard function definitio
     ASSERT_EQ((size_t)6, program->children_count);
 
     // Check imports
-    Node* import1 = program->children[0];
-    Node* import2 = program->children[1];
+    BaaNode* import1 = program->children[0];
+    BaaNode* import2 = program->children[1];
     ASSERT_EQ(NODE_IMPORT, import1->type);
     ASSERT_EQ(NODE_IMPORT, import2->type);
     ASSERT_STR_EQ(L"نظام/طباعة", import1->value);
     ASSERT_STR_EQ(L"نظام/رياضيات", import2->value);
 
     // Check constant declaration
-    Node* const_decl = program->children[2];
+    BaaNode* const_decl = program->children[2];
     ASSERT_EQ(NODE_VAR_DECL, const_decl->type);
     ASSERT_STR_EQ(L"حجم_المصفوفة", const_decl->value);
 
     // Check array declaration
-    Node* array_decl = program->children[3];
+    BaaNode* array_decl = program->children[3];
     ASSERT_EQ(NODE_VAR_DECL, array_decl->type);
     ASSERT_STR_EQ(L"مصفوفة", array_decl->value);
 
     // Check array sum function
-    Node* sum_func = program->children[4];
+    BaaNode* sum_func = program->children[4];
     ASSERT_EQ(NODE_FUNCTION, sum_func->type);
     ASSERT_STR_EQ(L"مجموع_المصفوفة", sum_func->value);
 
     // Check main function
-    Node* main_func = program->children[5];
+    BaaNode* main_func = program->children[5];
     ASSERT_EQ(NODE_FUNCTION, main_func->type);
     ASSERT_STR_EQ(L"رئيسية", main_func->value);
 
