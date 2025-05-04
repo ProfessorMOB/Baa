@@ -39,9 +39,10 @@ BaaType* baa_parse_type(BaaParser* parser);
 BaaType* baa_parse_type_annotation(BaaParser* parser);
 
 // Error handling and recovery
-void baa_parser_synchronize(BaaParser* parser);
-const wchar_t* baa_get_parser_error(BaaParser* parser);
-void baa_clear_parser_error(BaaParser* parser);
+void baa_set_parser_error(BaaParser* parser, const wchar_t* message); // Implemented in parser.c
+// Removed synchronize declaration (moved to parser_helper.h)
+const wchar_t* baa_get_parser_error(BaaParser* parser); // Should likely be baa_parser_error_message (implemented in parser.c)
+void baa_clear_parser_error(BaaParser* parser); // Implemented in parser.c
 
 // Source location tracking
 BaaSourceLocation baa_get_current_location(BaaParser* parser);

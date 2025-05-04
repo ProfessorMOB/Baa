@@ -46,21 +46,31 @@
 extern "C" {
 #endif
 
-// Token management functions
-void baa_token_next(BaaParser *parser);
+// --- Core Parser Operations (Moved from parser.c) ---
+void advance(BaaParser *parser);
+bool is_eof(BaaParser *parser);
+wchar_t peek(BaaParser *parser);
+wchar_t peek_next(BaaParser *parser); // Note: Peeks source char, not next token
+bool match_keyword(BaaParser *parser, const wchar_t *keyword);
+wchar_t *parse_identifier(BaaParser *parser);
+bool expect_char(BaaParser *parser, wchar_t expected_char); // Note: Checks first char of token, consider expect_token_type
+// bool expect_token_type(BaaParser *parser, BaaTokenType type); // Example of a better approach
 
-// Helper function to check if current token in parser is of a specific type
+// --- Token Management & Helpers ---
+void baa_token_next(BaaParser *parser); // Alias for advance
 bool baa_parser_token_is_type(BaaParser *parser, BaaTokenType type);
 
-// Expression validation
-bool baa_validate_condition_type(BaaExpr *expr);
-bool baa_validate_condition(BaaExpr *expr);
+// --- Expression Validation ---
+// bool baa_validate_condition_type(BaaExpr *expr); // Declaration seems missing implementation
+// bool baa_validate_condition(BaaExpr *expr);      // Declaration seems missing implementation
 
-// Error handling functions for parser
+// --- Error Handling ---
 void baa_unexpected_token_error(BaaParser *parser, const wchar_t *expected);
+void synchronize(BaaParser *parser); // Declaration added
+// Note: baa_set_parser_error is declared in parser.h
 
-// Memory management
-void baa_free_expression(BaaExpr* expr);
+// --- Memory Management ---
+// void baa_free_expression(BaaExpr* expr); // Belongs in AST module (e.g., ast/expressions.h/c)
 
 #ifdef __cplusplus
 }

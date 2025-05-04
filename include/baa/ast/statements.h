@@ -133,6 +133,7 @@ BaaStmt* baa_create_break_stmt(int loop_depth, bool is_switch_break);
 BaaStmt* baa_create_continue_stmt(int loop_depth);
 bool baa_add_case_to_switch(BaaStmt* switch_stmt, BaaStmt* case_stmt);
 bool baa_set_default_case(BaaStmt* switch_stmt, BaaStmt* default_stmt);
+BaaStmt* baa_create_import_stmt(const wchar_t* path, const wchar_t* alias); // Added declaration
 
 // Block management
 bool baa_add_stmt_to_block(BaaBlock* block, BaaStmt* stmt);

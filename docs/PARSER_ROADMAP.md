@@ -2,40 +2,42 @@
 
 This document outlines the implementation plan for the Baa language parser, organized by priority and planned features. Each section represents a development phase with specific objectives.
 
-## Current Implementation Status
+## Current Implementation Status (May 2025)
+
+**Note:** `parser.c` was recently refactored (split into `parser_helper.c`, `statement_parser.c`, `declaration_parser.c`).
 
 The Baa parser currently implements:
 
 - ✅ Basic parser infrastructure with recursive descent approach
-- ✅ Expression parsing with precedence handling
-- ✅ Statement parsing for basic control flow
-- ✅ Declaration parsing for variables and functions
-- ✅ Basic type annotation support
-- ✅ Error detection and reporting mechanisms
-- ✅ Boolean type support (منطقي)
-- ✅ Enhanced function parameter handling
-- ✅ Advanced operator support
+- ✅ Expression parsing with precedence handling (via `expression_parser.c`)
+- ✅ Statement parsing for basic control flow (If, While, For, Return via `statement_parser.c`)
+- ✅ Declaration parsing for variables, functions, and imports (via `declaration_parser.c`)
+- ✅ Basic type annotation support (via `type_parser.c`)
+- ✅ Error detection and reporting mechanisms (basic)
+- ✅ Boolean type support (`منطقي` via `type_parser.c`)
+- ✅ Basic function parameter handling (via `declaration_parser.c`)
+- ✅ Basic operator support (including compound assignment, inc/dec via `expression_parser.c`)
 
 ## Implementation Priorities
 
 ### 1. Core Language Support (Immediate Focus)
 
-- ✅ Enhanced expression support
-  - ✅ Incorporate Boolean literals (صحيح/خطأ)
-  - ✅ Support compound assignment operators (+=, -=, *=, /=, %=)
-  - ✅ Support increment/decrement operators (++, --)
-  - ✅ Array indexing expressions
+- ✅ Enhanced expression support (Assumed complete based on `PARSER.md`)
+  - ✅ Boolean literals (`صحيح`/`خطأ`)
+  - ✅ Compound assignment operators (`+=`, `-=`, `*=`, `/=`, `%=`)
+  * ✅ Increment/decrement operators (`++`, `--`)
+  * ✅ Array indexing expressions (`[]`)
 
-- ✅ Enhanced function support
-  - ✅ Optional parameters
-  - ✅ Rest parameters
-  - ✅ Named arguments
-  - ✅ Method vs. function distinction
+- 🔲 Enhanced function support
+  - 🔲 Optional parameters
+  - 🔲 Rest parameters
+  - 🔲 Named arguments
+  - 🔲 Method vs. function distinction
 
-- ✅ Extended statement support
-  - ✅ For loops
-  - ✅ Switch/case statements
-  - ✅ Break and continue statements
+- 🔲 Extended statement support
+  - ✅ For loops (`لكل`)
+  - 🔲 Switch/case statements
+  - 🔲 Break and continue statements
 
 ### 2. Type System Enhancements (Short-term)
 

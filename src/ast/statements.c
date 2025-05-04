@@ -284,6 +284,37 @@ BaaStmt* baa_create_continue_stmt(int loop_depth) {
     return stmt;
 }
 
+BaaStmt* baa_create_import_stmt(const wchar_t* path, const wchar_t* alias) {
+    if (!path) return NULL;
+
+    BaaStmt* stmt = baa_create_stmt(BAA_STMT_IMPORT);
+    if (!stmt) return NULL;
+
+    BaaImportStmt* import_data = (BaaImportStmt*)baa_malloc(sizeof(BaaImportStmt));
+    if (!import_data) {
+        baa_free(stmt);
+        return NULL;
+    }
+
+    // Duplicate path and alias
+    import_data->path = baa_strdup(path);
+    import_data->alias = alias ? baa_strdup(alias) : NULL;
+
+    if (!import_data->path || (alias && !import_data->alias)) {
+        // Handle allocation failure during string duplication
+        baa_free((void*)import_data->path);
+        baa_free((void*)import_data->alias);
+        baa_free(import_data);
+        baa_free(stmt);
+        return NULL;
+    }
+
+    stmt->data = import_data;
+
+    return stmt;
+}
+
+
 bool baa_add_case_to_switch(BaaStmt* switch_stmt, BaaStmt* case_stmt) {
     if (!switch_stmt || !case_stmt || switch_stmt->kind != BAA_STMT_SWITCH ||
         (case_stmt->kind != BAA_STMT_CASE && case_stmt->kind != BAA_STMT_DEFAULT)) {
@@ -537,20 +568,61 @@ void baa_free_stmt(BaaStmt* stmt) {
         }
 
         case BAA_STMT_SWITCH: {
-            BaaSwitchStmt* switch_stmt = (BaaSwitchStmt*)stmt->data;
-            if (switch_stmt) {
-                baa_free_expr(switch_stmt->expression);
-                for (size_t i = 0; i < switch_stmt->case_count; i++) {
-                    baa_free_case_stmt(switch_stmt->cases[i]);
+            BaaSwitchStmt* switch_stmt_data = (BaaSwitchStmt*)stmt->data; // Use different name
+            if (switch_stmt_data) {
+                baa_free_expr(switch_stmt_data->expression);
+                for (size_t i = 0; i < switch_stmt_data->case_count; i++) {
+                    // Assuming cases store the full BaaStmt, not just BaaCaseStmt data
+                    // If cases store BaaCaseStmt*, need a specific free function
+                     baa_free_stmt((BaaStmt*)switch_stmt_data->cases[i]); // Adjust if needed
                 }
-                baa_free(switch_stmt->cases);
-                if (switch_stmt->default_case) {
-                    baa_free_default_stmt(switch_stmt->default_case);
-                }
-                baa_free(switch_stmt);
+                baa_free(switch_stmt_data->cases);
+                // Assuming default_case stores the full BaaStmt
+                baa_free_stmt((BaaStmt*)switch_stmt_data->default_case); // Adjust if needed
+                baa_free(switch_stmt_data);
             }
             break;
         }
+        // Add case for BAA_STMT_IMPORT
+        case BAA_STMT_IMPORT: {
+            BaaImportStmt* import_data = (BaaImportStmt*)stmt->data;
+            if (import_data) {
+                baa_free((void*)import_data->path);
+                baa_free((void*)import_data->alias);
+                baa_free(import_data);
+            }
+            break;
+        }
+        // Add cases for BREAK and CONTINUE if they allocate data
+        case BAA_STMT_BREAK: {
+             BaaBreakStmt* break_data = (BaaBreakStmt*)stmt->data;
+             if (break_data) baa_free(break_data);
+             break;
+        }
+        case BAA_STMT_CONTINUE: {
+             BaaContinueStmt* continue_data = (BaaContinueStmt*)stmt->data;
+             if (continue_data) baa_free(continue_data);
+             break;
+        }
+        // Add cases for CASE and DEFAULT if they allocate data beyond the block
+         case BAA_STMT_CASE: {
+             BaaCaseStmt* case_data = (BaaCaseStmt*)stmt->data;
+             if (case_data) {
+                 baa_free_expr(case_data->value);
+                 baa_free_block(case_data->body); // Body is freed here
+                 baa_free(case_data);
+             }
+             break;
+         }
+         case BAA_STMT_DEFAULT: {
+             BaaDefaultStmt* default_data = (BaaDefaultStmt*)stmt->data;
+             if (default_data) {
+                 baa_free_block(default_data->body); // Body is freed here
+                 baa_free(default_data);
+             }
+             break;
+         }
+
     }
 
     // Free the statement itself

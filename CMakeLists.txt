@@ -133,4 +133,5 @@ target_link_libraries(baa
         baa_ast
         baa_codegen
         baa_flow_analysis
+        m # Link math library
 )

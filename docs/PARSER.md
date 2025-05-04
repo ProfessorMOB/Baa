@@ -73,14 +73,18 @@ typedef struct {
 - Parses type annotations
 - Handles primitive types and arrays
 
+### Helper Modules (e.g., parser_helper.c)
+- Provides utility functions used across different parser modules (e.g., error synchronization, token consumption).
+- Other specialized modules (like `control_flow_parser.c`) might exist to handle specific statement types.
+
 ## Parsing Process
 
 The parsing process follows this general flow:
 1. Initialize parser with lexer
 2. Parse program (entry point)
-3. Parse declarations (functions, variables)
+3. Parse top-level declarations (currently only functions are supported at the top level)
 4. For each function, parse parameters and body
-5. Parse statements and expressions recursively
+5. Parse statements and expressions recursively within function bodies or blocks
 6. Construct AST nodes during parsing
 7. Handle errors and recover when possible
 
@@ -144,6 +148,7 @@ Declarations are recognized and parsed:
 
 - **Variable Declarations**: Type annotation and optional initializer
 - **Function Declarations**: Name, parameters, return type, and body
+- **Import Directives**: Parses `#تضمين` directives for including other source files, supporting both system (`<...>`) and local (`"..."`) paths.
 
 ## Type System Integration
 
@@ -170,40 +175,22 @@ Various helper functions support the parsing process:
 
 ## Public API
 
-The parser exposes the following core functions:
+The parser primarily exposes functions for creating a parser instance and parsing a complete source input. Statement and expression parsing are generally handled internally during the program parsing process.
 
 ```c
-// Parser initialization
-void baa_init_parser(BaaParser* parser, BaaLexer* lexer);
+// Parser creation
+BaaParser* baa_create_parser(const wchar_t* source, size_t source_len);
+// Note: baa_init_parser is typically called internally by baa_create_parser
 
-// Program parsing
-BaaProgram* baa_parse_program(BaaParser* parser);
-
-// Statement parsing
-BaaStmt* baa_parse_statement(BaaParser* parser);
-BaaBlock* baa_parse_block(BaaParser* parser);
-BaaStmt* baa_parse_if_statement(BaaParser* parser);
-BaaStmt* baa_parse_while_statement(BaaParser* parser);
-BaaStmt* baa_parse_return_statement(BaaParser* parser);
-
-// Declaration parsing
-BaaStmt* baa_parse_var_declaration(BaaParser* parser);
-BaaStmt* baa_parse_function(BaaParser* parser);
-
-// Type parsing
-BaaType* baa_parse_type(BaaParser* parser);
-BaaType* baa_parse_type_annotation(BaaParser* parser);
-
-// Expression parsing
-BaaExpr* baa_parse_expression(BaaParser* parser);
+// Program parsing (Main entry point)
+BaaProgram* baa_parse(const wchar_t* input, const wchar_t* filename);
 
 // Error handling
-void baa_parser_synchronize(BaaParser* parser);
-const wchar_t* baa_get_parser_error(BaaParser* parser);
+bool baa_parser_had_error(const BaaParser* parser);
+const wchar_t* baa_parser_error_message(const BaaParser* parser);
 void baa_clear_parser_error(BaaParser* parser);
 
-// Specific statement parsers (potentially internal to statement_parser.c but illustrative)
-// BaaStmt* baa_parse_for_statement(BaaParser* parser);
-// BaaStmt* baa_parse_switch_statement(BaaParser* parser);
-// BaaStmt* baa_parse_break_statement(BaaParser* parser);
-// BaaStmt* baa_parse_continue_statement(BaaParser* parser);
+// Note: While functions like baa_parse_expression exist, they are often
+// intended for internal use by other parser modules or for specific
+// scenarios like REPLs, rather than direct use when parsing a full program.
+```

@@ -2,12 +2,13 @@ if(NOT SKIP_PARSER)
     # Main parser components
     add_library(baa_parser
         parser.c
-        expression_parser.c
-        statement_parser.c
-        declaration_parser.c
-        type_parser.c
-        error_handling.c
-    )
+    expression_parser.c
+    # function_parser.c # Removed as functionality moved/obsolete
+    statement_parser.c
+    type_parser.c
+    # error_handling.c # Removed as functions moved/consolidated
+    parser_helper.c
+)
 
     target_include_directories(baa_parser
         PUBLIC
