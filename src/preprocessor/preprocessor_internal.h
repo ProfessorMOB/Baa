@@ -28,9 +28,18 @@
 
 // --- Struct Definitions ---
 
+// Structure to hold source location information (file, line, column)
+typedef struct
+{
+    const char *file_path; // Use char* consistent with internal preprocessor paths
+    size_t line;
+    size_t column;
+} PpSourceLocation;
+
 // Structure to hold preprocessor state
 // Define the struct fully here for internal use. The public header only has a forward declaration.
-struct BaaPreprocessor {
+struct BaaPreprocessor
+{
     const char **include_paths;
     size_t include_path_count;
     char **open_files_stack;
@@ -51,6 +60,10 @@ struct BaaPreprocessor {
     size_t expanding_macros_capacity;
     const char *current_file_path;
     size_t current_line_number;
+    size_t current_column_number;     // Current physical location being processed
+    PpSourceLocation *location_stack; // Stack to track original source locations
+    size_t location_stack_count;
+    size_t location_stack_capacity;
 }; // Note: No typedef name here
 
 // Dynamic Buffer for Output
@@ -116,11 +129,22 @@ wchar_t *wcsndup_internal(const wchar_t *s, size_t n); // Renamed to avoid poten
 wchar_t *read_file_content_utf16le(BaaPreprocessor *pp_state, const char *file_path, wchar_t **error_message);
 char *get_absolute_path(const char *file_path);
 char *get_directory_part(const char *file_path);
+// Updated error formatter to potentially accept an explicit location
+wchar_t *format_preprocessor_error_at_location(const PpSourceLocation *location, const wchar_t *format, ...);
+// Keep old context formatter for now, maybe adapt it later or remove
 wchar_t *format_preprocessor_error_with_context(BaaPreprocessor *pp_state, const wchar_t *format, ...);
 wchar_t *format_preprocessor_error(const wchar_t *format, ...);
+
+// File Stack
 bool push_file_stack(BaaPreprocessor *pp, const char *abs_path);
 void pop_file_stack(BaaPreprocessor *pp);
 void free_file_stack(BaaPreprocessor *pp);
+
+// Location Stack
+bool push_location(BaaPreprocessor *pp, const PpSourceLocation *location);
+void pop_location(BaaPreprocessor *pp);
+PpSourceLocation get_current_original_location(const BaaPreprocessor *pp); // Gets location from top of stack
+void free_location_stack(BaaPreprocessor *pp);
 
 // From preprocessor_macros.c
 bool add_macro(BaaPreprocessor *pp_state, const wchar_t *name, const wchar_t *body, bool is_function_like, size_t param_count, wchar_t **param_names);

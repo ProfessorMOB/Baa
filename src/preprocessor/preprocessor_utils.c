@@ -1,5 +1,178 @@
 #include "preprocessor_internal.h"
 
+// --- Location Stack ---
+
+// Pushes a location onto the stack. Returns false on allocation failure.
+bool push_location(BaaPreprocessor *pp, const PpSourceLocation *location)
+{
+    if (pp->location_stack_count >= pp->location_stack_capacity)
+    {
+        size_t new_capacity = (pp->location_stack_capacity == 0) ? 8 : pp->location_stack_capacity * 2;
+        PpSourceLocation *new_stack = realloc(pp->location_stack, new_capacity * sizeof(PpSourceLocation));
+        if (!new_stack)
+            return false; // Allocation failure
+        pp->location_stack = new_stack;
+        pp->location_stack_capacity = new_capacity;
+    }
+    // Copy the location data onto the stack
+    pp->location_stack[pp->location_stack_count++] = *location;
+    return true;
+}
+
+// Pops a location from the stack. Does nothing if the stack is empty.
+void pop_location(BaaPreprocessor *pp)
+{
+    if (pp->location_stack_count > 0)
+    {
+        pp->location_stack_count--;
+        // No need to free anything here as the stack holds copies, not pointers
+    }
+}
+
+// Gets the location from the top of the stack. Returns a default location if stack is empty.
+PpSourceLocation get_current_original_location(const BaaPreprocessor *pp)
+{
+    if (pp->location_stack_count > 0)
+    {
+        return pp->location_stack[pp->location_stack_count - 1];
+    }
+    else
+    {
+        // Return a default/unknown location if stack is empty
+        // Use the current physical location as a fallback if available
+        return (PpSourceLocation){
+            .file_path = pp->current_file_path ? pp->current_file_path : "(unknown)",
+            .line = pp->current_line_number,
+            .column = pp->current_column_number};
+    }
+}
+
+// Frees the memory used by the location stack.
+void free_location_stack(BaaPreprocessor *pp)
+{
+    free(pp->location_stack);
+    pp->location_stack = NULL;
+    pp->location_stack_count = 0;
+    pp->location_stack_capacity = 0;
+}
+
+// --- New Error Formatter using Explicit Location ---
+wchar_t *format_preprocessor_error_at_location(const PpSourceLocation *location, const wchar_t *format, ...)
+{
+    // Prepare the prefix using the provided location
+    size_t prefix_base_len = wcslen(L":%zu:%zu: خطأ: "); // file:line:col: error:
+    size_t path_len = location && location->file_path ? strlen(location->file_path) : strlen("(unknown file)");
+    size_t prefix_buffer_size = path_len + prefix_base_len + 30; // Extra space for line/column numbers
+    char *prefix_mb = malloc(prefix_buffer_size);
+    if (!prefix_mb)
+    {
+        // Basic fallback if prefix allocation fails
+        va_list args_fallback;
+        va_start(args_fallback, format);
+        // Determine required size for original format
+        va_list args_copy_fallback;
+        va_copy(args_copy_fallback, args_fallback);
+        int needed_fallback = vswprintf(NULL, 0, format, args_copy_fallback);
+        va_end(args_copy_fallback);
+        if (needed_fallback < 0)
+        {
+            va_end(args_fallback);
+            return _wcsdup(L"فشل في تنسيق رسالة الخطأ (وفشل تخصيص البادئة).");
+        }
+        size_t buffer_size_fallback = (size_t)needed_fallback + 1;
+        wchar_t *buffer_fallback = malloc(buffer_size_fallback * sizeof(wchar_t));
+        if (!buffer_fallback)
+        {
+            va_end(args_fallback);
+            return _wcsdup(L"فشل في تنسيق رسالة الخطأ (وفشل تخصيص البادئة والمخزن المؤقت).");
+        }
+        vswprintf(buffer_fallback, buffer_size_fallback, format, args_fallback);
+        va_end(args_fallback);
+        return buffer_fallback;
+    }
+
+    // Format the prefix using the provided location
+    snprintf(prefix_mb, prefix_buffer_size, "%hs:%zu:%zu: خطأ: ",
+             location && location->file_path ? location->file_path : "(unknown file)",
+             location ? location->line : 0,
+             location ? location->column : 0);
+
+    // Convert prefix to wchar_t (same logic as format_preprocessor_error_with_context)
+    wchar_t *prefix_w = NULL;
+    int required_wchars = MultiByteToWideChar(CP_UTF8, 0, prefix_mb, -1, NULL, 0);
+    if (required_wchars > 0)
+    {
+        prefix_w = malloc(required_wchars * sizeof(wchar_t));
+        if (prefix_w)
+        {
+            MultiByteToWideChar(CP_UTF8, 0, prefix_mb, -1, prefix_w, required_wchars);
+        }
+    }
+    free(prefix_mb);
+
+    if (!prefix_w)
+    {
+        // Fallback if prefix conversion fails
+        va_list args_fallback;
+        va_start(args_fallback, format);
+        va_list args_copy_fallback;
+        va_copy(args_copy_fallback, args_fallback);
+        int needed_fallback = vswprintf(NULL, 0, format, args_copy_fallback);
+        va_end(args_copy_fallback);
+        if (needed_fallback < 0)
+        {
+            va_end(args_fallback);
+            return _wcsdup(L"فشل في تنسيق رسالة الخطأ (وفشل تحويل البادئة).");
+        }
+        size_t buffer_size_fallback = (size_t)needed_fallback + 1;
+        wchar_t *buffer_fallback = malloc(buffer_size_fallback * sizeof(wchar_t));
+        if (!buffer_fallback)
+        {
+            va_end(args_fallback);
+            return _wcsdup(L"فشل في تنسيق رسالة الخطأ (وفشل تحويل البادئة والمخزن المؤقت).");
+        }
+        vswprintf(buffer_fallback, buffer_size_fallback, format, args_fallback);
+        va_end(args_fallback);
+        return buffer_fallback;
+    }
+
+    // Format the user's message part (same logic as before)
+    va_list args;
+    va_start(args, format);
+    va_list args_copy;
+    va_copy(args_copy, args);
+    int needed_msg = vswprintf(NULL, 0, format, args_copy);
+    va_end(args_copy);
+
+    if (needed_msg < 0)
+    {
+        va_end(args);
+        free(prefix_w);
+        return _wcsdup(L"فشل في تنسيق جزء الرسالة من خطأ المعالج المسبق.");
+    }
+
+    // Combine prefix and message (same logic as before)
+    size_t prefix_len = wcslen(prefix_w);
+    size_t msg_len = (size_t)needed_msg;
+    size_t total_len = prefix_len + msg_len;
+    wchar_t *final_buffer = malloc((total_len + 1) * sizeof(wchar_t));
+
+    if (!final_buffer)
+    {
+        va_end(args);
+        free(prefix_w);
+        return _wcsdup(L"فشل في تخصيص الذاكرة لرسالة خطأ المعالج المسبق الكاملة.");
+    }
+
+    wcscpy(final_buffer, prefix_w);
+    free(prefix_w);
+
+    vswprintf(final_buffer + prefix_len, msg_len + 1, format, args);
+    va_end(args);
+
+    return final_buffer;
+}
+
 // --- Dynamic Buffer for Output ---
 
 bool init_dynamic_buffer(DynamicWcharBuffer *db, size_t initial_capacity)
@@ -99,7 +272,6 @@ wchar_t *wcsndup_internal(const wchar_t *s, size_t n)
     return result;
 }
 
-
 // --- Error Formatting ---
 
 // Helper to format error messages *with* file/line context
@@ -107,12 +279,13 @@ wchar_t *wcsndup_internal(const wchar_t *s, size_t n)
 wchar_t *format_preprocessor_error_with_context(BaaPreprocessor *pp_state, const wchar_t *format, ...)
 {
     // Prepare the prefix
-    // Estimate buffer size: path len + ~10 for line num + ~20 for ": error: " + null
-    size_t prefix_base_len = wcslen(L":%zu: خطأ: ");
+    // Estimate buffer size: path len + ~10 for line num + ~10 for col num + ~20 for ": error: " + null
+    size_t prefix_base_len = wcslen(L":%zu:%zu: خطأ: "); // Added %zu for column
     size_t path_len = pp_state->current_file_path ? strlen(pp_state->current_file_path) : strlen("(unknown file)");
-    size_t prefix_buffer_size = path_len + prefix_base_len + 20; // Extra space for line number digits
-    char* prefix_mb = malloc(prefix_buffer_size);
-    if (!prefix_mb) {
+    size_t prefix_buffer_size = path_len + prefix_base_len + 30; // Extra space for line/column number digits
+    char *prefix_mb = malloc(prefix_buffer_size);
+    if (!prefix_mb)
+    {
         // Fallback if prefix allocation fails - return original format attempt
         // This is suboptimal but better than crashing.
         va_list args_fallback;
@@ -122,37 +295,44 @@ wchar_t *format_preprocessor_error_with_context(BaaPreprocessor *pp_state, const
         va_copy(args_copy_fallback, args_fallback);
         int needed_fallback = vswprintf(NULL, 0, format, args_copy_fallback);
         va_end(args_copy_fallback);
-        if (needed_fallback < 0) {
+        if (needed_fallback < 0)
+        {
             va_end(args_fallback);
             return _wcsdup(L"فشل في تنسيق رسالة الخطأ (وفشل تخصيص البادئة).");
         }
         size_t buffer_size_fallback = (size_t)needed_fallback + 1;
         wchar_t *buffer_fallback = malloc(buffer_size_fallback * sizeof(wchar_t));
-        if (!buffer_fallback) {
-             va_end(args_fallback);
-             return _wcsdup(L"فشل في تنسيق رسالة الخطأ (وفشل تخصيص البادئة والمخزن المؤقت).");
+        if (!buffer_fallback)
+        {
+            va_end(args_fallback);
+            return _wcsdup(L"فشل في تنسيق رسالة الخطأ (وفشل تخصيص البادئة والمخزن المؤقت).");
         }
         vswprintf(buffer_fallback, buffer_size_fallback, format, args_fallback);
         va_end(args_fallback);
         return buffer_fallback;
     }
 
-    snprintf(prefix_mb, prefix_buffer_size, "%hs:%zu: خطأ: ",
+    // Format the prefix including the column number
+    snprintf(prefix_mb, prefix_buffer_size, "%hs:%zu:%zu: خطأ: ",
              pp_state->current_file_path ? pp_state->current_file_path : "(unknown file)",
-             pp_state->current_line_number);
+             pp_state->current_line_number,
+             pp_state->current_column_number); // Added column number
 
     // Convert prefix to wchar_t
-    wchar_t* prefix_w = NULL;
+    wchar_t *prefix_w = NULL;
     int required_wchars = MultiByteToWideChar(CP_UTF8, 0, prefix_mb, -1, NULL, 0);
-    if (required_wchars > 0) {
+    if (required_wchars > 0)
+    {
         prefix_w = malloc(required_wchars * sizeof(wchar_t));
-        if (prefix_w) {
+        if (prefix_w)
+        {
             MultiByteToWideChar(CP_UTF8, 0, prefix_mb, -1, prefix_w, required_wchars);
         }
     }
     free(prefix_mb); // Free the multibyte prefix buffer
 
-    if (!prefix_w) {
+    if (!prefix_w)
+    {
         // Fallback if prefix conversion fails - similar to allocation failure above
         va_list args_fallback;
         va_start(args_fallback, format);
@@ -160,15 +340,17 @@ wchar_t *format_preprocessor_error_with_context(BaaPreprocessor *pp_state, const
         va_copy(args_copy_fallback, args_fallback);
         int needed_fallback = vswprintf(NULL, 0, format, args_copy_fallback);
         va_end(args_copy_fallback);
-        if (needed_fallback < 0) {
-             va_end(args_fallback);
-             return _wcsdup(L"فشل في تنسيق رسالة الخطأ (وفشل تحويل البادئة).");
+        if (needed_fallback < 0)
+        {
+            va_end(args_fallback);
+            return _wcsdup(L"فشل في تنسيق رسالة الخطأ (وفشل تحويل البادئة).");
         }
         size_t buffer_size_fallback = (size_t)needed_fallback + 1;
         wchar_t *buffer_fallback = malloc(buffer_size_fallback * sizeof(wchar_t));
-        if (!buffer_fallback) {
-             va_end(args_fallback);
-             return _wcsdup(L"فشل في تنسيق رسالة الخطأ (وفشل تحويل البادئة والمخزن المؤقت).");
+        if (!buffer_fallback)
+        {
+            va_end(args_fallback);
+            return _wcsdup(L"فشل في تنسيق رسالة الخطأ (وفشل تحويل البادئة والمخزن المؤقت).");
         }
         vswprintf(buffer_fallback, buffer_size_fallback, format, args_fallback);
         va_end(args_fallback);
@@ -183,7 +365,8 @@ wchar_t *format_preprocessor_error_with_context(BaaPreprocessor *pp_state, const
     int needed_msg = vswprintf(NULL, 0, format, args_copy);
     va_end(args_copy);
 
-    if (needed_msg < 0) {
+    if (needed_msg < 0)
+    {
         va_end(args);
         free(prefix_w);
         return _wcsdup(L"فشل في تنسيق جزء الرسالة من خطأ المعالج المسبق."); // Basic fallback
@@ -195,7 +378,8 @@ wchar_t *format_preprocessor_error_with_context(BaaPreprocessor *pp_state, const
     size_t total_len = prefix_len + msg_len;
     wchar_t *final_buffer = malloc((total_len + 1) * sizeof(wchar_t));
 
-    if (!final_buffer) {
+    if (!final_buffer)
+    {
         va_end(args);
         free(prefix_w);
         return _wcsdup(L"فشل في تخصيص الذاكرة لرسالة خطأ المعالج المسبق الكاملة."); // Basic fallback
@@ -212,7 +396,6 @@ wchar_t *format_preprocessor_error_with_context(BaaPreprocessor *pp_state, const
     return final_buffer;
 }
 
-
 // Original error formatter (without context) - kept for potential use where context is unavailable
 wchar_t *format_preprocessor_error(const wchar_t *format, ...)
 {
@@ -225,32 +408,32 @@ wchar_t *format_preprocessor_error(const wchar_t *format, ...)
     int needed = vswprintf(NULL, 0, format, args_copy);
     va_end(args_copy);
 
-        if (needed < 0)
-        {
-            va_end(args);
-            // Fallback error message
-            const wchar_t *fallback = L"فشل في تنسيق رسالة خطأ المعالج المسبق.";
-            wchar_t *error_msg;
-    #ifdef _WIN32
-            error_msg = _wcsdup(fallback);
-    #else
-            error_msg = _wcsdup(fallback); // Use _wcsdup here too
-    #endif
-            return error_msg;
-        }
+    if (needed < 0)
+    {
+        va_end(args);
+        // Fallback error message
+        const wchar_t *fallback = L"فشل في تنسيق رسالة خطأ المعالج المسبق.";
+        wchar_t *error_msg;
+#ifdef _WIN32
+        error_msg = _wcsdup(fallback);
+#else
+        error_msg = _wcsdup(fallback); // Use _wcsdup here too
+#endif
+        return error_msg;
+    }
 
     size_t buffer_size = (size_t)needed + 1;
     wchar_t *buffer = malloc(buffer_size * sizeof(wchar_t));
     if (!buffer)
     {
         va_end(args);
-            const wchar_t *fallback = L"فشل في تخصيص الذاكرة لرسالة خطأ المعالج المسبق.";
-            wchar_t *error_msg;
-        #ifdef _WIN32
-            error_msg = _wcsdup(fallback);
-        #else
-            error_msg = _wcsdup(fallback); // Use _wcsdup here too
-        #endif
+        const wchar_t *fallback = L"فشل في تخصيص الذاكرة لرسالة خطأ المعالج المسبق.";
+        wchar_t *error_msg;
+#ifdef _WIN32
+        error_msg = _wcsdup(fallback);
+#else
+        error_msg = _wcsdup(fallback); // Use _wcsdup here too
+#endif
         return error_msg; // Allocation failed
     }
 
@@ -455,7 +638,6 @@ char *get_directory_part(const char *file_path)
     return dir_part;
 #endif
 }
-
 
 // --- File Stack for Circular Include Detection ---
 

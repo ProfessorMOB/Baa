@@ -26,6 +26,7 @@ wchar_t *process_file(BaaPreprocessor *pp_state, const char *file_path, wchar_t 
     // Set current context for this file
     pp_state->current_file_path = abs_path; // Use the allocated absolute path
     pp_state->current_line_number = 1;      // Start at line 1
+    pp_state->current_column_number = 1;    // Start at column 1
 
     // 1. Circular Include Check
     if (!push_file_stack(pp_state, abs_path))
@@ -64,6 +65,7 @@ wchar_t *process_file(BaaPreprocessor *pp_state, const char *file_path, wchar_t 
 
     // 3. Process Lines and Directives
     wchar_t *line_start = file_content;
+    wchar_t *current_char_ptr = line_start; // Pointer for column tracking
     wchar_t *line_end;
     bool success = true;
 
@@ -100,7 +102,11 @@ wchar_t *process_file(BaaPreprocessor *pp_state, const char *file_path, wchar_t 
         {
             // Trim leading whitespace after '#' for easier comparison
             wchar_t* directive_start = current_line + 1;
-            while(iswspace(*directive_start)) directive_start++;
+            pp_state->current_column_number = 2; // Start after '#'
+            while(iswspace(*directive_start)) {
+                 directive_start++;
+                 pp_state->current_column_number++;
+            }
 
             // Define directive keywords and lengths
             const wchar_t *include_directive = L"تضمين";
@@ -285,7 +291,12 @@ wchar_t *process_file(BaaPreprocessor *pp_state, const char *file_path, wchar_t 
                 {
                     // Found #تضمين directive
                     wchar_t *path_spec_start = directive_start + include_directive_len;
-                    while (iswspace(*path_spec_start)) path_spec_start++;
+                    // Update column past the directive keyword itself
+                    pp_state->current_column_number += include_directive_len;
+                    while (iswspace(*path_spec_start)) {
+                         path_spec_start++;
+                         pp_state->current_column_number++;
+                    }
 
                     wchar_t start_char = path_spec_start[0];
                     wchar_t end_char = 0;
@@ -418,7 +429,11 @@ wchar_t *process_file(BaaPreprocessor *pp_state, const char *file_path, wchar_t 
                 {
                     // Found #تعريف directive
                     wchar_t *name_start = directive_start + define_directive_len;
-                    while (iswspace(*name_start)) name_start++;
+                    pp_state->current_column_number += define_directive_len; // Update past directive
+                    while (iswspace(*name_start)) {
+                        name_start++;
+                        pp_state->current_column_number++;
+                    }
 
                     wchar_t *name_end = name_start;
                     // Macro name cannot have whitespace, but check for '(' immediately after name
@@ -550,7 +565,11 @@ wchar_t *process_file(BaaPreprocessor *pp_state, const char *file_path, wchar_t 
                 {
                     // Found #الغاء_تعريف directive
                     wchar_t *name_start = directive_start + undef_directive_len;
-                    while (iswspace(*name_start)) name_start++;
+                    pp_state->current_column_number += undef_directive_len; // Update past directive
+                    while (iswspace(*name_start)) {
+                        name_start++;
+                        pp_state->current_column_number++;
+                    }
                     wchar_t *name_end = name_start;
                     while (*name_end != L'\0' && !iswspace(*name_end)) name_end++;
 
@@ -602,6 +621,7 @@ wchar_t *process_file(BaaPreprocessor *pp_state, const char *file_path, wchar_t 
                             line_ptr++;
                         }
                         size_t id_len = line_ptr - id_start;
+                        // Column update happens *after* processing the identifier/macro
                         wchar_t *identifier = wcsndup_internal(id_start, id_len);
                         if (!identifier) {
                             *error_message = format_preprocessor_error_with_context(pp_state, L"فشل في تخصيص ذاكرة للمعرف للاستبدال.");
@@ -626,7 +646,9 @@ wchar_t *process_file(BaaPreprocessor *pp_state, const char *file_path, wchar_t 
 
                                 if (*invocation_ptr == L'(') { // Found '(', it's an invocation
                                     invocation_ptr++; // Consume '('
+                                    if (pp_state) pp_state->current_column_number++; // Update column past '('
                                     size_t actual_arg_count = 0;
+                                    // Pass pp_state to the argument parser
                                     wchar_t **arguments = parse_macro_arguments(pp_state, &invocation_ptr, macro->param_count, &actual_arg_count, error_message);
 
                                     if (!arguments) { // Error during argument parsing
@@ -664,11 +686,13 @@ wchar_t *process_file(BaaPreprocessor *pp_state, const char *file_path, wchar_t 
                                         free(arguments);
                                     }
                                     // Advance the main line pointer past the invocation
-                                    line_ptr = invocation_ptr; // invocation_ptr was updated by parse_macro_arguments
+                                    // TODO: Column update needs to happen within parse_macro_arguments
+                                    line_ptr = invocation_ptr;
                                 } else {
                                     // Function-like macro name NOT followed by '(', treat as normal identifier
                                     if (!append_dynamic_buffer_n(&substituted_line_buffer, id_start, id_len))
                                         expansion_success = false;
+                                    pp_state->current_column_number += id_len; // Update column past identifier
                                 }
                             } else { // Object-like macro
                                 // Perform substitution into a temporary buffer first
@@ -704,6 +728,7 @@ wchar_t *process_file(BaaPreprocessor *pp_state, const char *file_path, wchar_t 
                             // Append original identifier
                             if (!append_dynamic_buffer_n(&substituted_line_buffer, id_start, id_len))
                                 success = false;
+                            pp_state->current_column_number += id_len; // Update column past identifier
                         }
                         free(identifier);
                     } else {
@@ -711,6 +736,7 @@ wchar_t *process_file(BaaPreprocessor *pp_state, const char *file_path, wchar_t 
                         if (!append_dynamic_buffer_n(&substituted_line_buffer, line_ptr, 1))
                             success = false;
                         line_ptr++;
+                        pp_state->current_column_number++; // Update column
                     }
                 } // End while processing line
 
@@ -734,7 +760,10 @@ wchar_t *process_file(BaaPreprocessor *pp_state, const char *file_path, wchar_t 
 
         if (line_end != NULL) {
             line_start = line_end + 1; // Move to the next line
+            line_start = line_end + 1; // Move to the next line
+            current_char_ptr = line_start; // Reset column pointer
             pp_state->current_line_number++; // Increment line number
+            pp_state->current_column_number = 1; // Reset column number
         } else {
             break; // End of file content
         }

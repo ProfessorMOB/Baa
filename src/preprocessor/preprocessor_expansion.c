@@ -117,13 +117,14 @@ bool stringify_argument(BaaPreprocessor *pp_state, DynamicWcharBuffer *output_bu
 
 // Parses macro arguments from an invocation string.
 // Updates invocation_ptr_ref to point after the closing parenthesis.
+// Updates pp_state->current_column_number as it consumes characters.
 // Returns a dynamically allocated array of argument strings (caller must free each string and the array).
 // Returns NULL on error and sets error_message.
 wchar_t **parse_macro_arguments(BaaPreprocessor *pp_state, const wchar_t **invocation_ptr_ref, size_t expected_arg_count, size_t *actual_arg_count, wchar_t **error_message)
 {
     *actual_arg_count = 0;
     *error_message = NULL;
-    const wchar_t *ptr = *invocation_ptr_ref;
+    const wchar_t *ptr = *invocation_ptr_ref; // Local pointer for iteration
 
     wchar_t **args = NULL;
     size_t args_capacity = 0;
@@ -132,12 +133,15 @@ wchar_t **parse_macro_arguments(BaaPreprocessor *pp_state, const wchar_t **invoc
     while (*ptr != L'\0')
     {
         // Skip leading whitespace for the argument
-        while (iswspace(*ptr))
+        while (iswspace(*ptr)) {
             ptr++;
+            if (pp_state) pp_state->current_column_number++; // Update column
+        }
 
         if (*ptr == L')')
         {          // End of arguments
             ptr++; // Consume ')'
+            if (pp_state) pp_state->current_column_number++; // Update column
             break;
         }
 
@@ -147,8 +151,11 @@ wchar_t **parse_macro_arguments(BaaPreprocessor *pp_state, const wchar_t **invoc
             if (*ptr == L',')
             {
                 ptr++; // Consume ','
-                while (iswspace(*ptr))
+                if (pp_state) pp_state->current_column_number++; // Update column
+                while (iswspace(*ptr)) {
                     ptr++; // Skip space after comma
+                    if (pp_state) pp_state->current_column_number++; // Update column
+                }
             }
             else
             {
@@ -167,8 +174,15 @@ wchar_t **parse_macro_arguments(BaaPreprocessor *pp_state, const wchar_t **invoc
         bool in_char = false;
         wchar_t prev_char = L'\0';
 
+        // Track column changes within this argument parsing loop
+        size_t arg_start_col = pp_state ? pp_state->current_column_number : 0;
+        size_t current_arg_col = arg_start_col;
+
         while (*arg_end != L'\0')
         {
+            // Before processing char, update column tracking for the loop iteration
+            current_arg_col++;
+
             if (in_string)
             {
                 // Inside string literal
@@ -220,6 +234,7 @@ wchar_t **parse_macro_arguments(BaaPreprocessor *pp_state, const wchar_t **invoc
             }
 
             // Handle escaped characters (simple version: just track previous char)
+            // Column is already incremented for this char by current_arg_col++ above
             if (*arg_end == L'\\' && prev_char == L'\\')
             {
                 prev_char = L'\0'; // Treat double backslash as escaped, reset prev_char
@@ -231,6 +246,9 @@ wchar_t **parse_macro_arguments(BaaPreprocessor *pp_state, const wchar_t **invoc
             arg_end++;
         }
         // arg_end now points to the delimiter (',' or ')') or null terminator
+
+        // Update the main column number by the number of chars consumed for this argument
+        if (pp_state) pp_state->current_column_number = current_arg_col;
 
         if (paren_level != 0)
         { // Mismatched parentheses at the end

@@ -44,10 +44,11 @@ static PpExprToken make_identifier_token(PpExprTokenizer* tz) {
 }
 
 
-// Skips whitespace
+// Skips whitespace and updates column number
 static void skip_whitespace(PpExprTokenizer* tz) {
     while (iswspace(*tz->current)) {
         tz->current++;
+        if (tz->pp_state) tz->pp_state->current_column_number++; // Update column
     }
 }
 
@@ -59,35 +60,37 @@ static PpExprToken get_next_pp_expr_token(PpExprTokenizer* tz) {
     if (*tz->current == L'\0') return make_token(PP_EXPR_TOKEN_EOF);
 
     // Check for operators and parentheses first
+    // Store start column before consuming token
+    size_t start_col = tz->pp_state ? tz->pp_state->current_column_number : 0;
     switch (*tz->current) {
-        case L'(': tz->current++; return make_token(PP_EXPR_TOKEN_LPAREN);
-        case L')': tz->current++; return make_token(PP_EXPR_TOKEN_RPAREN);
-        case L'+': tz->current++; return make_token(PP_EXPR_TOKEN_PLUS);
-        case L'-': tz->current++; return make_token(PP_EXPR_TOKEN_MINUS);
-        case L'*': tz->current++; return make_token(PP_EXPR_TOKEN_STAR);
-        case L'/': tz->current++; return make_token(PP_EXPR_TOKEN_SLASH);
-        case L'%': tz->current++; return make_token(PP_EXPR_TOKEN_PERCENT);
+        case L'(': tz->current++; if (tz->pp_state) tz->pp_state->current_column_number++; return make_token(PP_EXPR_TOKEN_LPAREN);
+        case L')': tz->current++; if (tz->pp_state) tz->pp_state->current_column_number++; return make_token(PP_EXPR_TOKEN_RPAREN);
+        case L'+': tz->current++; if (tz->pp_state) tz->pp_state->current_column_number++; return make_token(PP_EXPR_TOKEN_PLUS);
+        case L'-': tz->current++; if (tz->pp_state) tz->pp_state->current_column_number++; return make_token(PP_EXPR_TOKEN_MINUS);
+        case L'*': tz->current++; if (tz->pp_state) tz->pp_state->current_column_number++; return make_token(PP_EXPR_TOKEN_STAR);
+        case L'/': tz->current++; if (tz->pp_state) tz->pp_state->current_column_number++; return make_token(PP_EXPR_TOKEN_SLASH);
+        case L'%': tz->current++; if (tz->pp_state) tz->pp_state->current_column_number++; return make_token(PP_EXPR_TOKEN_PERCENT);
         case L'!':
-            if (*(tz->current + 1) == L'=') { tz->current += 2; return make_token(PP_EXPR_TOKEN_BANGEQ); }
-            tz->current++; return make_token(PP_EXPR_TOKEN_BANG);
+            if (*(tz->current + 1) == L'=') { tz->current += 2; if (tz->pp_state) tz->pp_state->current_column_number += 2; return make_token(PP_EXPR_TOKEN_BANGEQ); }
+            tz->current++; if (tz->pp_state) tz->pp_state->current_column_number++; return make_token(PP_EXPR_TOKEN_BANG);
         case L'=':
-            if (*(tz->current + 1) == L'=') { tz->current += 2; return make_token(PP_EXPR_TOKEN_EQEQ); }
+            if (*(tz->current + 1) == L'=') { tz->current += 2; if (tz->pp_state) tz->pp_state->current_column_number += 2; return make_token(PP_EXPR_TOKEN_EQEQ); }
             // Single '=' is assignment, invalid in preprocessor expr
             return make_error_token(tz, L"المعامل '=' غير صالح في التعبير الشرطي.");
         case L'<':
-            if (*(tz->current + 1) == L'=') { tz->current += 2; return make_token(PP_EXPR_TOKEN_LTEQ); }
+            if (*(tz->current + 1) == L'=') { tz->current += 2; if (tz->pp_state) tz->pp_state->current_column_number += 2; return make_token(PP_EXPR_TOKEN_LTEQ); }
             // TODO: Handle << later if needed
-            tz->current++; return make_token(PP_EXPR_TOKEN_LT);
+            tz->current++; if (tz->pp_state) tz->pp_state->current_column_number++; return make_token(PP_EXPR_TOKEN_LT);
         case L'>':
-            if (*(tz->current + 1) == L'=') { tz->current += 2; return make_token(PP_EXPR_TOKEN_GTEQ); }
+            if (*(tz->current + 1) == L'=') { tz->current += 2; if (tz->pp_state) tz->pp_state->current_column_number += 2; return make_token(PP_EXPR_TOKEN_GTEQ); }
             // TODO: Handle >> later if needed
-            tz->current++; return make_token(PP_EXPR_TOKEN_GT);
+            tz->current++; if (tz->pp_state) tz->pp_state->current_column_number++; return make_token(PP_EXPR_TOKEN_GT);
         case L'&':
-            if (*(tz->current + 1) == L'&') { tz->current += 2; return make_token(PP_EXPR_TOKEN_AMPAMP); }
+            if (*(tz->current + 1) == L'&') { tz->current += 2; if (tz->pp_state) tz->pp_state->current_column_number += 2; return make_token(PP_EXPR_TOKEN_AMPAMP); }
             // TODO: Handle single '&' later if needed
             return make_error_token(tz, L"المعامل '&' غير مدعوم حاليًا في التعبير الشرطي.");
         case L'|':
-            if (*(tz->current + 1) == L'|') { tz->current += 2; return make_token(PP_EXPR_TOKEN_PIPEPIPE); }
+            if (*(tz->current + 1) == L'|') { tz->current += 2; if (tz->pp_state) tz->pp_state->current_column_number += 2; return make_token(PP_EXPR_TOKEN_PIPEPIPE); }
              // TODO: Handle single '|' later if needed
             return make_error_token(tz, L"المعامل '|' غير مدعوم حاليًا في التعبير الشرطي.");
         // TODO: Add cases for other operators like ^, ~
@@ -98,19 +101,23 @@ static PpExprToken get_next_pp_expr_token(PpExprTokenizer* tz) {
         wchar_t* endptr;
         long value = wcstol(tz->start, &endptr, 10); // Base 10 only for now
         if (endptr == tz->start) { // Should not happen if iswdigit passed, but safety
-             return make_error_token(tz, L"حرف رقمي غير صالح في التعبير الشرطي.");
-        }
-        tz->current = endptr; // Advance tokenizer past the number
-        return make_int_token(value);
-    }
+              return make_error_token(tz, L"حرف رقمي غير صالح في التعبير الشرطي.");
+         }
+         size_t num_len = endptr - tz->start;
+         tz->current = endptr; // Advance tokenizer past the number
+         if (tz->pp_state) tz->pp_state->current_column_number += num_len; // Update column by number length
+         return make_int_token(value);
+     }
 
     // Check for identifiers (including 'defined')
     if (iswalpha(*tz->current) || *tz->current == L'_') {
-        while (iswalnum(*tz->current) || *tz->current == L'_') {
-            tz->current++;
-        }
-        return make_identifier_token(tz);
-    }
+         while (iswalnum(*tz->current) || *tz->current == L'_') {
+             tz->current++;
+         }
+         size_t id_len = tz->current - tz->start;
+         if (tz->pp_state) tz->pp_state->current_column_number += id_len; // Update column by identifier length
+         return make_identifier_token(tz);
+     }
 
     // Unknown character
     return make_error_token(tz, L"رمز غير متوقع في التعبير الشرطي.");

@@ -48,6 +48,7 @@ wchar_t *baa_preprocess(const char *main_file_path, const char **include_paths, 
     // pp_state.expanding_macros_capacity = 0;
     // pp_state.current_file_path = NULL; // Will be set within process_file
     // pp_state.current_line_number = 0;    // Will be set within process_file
+    // pp_state.current_column_number = 0;  // Will be set within process_file
     // --- End Initialize ---
 
     // Start recursive processing by calling the core function

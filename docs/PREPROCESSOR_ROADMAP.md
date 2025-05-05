@@ -11,7 +11,8 @@ This roadmap outlines the planned improvements and current status of the Baa lan
 - [x] Error reporting via output parameter
 - [ ] Input source abstraction (file, string, stdin)
 - [ ] Support for UTF-8 input files (with conversion to internal wchar_t)
-- [ ] Improved error reporting (track original source line/column)
+- [x] Improved error reporting (added column numbers to messages)
+- [ ] Improved error reporting (track original source location through expansions)
 
 ## Directive Handling
 
@@ -49,7 +50,7 @@ This roadmap outlines the planned improvements and current status of the Baa lan
 
 ## Implementation Priorities (Excluding Testing for now)
 
-1.  **Error Reporting:** *[Next]*
+1.  **Error Reporting:** *[Partially Done - Column Added; Next: Original Location Tracking]*
     - Improve error messages to include original source line/column numbers.
 2.  **Robustness & Advanced Features:**
     - Support for UTF-8 input files.
