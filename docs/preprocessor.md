@@ -29,14 +29,14 @@ It operates on files assumed to be encoded in **UTF-16LE**.
     - Example: `#الغاء_تعريف MAX_SIZE`
 - **Conditional Compilation:**
     - Supports conditional blocks:
-        - `#إذا expression` (if): Evaluates a constant integer `expression`. Undefined identifiers in the expression evaluate to `0`.
+        - `#إذا expression` (if): Evaluates a constant integer `expression`. Undefined identifiers in the expression evaluate to `0`. Defined object-like macros containing simple integer literals are also evaluated correctly.
         - `#إذا_عرف MACRO` (ifdef): Checks if `MACRO` is defined.
         - `#إذا_لم_يعرف MACRO` (ifndef): Checks if `MACRO` is *not* defined.
         - `#وإلا_إذا expression` (elif): Evaluates a constant integer `expression` if the preceding `#if`/`#elif` was false and no prior branch in the block was taken.
         - `#إلا` (else): Executes if the preceding `#if`/`#elif` was false and no prior branch in the block was taken.
         - `#نهاية_إذا` (endif): Ends the conditional block.
     - Lines within blocks whose conditions are false are skipped.
-    - **Expression Evaluation:** Supports standard integer arithmetic (`+`, `-`, `*`, `/`, `%`), comparison (`==`, `!=`, `<`, `>`, `<=`, `>=`), logical (`&&`, `||`, `!`), parentheses `()`, and the `defined(MACRO)` operator within `#إذا` and `#وإلا_إذا` directives, respecting operator precedence. Undefined identifiers evaluate to `0`. *Note: Bitwise operators are not yet supported.*
+    - **Expression Evaluation:** Supports standard integer arithmetic (`+`, `-`, `*`, `/`, `%`), comparison (`==`, `!=`, `<`, `>`, `<=`, `>=`), logical (`&&`, `||`, `!`), parentheses `()`, and the `defined(MACRO)` operator within `#إذا` and `#وإلا_إذا` directives, respecting operator precedence. Undefined identifiers evaluate to `0`. Defined object-like macros containing simple integer literals are also evaluated correctly. *Note: Bitwise operators are not yet supported.*
 
 ### Macro Recursion Detection (كشف استدعاء الماكرو الذاتي)
 - Detects and prevents infinite loops caused by direct or indirect recursive macro expansions using an internal expansion stack.

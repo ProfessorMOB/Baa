@@ -256,10 +256,33 @@ static bool parse_primary_pp_expr(PpExprTokenizer* tz, long* result) {
          }
          return true;
      } else if (token.type == PP_EXPR_TOKEN_IDENTIFIER) {
-         // Undefined identifiers evaluate to 0 in preprocessor expressions
-         // TODO: Should we attempt macro expansion here first? C standard says yes.
-         // For now, treat as 0.
-         *result = 0L;
+         // Identifier: Check if it's a defined macro.
+         const BaaMacro* macro = find_macro(tz->pp_state, token.text);
+         if (macro && !macro->is_function_like) {
+             // Found an object-like macro. Attempt to evaluate its body as an integer.
+             // This is a simplified approach; a full implementation would need to
+             // substitute and re-tokenize/re-parse the macro body.
+             wchar_t* endptr;
+             long macro_value = wcstol(macro->body, &endptr, 10); // Try base 10
+
+             // Check if the entire body was a valid integer
+             // Skip leading/trailing whitespace in the check
+             const wchar_t* body_ptr = macro->body;
+             while (iswspace(*body_ptr)) body_ptr++;
+             if (endptr == body_ptr || *endptr != L'\0') {
+                 // Body wasn't a simple integer literal, treat as 0 for now
+                 // TODO: Implement full macro expansion and re-evaluation here.
+                 *result = 0L;
+                 // Report a warning? Or just evaluate to 0 silently? C standard is 0.
+                 // make_error_token(tz, L"Warning: Macro body is not a simple integer, evaluating as 0.");
+             } else {
+                 // Successfully parsed the body as an integer
+                 *result = macro_value;
+             }
+         } else {
+             // Not a defined object-like macro (or is function-like), evaluates to 0.
+             *result = 0L;
+         }
          free(token.text);
          return true;
      } else if (token.type == PP_EXPR_TOKEN_ERROR) {

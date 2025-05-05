@@ -68,7 +68,8 @@ wchar_t *baa_preprocess(const char *main_file_path, const char **include_paths, 
         // If an error already occurred, keep that primary error message
         // Otherwise, report the unterminated block error.
         free(*error_message); // Free previous non-error message if any
-        *error_message = format_preprocessor_error(L"كتلة شرطية غير منتهية في نهاية المعالجة (مفقود #نهاية_إذا).");
+        // Use context-aware formatter, passing the state
+        *error_message = format_preprocessor_error_with_context(&pp_state, L"كتلة شرطية غير منتهية في نهاية المعالجة (مفقود #نهاية_إذا).");
         free(final_output); // Free the potentially partially generated output
         final_output = NULL;
     }

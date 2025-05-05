@@ -218,6 +218,16 @@ cd build
 ctest --output-on-failure
 ```
 
+### Preprocessor Tester
+
+A standalone tool is available to test the preprocessor in isolation:
+
+```bash
+# After building the project:
+./build/bin/baa_preprocessor_tester <path/to/your/file.baa>
+```
+Note: The preprocessor currently expects input files to be encoded in UTF-16LE with a BOM.
+
 ## Features
 
 ### Type Safety

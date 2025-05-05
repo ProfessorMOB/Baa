@@ -126,6 +126,36 @@ else()
     target_compile_definitions(baa PRIVATE LLVM_AVAILABLE=0)
 endif()
 
+# --- Standalone Preprocessor Tester ---
+add_executable(baa_preprocessor_tester
+    tools/baa_preprocessor_tester.c
+
+    # Preprocessor files (needed by the tester)
+    src/preprocessor/preprocessor.c
+    src/preprocessor/preprocessor_utils.c
+    src/preprocessor/preprocessor_macros.c
+    src/preprocessor/preprocessor_expansion.c
+    src/preprocessor/preprocessor_conditionals.c
+    src/preprocessor/preprocessor_expr_eval.c
+    src/preprocessor/preprocessor_core.c
+
+    # Utility files (needed by the preprocessor)
+    src/utils/utils.c
+)
+
+# Include directories for the tester
+target_include_directories(baa_preprocessor_tester
+    PRIVATE
+        ${CMAKE_SOURCE_DIR}/include       # For baa/preprocessor/preprocessor.h
+        ${CMAKE_SOURCE_DIR}/src/preprocessor # For preprocessor_internal.h
+)
+
+# Set output directory for the tester executable (optional, but good practice)
+set_target_properties(baa_preprocessor_tester PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+)
+
+
 # تفعيل الاختبارات (معطل مؤقتاً)
 # enable_testing()
 # add_subdirectory(tests) # Keep this if tests are separate

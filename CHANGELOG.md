@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Standalone preprocessor tester executable (`tools/baa_preprocessor_tester.c`) for isolated testing.
+- Placeholder implementations for missing parser functions (`baa_parse_if_statement`, `baa_parse_while_statement`, `baa_parse_for_statement`, `baa_parse_return_statement`, `baa_create_compound_assignment_expr`, `baa_create_grouping_expr`) to allow the build to complete.
+
+### Fixed
+- Preprocessor: Fixed bug where `#إذا` directives using macros defined as simple integers (e.g., `#تعريف DEBUG 1`) were not evaluated correctly, causing the enclosed block to be skipped erroneously. The expression evaluator now handles this case.
+- Build: Corrected mismatch between `baa_parse` and `baa_parse_program` definitions/declarations in `src/parser/parser.c`.
+- Build: Added missing declaration for `baa_parse_for_statement` in `include/baa/parser/parser.h`.
+
 ### Changed
 - **Parser Refactoring:** Split `src/parser/parser.c` into more modular components:
   - `src/parser/parser_helper.c`: Contains core utilities like `advance`, `peek`, `match_keyword`, error helpers, etc.

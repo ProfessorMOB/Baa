@@ -27,10 +27,10 @@ This roadmap outlines the planned improvements and current status of the Baa lan
     - [x] Stringification (`#`)
     - [x] Token Pasting (`##`) (concatenation)
     - [x] Macro recursion detection
-    - [ ] More robust substitution rules (handling complex edge cases)
+    - [ ] More robust substitution rules (handling complex edge cases, rescanning)
     - [ ] Fully robust argument parsing (complex edge cases with literals/whitespace)
 - **Conditional Compilation:**
-    - [x] `#إذا expression` (if - constant expression evaluation)
+    - [x] `#إذا expression` (if - constant expression evaluation - *partially supports evaluating simple integer macros*)
     - [x] `#إذا_عرف MACRO` (ifdef)
     - [x] `#إذا_لم_يعرف MACRO` (ifndef)
     - [x] `#وإلا_إذا expression` (elif - constant expression evaluation)

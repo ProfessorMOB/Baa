@@ -434,6 +434,29 @@ bool baa_validate_index_expr(BaaExpr *array, BaaExpr *index)
     return index_type->kind == BAA_TYPE_INT;
 }
 
+// --- Placeholder Implementations for Missing Creation Functions ---
+
+BaaExpr *baa_create_compound_assignment_expr(BaaExpr *target, BaaExpr *value, BaaOperatorType op) {
+    // Placeholder - returns NULL to indicate failure until implemented
+    // A real implementation would create a BAA_EXPR_COMPOUND_ASSIGN node
+    (void)target; // Suppress unused parameter warning
+    (void)value;  // Suppress unused parameter warning
+    (void)op;     // Suppress unused parameter warning
+    // In a real scenario, you might set an error message here
+    return NULL;
+}
+
+BaaExpr *baa_create_grouping_expr(BaaExpr *expression) {
+    // Placeholder - returns NULL to indicate failure until implemented
+    // A real implementation would create a BAA_EXPR_GROUPING node
+    (void)expression; // Suppress unused parameter warning
+    // In a real scenario, you might set an error message here
+    return NULL;
+}
+
+// --- TODO: Implement actual creation logic for compound assignment and grouping ---
+
+
 void baa_free_expr(BaaExpr *expr)
 {
     if (!expr)

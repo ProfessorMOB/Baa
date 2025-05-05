@@ -157,18 +157,20 @@ static BaaNode *parse_declaration(BaaParser *parser)
 
 // Function removed: parse_import_directive (moved to declaration_parser.c)
 
-// Main parsing functions
-BaaProgram *baa_parse(const wchar_t *input, const wchar_t *filename)
+// Main parsing function - parses the entire program from the token stream provided by the parser's lexer.
+BaaProgram *baa_parse_program(BaaParser *parser)
 {
-    BaaParser parser;
-    BaaLexer *lexer = baa_create_lexer(input);
-    if (!lexer)
+    if (!parser || !parser->lexer) {
+        // Cannot proceed without a valid parser and lexer
+        // TODO: How to report this error? Maybe return NULL and expect caller to check?
         return NULL;
+    }
 
     BaaProgram *program = baa_create_program();
     if (!program)
     {
-        baa_free_lexer(lexer);
+        // Allocation failed
+        // TODO: Set parser error?
         return NULL;
     }
 
@@ -177,23 +179,22 @@ BaaProgram *baa_parse(const wchar_t *input, const wchar_t *filename)
     if (!program->ast_node)
     {
         baa_free_program(program); // Frees the inner program struct too
-        baa_free_lexer(lexer);
+        // TODO: Set parser error?
         return NULL;
     }
 
-    parser.lexer = lexer;
-    parser.had_error = false;
-    parser.panic_mode = false;
-    baa_token_next(&parser); // Load the first token
+    // Assume parser is already initialized and first token is loaded by the caller (e.g., compiler.c)
+    // parser->had_error = false; // Should be initialized by caller
+    // parser->panic_mode = false; // Should be initialized by caller
 
-    while (parser.current_token.type != BAA_TOKEN_EOF)
+    while (parser->current_token.type != BAA_TOKEN_EOF)
     {
         // Try parsing top-level declarations (functions or global vars)
         // TODO: Add support for top-level variable/import declarations if allowed
-        if (parser.current_token.type == BAA_TOKEN_FUNC)
+        if (parser->current_token.type == BAA_TOKEN_FUNC)
         {
             // Call the function declaration parser directly
-            BaaFunction *func = baa_parse_function_declaration(&parser);
+            BaaFunction *func = baa_parse_function_declaration(parser);
             if (func)
             {
                 // Create the AST node for the function
@@ -206,49 +207,52 @@ BaaProgram *baa_parse(const wchar_t *input, const wchar_t *filename)
                 else
                 {
                     baa_free_function(func); // Cleanup if node creation fails
-                    parser.had_error = true; // Signal error
+                    parser->had_error = true; // Signal error
+                    // TODO: Set a specific error message? baa_create_node should ideally do this
                 }
             }
-            // Error handling or NULL return already managed within parse_function/baa_parse_function_declaration
+            // Error handling or NULL return already managed within baa_parse_function_declaration
         }
         // TODO: Add support for top-level variable declarations if needed
-        // else if (parser.current_token.type == BAA_TOKEN_VAR) { ... }
+        // else if (parser->current_token.type == BAA_TOKEN_VAR) { ... }
         else
         {
             // If it's not a known top-level declaration, report error or skip
-            baa_unexpected_token_error(&parser, L"تصريح دالة أو نهاية الملف");
+            baa_unexpected_token_error(parser, L"تصريح دالة أو نهاية الملف");
             // Attempt error recovery
-            synchronize(&parser);
+            synchronize(parser);
         }
 
-        if (parser.had_error)
+        if (parser->had_error)
         {
-            if (!parser.panic_mode)
+            if (!parser->panic_mode)
             {
-                // Report error details if needed
-                parser.panic_mode = true; // Enter panic mode after first error
+                // Report error details if needed (already done by error setting functions)
+                parser->panic_mode = true; // Enter panic mode after first error
             }
             // Attempt to recover or break
-            synchronize(&parser);
-            if (parser.current_token.type == BAA_TOKEN_EOF)
+            synchronize(parser);
+            if (parser->current_token.type == BAA_TOKEN_EOF)
                 break; // Stop if EOF reached after error
         }
         else
         {
-            parser.panic_mode = false; // Reset panic mode on successful parse
+            parser->panic_mode = false; // Reset panic mode on successful parse
         }
     }
 
-    baa_free_lexer(lexer);
+    // Do NOT free the lexer here, it's owned by the caller (compiler.c)
 
-    if (parser.had_error)
+    if (parser->had_error)
     {
+        // Error message should already be set in the parser struct
         baa_free_program(program);
         return NULL;
     }
 
     return program;
 }
+
 
 bool baa_parser_had_error(const BaaParser *parser)
 {

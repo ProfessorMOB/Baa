@@ -23,7 +23,7 @@ static wchar_t *char_to_wchar_compiler(const char *str) {
     mbstowcs_s(&converted, wstr, len, str, len - 1);
 #else
     converted = mbstowcs(wstr, str, len - 1);
-    wstr[converted] = L'\\0';
+    wstr[converted] = L'\0'; // Ensure null termination
 #endif
     return wstr;
 }
@@ -38,10 +38,10 @@ int compile_baa_file(const char* filename) {
 
     if (!source) {
         if (error_message) {
-            fwprintf(stderr, L"Error (Preprocessor): %ls\\n", error_message);
+            fwprintf(stderr, L"Error (Preprocessor): %ls\n", error_message);
             free(error_message);
         } else {
-            fwprintf(stderr, L"Error: Preprocessing failed for file %hs (unknown error).\\n", filename);
+            fwprintf(stderr, L"Error: Preprocessing failed for file %hs (unknown error).\n", filename);
         }
         return 1;
     }
@@ -49,7 +49,7 @@ int compile_baa_file(const char* filename) {
     // Convert filename to wide string for lexer/output path
     wchar_t* wfilename = char_to_wchar_compiler(filename);
     if (!wfilename) {
-        fprintf(stderr, "Error: Failed to convert filename to wchar_t.\\n");
+        fprintf(stderr, "Error: Failed to convert filename to wchar_t.\n");
         free(source);
         return 1;
     }
@@ -60,16 +60,22 @@ int compile_baa_file(const char* filename) {
 
     // Initialize parser
     BaaParser parser;
-    // baa_init_parser(&parser, &lexer); // No longer needed if calling baa_parse directly
+    baa_init_parser(&parser, &lexer); // Initialize the parser with the lexer
 
     // Parse program
-    // Note: baa_parse takes source and filename, not parser struct
-    BaaProgram* program = baa_parse(source, wfilename);
+    BaaProgram* program = baa_parse_program(&parser); // Use the correct parsing function
     if (!program) {
-        // TODO: Get specific parser error message if available
-        fprintf(stderr, "Error: Parsing failed.\\n");
+        // Check if the parser recorded an error message
+        const wchar_t* parser_error = baa_get_parser_error(&parser);
+        if (parser_error) {
+             fwprintf(stderr, L"Error: Parsing failed: %ls\n", parser_error);
+             // Potentially clear the error if needed: baa_clear_parser_error(&parser);
+        } else {
+            fprintf(stderr, "Error: Parsing failed (unknown parser error).\n");
+        }
         free(source);
         free(wfilename);
+        // Note: No need to free 'program' as it's NULL or invalid here
         return 1;
     }
 
@@ -82,9 +88,9 @@ int compile_baa_file(const char* filename) {
 
     // Create output filename (replace .ب with .ll)
     size_t wlen = wcslen(wfilename);
-    wchar_t* output_filename = (wchar_t*)malloc((wlen + 4) * sizeof(wchar_t));
+    wchar_t* output_filename = (wchar_t*)malloc((wlen + 4) * sizeof(wchar_t)); // .ll is 3 chars + null terminator
     if (!output_filename) {
-        fprintf(stderr, "Error: Memory allocation failed for output filename.\\n");
+        fprintf(stderr, "Error: Memory allocation failed for output filename.\n");
         baa_free_program(program);
         free(source);
         free(wfilename);
@@ -94,7 +100,7 @@ int compile_baa_file(const char* filename) {
     // Use secure version wcscpy_s
     errno_t err_cpy = wcscpy_s(output_filename, wlen + 4, wfilename);
     if (err_cpy != 0) {
-        fprintf(stderr, "Error: wcscpy_s failed for output filename.\\n");
+        fprintf(stderr, "Error: wcscpy_s failed for output filename.\n");
         baa_free_program(program);
         free(source);
         free(wfilename);
@@ -108,7 +114,7 @@ int compile_baa_file(const char* filename) {
         size_t remaining_size = (wlen + 4) - (ext - output_filename);
         errno_t err_ext_cpy = wcscpy_s(ext, remaining_size, L".ll");
          if (err_ext_cpy != 0) {
-            fprintf(stderr, "Error: wcscpy_s failed for extension replacement.\\n");
+            fprintf(stderr, "Error: wcscpy_s failed for extension replacement.\n");
             baa_free_program(program);
             free(source);
             free(wfilename);
@@ -119,7 +125,7 @@ int compile_baa_file(const char* filename) {
         // Use secure version wcscat_s
         errno_t err_cat = wcscat_s(output_filename, wlen + 4, L".ll");
         if (err_cat != 0) {
-            fprintf(stderr, "Error: wcscat_s failed for appending extension.\\n");
+            fprintf(stderr, "Error: wcscat_s failed for appending extension.\n");
             baa_free_program(program);
             free(source);
             free(wfilename);
@@ -135,7 +141,7 @@ int compile_baa_file(const char* filename) {
 
     // Generate code
     if (!baa_generate_code(&codegen)) {
-        fprintf(stderr, "Error: Code generation failed: %ls\\n", baa_get_codegen_error(&codegen));
+        fprintf(stderr, "Error: Code generation failed: %ls\n", baa_get_codegen_error(&codegen));
         free(output_filename);
         baa_free_program(program);
         free(source);
@@ -143,10 +149,10 @@ int compile_baa_file(const char* filename) {
         return 1;
     }
 
-    wprintf(L"Code generation successful. Output written to %ls\\n", output_filename);
+    wprintf(L"Code generation successful. Output written to %ls\n", output_filename);
 
     // Clean up
-    baa_cleanup_codegen();
+    baa_cleanup_codegen(); // Assuming this exists based on init
     free(output_filename);
     baa_free_program(program);
     free(source);
