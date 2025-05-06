@@ -47,17 +47,17 @@ extern "C" {
 #endif
 
 // --- Core Parser Operations (Moved from parser.c) ---
-void advance(BaaParser *parser);
+void baa_parser_advance_token(BaaParser *parser);
 bool is_eof(BaaParser *parser);
-wchar_t peek(BaaParser *parser);
-wchar_t peek_next(BaaParser *parser); // Note: Peeks source char, not next token
+wchar_t baa_parser_peek_token_char(BaaParser *parser);
+wchar_t baa_parser_peek_next_source_char(BaaParser *parser); // Note: Peeks source char, not next token
 bool match_keyword(BaaParser *parser, const wchar_t *keyword);
 wchar_t *parse_identifier(BaaParser *parser);
 bool expect_char(BaaParser *parser, wchar_t expected_char); // Note: Checks first char of token, consider expect_token_type
 // bool expect_token_type(BaaParser *parser, BaaTokenType type); // Example of a better approach
 
 // --- Token Management & Helpers ---
-void baa_token_next(BaaParser *parser); // Alias for advance
+void baa_token_next(BaaParser *parser); // Alias for baa_parser_advance_token
 bool baa_parser_token_is_type(BaaParser *parser, BaaTokenType type);
 
 // --- Expression Validation ---
@@ -66,7 +66,7 @@ bool baa_parser_token_is_type(BaaParser *parser, BaaTokenType type);
 
 // --- Error Handling ---
 void baa_unexpected_token_error(BaaParser *parser, const wchar_t *expected);
-void synchronize(BaaParser *parser); // Declaration added
+void baa_parser_synchronize(BaaParser *parser); // Declaration added
 // Note: baa_set_parser_error is declared in parser.h
 
 // --- Memory Management ---

@@ -74,7 +74,7 @@ bool is_eof(BaaParser *parser)
     return parser->current_token.type == BAA_TOKEN_EOF;
 }
 
-wchar_t peek(BaaParser *parser)
+wchar_t baa_parser_peek_token_char(BaaParser *parser)
 {
     // Ensure lexeme is not NULL before dereferencing
     if (parser->current_token.lexeme == NULL || parser->current_token.length == 0) {
@@ -85,7 +85,7 @@ wchar_t peek(BaaParser *parser)
     return parser->current_token.lexeme[0];
 }
 
-wchar_t peek_next(BaaParser *parser)
+wchar_t baa_parser_peek_next_source_char(BaaParser *parser)
 {
     // This function peeks into the *source code* string in the lexer,
     // not the next *token*. This might be misleading or incorrect depending
@@ -100,7 +100,7 @@ wchar_t peek_next(BaaParser *parser)
 }
 
 
-void advance(BaaParser *parser)
+void baa_parser_advance_token(BaaParser *parser)
 {
     // Free the lexeme of the current token before advancing,
     // as it will become the previous token.
@@ -152,7 +152,7 @@ bool match_keyword(BaaParser *parser, const wchar_t *keyword)
         parser->current_token.lexeme != NULL && // Ensure lexeme exists
         wcscmp(parser->current_token.lexeme, keyword) == 0)
     {
-        advance(parser); // Consume the token if it matches
+        baa_parser_advance_token(parser); // Consume the token if it matches
         return true;
     }
     return false;
@@ -177,7 +177,7 @@ wchar_t *parse_identifier(BaaParser *parser)
     }
 
     // Consume the identifier token
-    advance(parser);
+    baa_parser_advance_token(parser);
 
     return identifier;
 }
@@ -190,8 +190,8 @@ bool expect_char(BaaParser *parser, wchar_t expected_char)
     // Let's implement expect_token instead.
 
     // Placeholder implementation if expect_char is truly needed (e.g., for single-char tokens):
-    if (parser->current_token.length == 1 && peek(parser) == expected_char) {
-        advance(parser);
+    if (parser->current_token.length == 1 && baa_parser_peek_token_char(parser) == expected_char) {
+        baa_parser_advance_token(parser);
         return true;
     }
 
@@ -245,10 +245,10 @@ bool baa_parser_token_is_type(BaaParser *parser, BaaTokenType type) {
 //     // Implementation depends heavily on BaaExpr structure
 // }
 
-// Implementation of baa_token_next (alias for advance)
+// Implementation of baa_token_next (alias for baa_parser_advance_token)
 void baa_token_next(BaaParser *parser)
 {
-    advance(parser);
+    baa_parser_advance_token(parser);
 }
 
 // Implementation of baa_unexpected_token_error
@@ -264,7 +264,7 @@ void baa_unexpected_token_error(BaaParser *parser, const wchar_t *expected)
 }
 
 // Implementation of synchronize (moved from parser.c)
-void synchronize(BaaParser *parser) {
+void baa_parser_synchronize(BaaParser *parser) {
     // Basic error recovery: advance tokens until a likely statement boundary
     // or synchronization point is found.
     parser->panic_mode = false; // Exit panic mode once we start synchronizing
@@ -299,6 +299,6 @@ void synchronize(BaaParser *parser) {
                 break;
         }
 
-        advance(parser); // Consume the current token
+        baa_parser_advance_token(parser); // Consume the current token
     }
 }

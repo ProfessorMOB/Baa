@@ -43,7 +43,8 @@ add_executable(baa
     # Lexer files
     src/lexer/lexer.c
     src/lexer/number_parser.c
-    src/lexer/lexer_char_utils.c # Added missing char utils source
+    src/lexer/lexer_char_utils.c
+    src/lexer/token_scanners.c   # Added token scanners source
 
     # Preprocessor files
     src/preprocessor/preprocessor.c

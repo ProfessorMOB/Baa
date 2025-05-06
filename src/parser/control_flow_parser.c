@@ -62,13 +62,13 @@ BaaStmt* baa_parse_if_statement(BaaParser* parser) {
     while (parser->current_token.type != BAA_TOKEN_EOF &&
            parser->current_token.type != BAA_TOKEN_RBRACE && // Stop at block end
            parser->current_token.type != BAA_TOKEN_DOT) {    // Stop at semicolon
-        advance(parser);
+        baa_parser_advance_token(parser);
         if (parser->previous_token.type == BAA_TOKEN_LBRACE) { // If we entered a block, skip its content
              int brace_level = 1;
              while(brace_level > 0 && parser->current_token.type != BAA_TOKEN_EOF) {
                  if (parser->current_token.type == BAA_TOKEN_LBRACE) brace_level++;
                  else if (parser->current_token.type == BAA_TOKEN_RBRACE) brace_level--;
-                 advance(parser);
+                 baa_parser_advance_token(parser);
              }
         }
         if (parser->previous_token.type == BAA_TOKEN_DOT) break; // Stop after consuming semicolon
@@ -83,13 +83,13 @@ BaaStmt* baa_parse_while_statement(BaaParser* parser) {
      while (parser->current_token.type != BAA_TOKEN_EOF &&
            parser->current_token.type != BAA_TOKEN_RBRACE &&
            parser->current_token.type != BAA_TOKEN_DOT) {
-        advance(parser);
+        baa_parser_advance_token(parser);
          if (parser->previous_token.type == BAA_TOKEN_LBRACE) { // Skip block content
              int brace_level = 1;
              while(brace_level > 0 && parser->current_token.type != BAA_TOKEN_EOF) {
                  if (parser->current_token.type == BAA_TOKEN_LBRACE) brace_level++;
                  else if (parser->current_token.type == BAA_TOKEN_RBRACE) brace_level--;
-                 advance(parser);
+                 baa_parser_advance_token(parser);
              }
         }
         if (parser->previous_token.type == BAA_TOKEN_DOT) break;
@@ -104,13 +104,13 @@ BaaStmt* baa_parse_for_statement(BaaParser* parser) {
      while (parser->current_token.type != BAA_TOKEN_EOF &&
            parser->current_token.type != BAA_TOKEN_RBRACE &&
            parser->current_token.type != BAA_TOKEN_DOT) {
-        advance(parser);
+        baa_parser_advance_token(parser);
          if (parser->previous_token.type == BAA_TOKEN_LBRACE) { // Skip block content
              int brace_level = 1;
              while(brace_level > 0 && parser->current_token.type != BAA_TOKEN_EOF) {
                  if (parser->current_token.type == BAA_TOKEN_LBRACE) brace_level++;
                  else if (parser->current_token.type == BAA_TOKEN_RBRACE) brace_level--;
-                 advance(parser);
+                 baa_parser_advance_token(parser);
              }
         }
         if (parser->previous_token.type == BAA_TOKEN_DOT) break;
@@ -126,10 +126,10 @@ BaaStmt* baa_parse_return_statement(BaaParser* parser) {
     // Consume tokens until semicolon or EOF (basic recovery)
     while (parser->current_token.type != BAA_TOKEN_EOF &&
            parser->current_token.type != BAA_TOKEN_DOT) {
-        advance(parser);
+        baa_parser_advance_token(parser);
     }
     if (parser->current_token.type == BAA_TOKEN_DOT) {
-        advance(parser); // Consume the semicolon
+        baa_parser_advance_token(parser); // Consume the semicolon
     }
     return NULL;
 }

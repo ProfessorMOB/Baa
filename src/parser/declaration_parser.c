@@ -342,7 +342,7 @@ BaaStmt* baa_parse_declaration(BaaParser* parser)
                wcscmp(parser->current_token.lexeme, L"#تضمين") == 0)
     {
         // Found import directive identifier
-        advance(parser); // Consume '#تضمين' identifier *before* calling
+        baa_parser_advance_token(parser); // Consume '#تضمين' identifier *before* calling
         return baa_parse_import_directive(parser);
     } else {
         // Not a recognized declaration start
@@ -372,7 +372,7 @@ BaaStmt* baa_parse_import_directive(BaaParser* parser) // Made non-static
     // Check for system import '<...>' or local import '"..."'
     if (parser->current_token.type == BAA_TOKEN_LESS)
     {
-        advance(parser); // Consume '<'
+        baa_parser_advance_token(parser); // Consume '<'
 
         // TODO: Parse the path until '>'
         // This requires careful handling of the token stream or direct lexer interaction
@@ -382,14 +382,14 @@ BaaStmt* baa_parse_import_directive(BaaParser* parser) // Made non-static
              return NULL;
         }
         clean_path = baa_strdup(parser->current_token.lexeme);
-        advance(parser); // Consume path token
+        baa_parser_advance_token(parser); // Consume path token
 
         if (parser->current_token.type != BAA_TOKEN_GREATER) {
             baa_unexpected_token_error(parser, L">");
             baa_free(clean_path);
             return NULL;
         }
-        advance(parser); // Consume '>'
+        baa_parser_advance_token(parser); // Consume '>'
 
         // Mark as system import? (Maybe add a flag to BaaImportStmt)
     }
@@ -398,7 +398,7 @@ BaaStmt* baa_parse_import_directive(BaaParser* parser) // Made non-static
         // Local import "..."
         clean_path = baa_strdup(parser->current_token.lexeme); // Path includes quotes? Needs cleaning.
         // TODO: Remove surrounding quotes from clean_path if present
-        advance(parser); // Consume string literal token
+        baa_parser_advance_token(parser); // Consume string literal token
     }
     else
     {
@@ -444,7 +444,7 @@ BaaStmt* baa_parse_import_directive(BaaParser* parser) // Made non-static
         // baa_free_node(node); // Free node if created
         return NULL;
     }
-    advance(parser); // Consume the dot
+    baa_parser_advance_token(parser); // Consume the dot
 
     return import_stmt; // Return the statement itself
 }

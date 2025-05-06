@@ -150,7 +150,7 @@ BaaStmt *baa_parse_statement(BaaParser *parser) // Made non-static
         // Expect semicolon after declaration
         if (decl_stmt && parser->current_token.type == BAA_TOKEN_DOT) // Assuming DOT is semicolon
         {
-            advance(parser); // Use advance from helper
+            baa_parser_advance_token(parser); // Use advance from helper
             return decl_stmt;
         }
         else if (decl_stmt)
@@ -190,7 +190,7 @@ BaaStmt *baa_parse_statement(BaaParser *parser) // Made non-static
             baa_free_expr(expr); // Use correct free function
             return NULL;
         }
-        advance(parser); // Use helper
+        baa_parser_advance_token(parser); // Use helper
 
         BaaStmt *expr_stmt = baa_create_expr_stmt(expr);
         if (!expr_stmt)
