@@ -104,10 +104,9 @@ This section describes the low-level building blocks of Baa programs **after** p
 
 Baa supports standard C/C++ style comments:
 
-*   **Single-line:** Begins with `//` and continues to the end of the line. - *[Implemented]*
-*   **Multi-line:** Begins with `/*` and ends with `*/`. These comments can span multiple lines. - *[Implemented]*
-*   **Legacy `#` Comments:** Lines starting with `#` are also skipped like single-line comments. *[Note: This style might be deprecated in favour of standard `//`]* - *[Implemented]*
-*   **Preprocessor Directives:** Lines starting with `#` are handled entirely by the preprocessor and are typically removed before the lexer sees the code (except in certain cases like conditional compilation). - *[Implemented for `#تضمين`, `#تعريف`, `#الغاء_تعريف`, conditionals]*
+*   **Single-line:** Begins with `//` and continues to the end of the line. The lexer skips these. - *[Implemented]*
+*   **Multi-line:** Begins with `/*` and ends with `*/`. These comments can span multiple lines. The lexer skips these. - *[Implemented]*
+*   **Preprocessor Directives:** Lines starting with `#` (e.g., `#تضمين`, `#تعريف`) are handled entirely by the preprocessor before lexical analysis. They are not treated as comments by the lexer. - *[Implemented for various directives]*
 
 ```baa
 // هذا تعليق سطر واحد.
@@ -115,7 +114,7 @@ Baa supports standard C/C++ style comments:
   هذا تعليق
   متعدد الأسطر.
 */
-# نمط التعليق القديم.
+// # نمط التعليق القديم. (تمت إزالته، المعالج المسبق يتعامل مع #)
 ```
 
 ### 2.2 Identifiers
@@ -158,18 +157,24 @@ Keywords are reserved words with special meaning in the Baa language and cannot 
 
 Literals represent fixed values in the source code.
 
-*   **Integer Literals (`عدد_صحيح`):** Represent whole numbers.
-    *   Decimal: `123`, `0`, `456` - *[Implemented]*
-    *   Arabic-Indic Decimal: `١٢٣`, `٠`, `٤٥٦` - *[Implemented]*
-    *   Hexadecimal (prefix `0x` or `0X`): `0xFF`, `0x1a` - *[Implemented in `number_parser`, lexer recognizes prefix]*
-    *   Binary (prefix `0b` or `0B`): `0b1010`, `0B11` - *[Implemented in `number_parser`, lexer recognizes prefix]*
-    *   Underscores for readability (`1_000_000`, `0xAB_CD`, `0b10_10`) - *[Implemented]*
-*   **Floating-Point Literals (`عدد_حقيقي`):** Represent numbers with a fractional part.
-    *   Decimal: `12.34`, `0.5`, `10.` - *[Implemented in `number_parser`]*
-    *   Arabic Decimal Separator (`٫`, U+066B): `١٢٫٣٤` - *[Implemented in `number_parser`]*
-    *   Scientific Notation (`e` or `E`): `1.23e4`, `5E-2` - *[Implemented in `number_parser`]*
-    *   Underscores for readability (e.g., `1_234.56_78`, `1.2e+1_0`) - *[Implemented]*
-    *   *Note:* Lexer produces `BAA_TOKEN_FLOAT_LIT`; detailed parsing happens later.
+*   **Integer Literals (`عدد_صحيح`):** Represent whole numbers. The lexer tokenizes these as `BAA_TOKEN_INT_LIT`.
+    *   **Decimal:** Sequences of Western digits (`0`-`9`) and/or Arabic-Indic digits (`٠`-`٩` / U+0660-U+0669).
+        - Examples: `123`, `٠`, `٤٢`, `1٠2` - *[Implemented]*
+    *   **Hexadecimal:** Must start with `0x` or `0X`, followed by hexadecimal digits (`0`-`9`, `a`-`f`, `A`-`F`).
+        - Examples: `0xFF`, `0x1a`, `0XDEADBEEF` - *[Implemented]*
+    *   **Binary:** Must start with `0b` or `0B`, followed by binary digits (`0` or `1`).
+        - Examples: `0b1010`, `0B11001` - *[Implemented]*
+    *   **Underscores for Readability:** Single underscores (`_`) can be used as separators within the digits of any integer literal type. They cannot be consecutive, at the very beginning of the digit sequence (immediately after a prefix like `0x_`), or at the end of the number.
+        - Examples: `1_000_000`, `0xAB_CD`, `0b10_10`, `١_٢٣٤` - *[Implemented]*
+*   **Floating-Point Literals (`عدد_حقيقي`):** Represent numbers with a fractional part or in scientific notation. The lexer tokenizes these as `BAA_TOKEN_FLOAT_LIT`.
+    *   **Decimal Representation:** Consist of an integer part, a decimal point, and a fractional part. Digits can be Western or Arabic-Indic.
+        - The decimal point can be a period `.` (U+002E) or an Arabic Decimal Separator `٫` (U+066B).
+        - Examples: `3.14`, `0.5`, `١٢٫٣٤`, `٠.٥`, `123.0` - *[Implemented]*
+        - Note: Literals like `.5` or `123.` are tokenized by the lexer as separate tokens (e.g., `DOT`, `INT_LIT`); their validity as floats is a parser concern.
+    *   **Scientific Notation:** Introduced by `e` or `E`, followed by an optional sign (`+` or `-`), and then one or more decimal digits (Western or Arabic-Indic). Can be applied to numbers with or without a decimal point.
+        - Examples: `1.23e4`, `5E-2`, `42e+0`, `1e10`, `٣٫١٤E-٠٢` - *[Implemented]*
+    *   **Underscores for Readability:** Single underscores (`_`) can be used as separators in the integer, fractional, and exponent parts of float literals, with the same restrictions as for integers.
+        - Examples: `1_234.567_890`, `3.141_592e+1_0` - *[Implemented]*
 *   **Boolean Literals (`منطقي`):**
     *   `صحيح` (true) - *[Implemented]*
     *   `خطأ` (false) - *[Implemented]*

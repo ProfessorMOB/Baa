@@ -79,7 +79,17 @@ Baa (باء) provides comprehensive support for Arabic programming through:
 | صحيح | true | Boolean true value |
 | خطأ | false | Boolean false value |
 
-### 5. Character Literals (القيم الحرفية)
+### 5. Numeric Literals (القيم العددية)
+
+Baa supports Arabic in numeric literals extensively:
+- **Arabic-Indic Digits (الأرقام الهندية):** Digits `٠` through `٩` (U+0660-U+0669) can be used wherever Western digits (`0`-`9`) are used, for both integers and floats.
+  - Examples: `متغير س = ١٢٣.` (s = 123), `متغير ص = ٣٫١٤.` (p = 3.14 using Arabic decimal separator)
+- **Arabic Decimal Separator (الفاصلة العشرية العربية):** The character `٫` (U+066B) is recognized as a decimal separator in floating-point numbers, in addition to the period (`.`).
+  - Example: `عدد_حقيقي pi = ٣٫١٤١٥٩.`
+- **Underscores with Arabic Numerals (الشرطة السفلية مع الأرقام العربية):** Underscores can be used as separators for readability with Arabic-Indic digits as well.
+  - Example: `عدد_صحيح كبير = ١_٠٠٠_٠٠٠.` (one million)
+
+### 6. Character Literals (القيم الحرفية)
 
 Character literals are enclosed in single quotes and support basic escape sequences:
 
@@ -88,7 +98,7 @@ Character literals are enclosed in single quotes and support basic escape sequen
 متغير حرف2 : حرف = '\t'. // Tab character
 ```
 
-### 6. Function Parameters (معاملات الدالة)
+### 7. Function Parameters (معاملات الدالة)
 
 | Feature | Description |
 |---------|-------------|

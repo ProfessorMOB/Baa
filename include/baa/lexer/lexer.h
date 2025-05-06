@@ -137,6 +137,7 @@ typedef struct {
  */
 typedef struct {
     const wchar_t* source;   // Source code being lexed
+    size_t source_length;   // Length of the source string
     size_t start;           // Start of current token
     size_t current;         // Current position in source
     size_t line;           // Current line number

@@ -9,6 +9,8 @@
 // BaaToken *scan_number(BaaLexer *lexer);
 // BaaToken *scan_string(BaaLexer *lexer);
 // BaaToken *scan_char_literal(BaaLexer *lexer);
+// BaaToken *scan_multiline_string_literal(BaaLexer *lexer);
+
 
 // Array of keywords and their corresponding token types (copied from lexer.c)
 // This needs to be accessible here if scan_identifier uses it.
@@ -68,21 +70,26 @@ BaaToken *scan_identifier(BaaLexer *lexer)
 BaaToken *scan_number(BaaLexer *lexer)
 {
     // lexer->start is already set
+    // lexer->start is set by baa_lexer_next_token to its current position before calling scan_number.
+    // The first character of the potential number is at peek(lexer).
+    // This function is responsible for advancing past all characters of the number.
     bool is_float = false;
     wchar_t base_prefix = 0;
     bool (*is_valid_digit)(wchar_t) = is_baa_digit;
-    size_t number_start_index = lexer->current;
+    size_t number_start_index; // Will be set after consuming potential prefix
 
-    if (peek(lexer) == L'0')
+    wchar_t first_char_of_number = peek(lexer);
+
+    if (first_char_of_number == L'0')
     {
         wchar_t next = peek_next(lexer);
         if (next == L'x' || next == L'X')
         {
             base_prefix = 'x';
             is_valid_digit = is_baa_hex_digit;
-            advance(lexer);
-            advance(lexer);
-            number_start_index = lexer->current;
+            advance(lexer); // Consume '0'
+            advance(lexer); // Consume 'x' or 'X'
+            number_start_index = lexer->current; // Digits start after prefix
             if (!is_valid_digit(peek(lexer)))
             {
                 BaaToken *error_token = make_error_token(lexer, L"عدد سداسي عشر غير صالح: يجب أن يتبع البادئة 0x/0X رقم سداسي عشري واحد على الأقل (السطر %zu، العمود %zu)", lexer->line, lexer->column);
@@ -94,32 +101,44 @@ BaaToken *scan_number(BaaLexer *lexer)
         {
             base_prefix = 'b';
             is_valid_digit = is_baa_bin_digit;
-            advance(lexer);
-            advance(lexer);
-            number_start_index = lexer->current;
+            advance(lexer); // Consume '0'
+            advance(lexer); // Consume 'b' or 'B'
+            number_start_index = lexer->current; // Digits start after prefix
             if (!is_valid_digit(peek(lexer)))
             {
                 BaaToken *error_token = make_error_token(lexer, L"عدد ثنائي غير صالح: يجب أن يتبع البادئة 0b/0B رقم ثنائي واحد على الأقل (السطر %zu، العمود %zu)", lexer->line, lexer->column);
                 synchronize(lexer);
                 return error_token;
             }
+        } else {
+            // It's a number starting with '0' but not '0x' or '0b' (e.g., "0", "0.5", "007")
+            advance(lexer); // Consume the '0'
+            number_start_index = lexer->current; // Next char is start of post-'0' digits or dot
         }
+    } else {
+        // Starts with a non-'0' digit
+        advance(lexer); // Consume the first digit
+        number_start_index = lexer->current;
     }
 
     bool last_char_was_underscore = false;
     while (is_valid_digit(peek(lexer)) || peek(lexer) == L'_')
     {
+        //wchar_t char_in_loop = peek(lexer);
+        //fwprintf(stderr, L"DEBUG scan_number int_loop: char='%lc'(%u), is_valid_digit_fn=%d, is_underscore=%d\n",
+        //    char_in_loop, (unsigned int)char_in_loop, is_valid_digit(char_in_loop), char_in_loop == L'_');
+
         if (peek(lexer) == L'_')
         {
-            if (last_char_was_underscore || lexer->current == number_start_index)
-            {
-                BaaToken *error_token = make_error_token(lexer, L"شرطة سفلية غير صالحة في العدد (السطر %zu، العمود %zu): لا يمكن أن تكون متتالية أو في بداية الرقم بعد البادئة.", lexer->line, lexer->column);
+            // Error if previous char was also underscore OR if this underscore is the first char after a prefix.
+            if (last_char_was_underscore || (base_prefix != 0 && lexer->current == number_start_index) ) {
+                BaaToken *error_token = make_error_token(lexer, L"شرطة سفلية غير صالحة في العدد: متتالية أو مباشرة بعد البادئة (السطر %zu، العمود %zu).", lexer->line, lexer->column);
                 synchronize(lexer);
                 return error_token;
             }
             last_char_was_underscore = true;
         }
-        else
+        else // It's a digit
         {
             if (!is_valid_digit(peek(lexer))) break;
             last_char_was_underscore = false;
@@ -147,10 +166,13 @@ BaaToken *scan_number(BaaLexer *lexer)
         if (is_baa_digit(next_peek))
         {
             is_float = true;
-            advance(lexer);
+            advance(lexer); // Consume '.' or '٫'
             last_char_was_underscore = false;
             while (is_baa_digit(peek(lexer)) || peek(lexer) == L'_')
             {
+                //wchar_t char_in_frac_loop = peek(lexer);
+                //fwprintf(stderr, L"DEBUG scan_number frac_loop: char='%lc'(%u), is_baa_digit=%d, is_underscore=%d\n",
+                //    char_in_frac_loop, (unsigned int)char_in_frac_loop, is_baa_digit(char_in_frac_loop), char_in_frac_loop == L'_');
                 if (peek(lexer) == L'_')
                 {
                     if (last_char_was_underscore)
@@ -209,8 +231,8 @@ BaaToken *scan_number(BaaLexer *lexer)
         if (has_exponent_part)
         {
             is_float = true;
-            advance(lexer);
-            if (sign_offset == 1) advance(lexer);
+            advance(lexer); // Consume 'e' or 'E'
+            if (sign_offset == 1) advance(lexer); // Consume '+' or '-'
             if (!is_baa_digit(peek(lexer)))
             {
                 BaaToken *error_token = make_error_token(lexer, L"تنسيق أس غير صالح بعد 'e' أو 'E' (السطر %zu، العمود %zu)", lexer->line, lexer->column);
@@ -220,6 +242,9 @@ BaaToken *scan_number(BaaLexer *lexer)
             last_char_was_underscore = false;
             while (is_baa_digit(peek(lexer)) || peek(lexer) == L'_')
             {
+                //wchar_t char_in_exp_loop = peek(lexer);
+                //fwprintf(stderr, L"DEBUG scan_number exp_loop: char='%lc'(%u), is_baa_digit=%d, is_underscore=%d\n",
+                //    char_in_exp_loop, (unsigned int)char_in_exp_loop, is_baa_digit(char_in_exp_loop), char_in_exp_loop == L'_');
                 if (peek(lexer) == L'_')
                 {
                     if (last_char_was_underscore) {
@@ -264,16 +289,19 @@ BaaToken *scan_string(BaaLexer *lexer)
         return make_error_token(lexer, L"فشل في تخصيص ذاكرة لسلسلة نصية (السطر %zu)", lexer->line);
     }
     size_t start_line = lexer->line;
+    // lexer->start is at the opening quote. advance() consumes it.
+    // Column should be where the quote was.
     size_t start_col = lexer->column;
+    advance(lexer); // Consume opening quote "
 
     while (peek(lexer) != L'"' && !is_at_end(lexer))
     {
         wchar_t c = peek(lexer);
         if (c == L'\\')
         {
-            advance(lexer);
-            if (is_at_end(lexer)) break;
-            wchar_t escaped_char = advance(lexer);
+            advance(lexer); // Consume '\'
+            if (is_at_end(lexer)) break; // Unterminated escape at EOF
+            wchar_t escaped_char = advance(lexer); // Consume char after '\'
             switch (escaped_char)
             {
             case L'n': append_char_to_buffer(&buffer, &buffer_len, &buffer_cap, L'\n'); break;
@@ -297,7 +325,8 @@ BaaToken *scan_string(BaaLexer *lexer)
             }
             default:
                 free(buffer);
-                BaaToken *error_token = make_error_token(lexer, L"تسلسل هروب غير صالح '\%lc' في سلسلة نصية (السطر %zu)", escaped_char, start_line);
+                // Show the backslash explicitly in the error message for clarity
+                BaaToken *error_token = make_error_token(lexer, L"تسلسل هروب غير صالح '\\%lc' في سلسلة نصية (السطر %zu)", escaped_char, start_line);
                 synchronize(lexer);
                 return error_token;
             }
@@ -305,7 +334,7 @@ BaaToken *scan_string(BaaLexer *lexer)
         }
         else
         {
-            if (c == L'\n') { lexer->line++; lexer->column = 0; }
+            if (c == L'\n') { lexer->line++; lexer->column = 0; } // Track newlines inside string
             append_char_to_buffer(&buffer, &buffer_len, &buffer_cap, c);
             if (buffer == NULL) return make_error_token(lexer, L"فشل في إعادة تخصيص ذاكرة لسلسلة نصية (السطر %zu)", start_line);
             advance(lexer);
@@ -316,27 +345,38 @@ BaaToken *scan_string(BaaLexer *lexer)
     {
         free(buffer);
         BaaToken *error_token = make_error_token(lexer, L"سلسلة نصية غير منتهية (بدأت في السطر %zu، العمود %zu)", start_line, start_col);
-        if (!is_at_end(lexer)) synchronize(lexer);
+        if (!is_at_end(lexer)) synchronize(lexer); // Don't synchronize if already at EOF
         return error_token;
     }
-    advance(lexer);
-    append_char_to_buffer(&buffer, &buffer_len, &buffer_cap, L'\0');
+    advance(lexer); // Consume closing quote "
+    append_char_to_buffer(&buffer, &buffer_len, &buffer_cap, L'\0'); // Null-terminate the content
     if (buffer == NULL) return make_error_token(lexer, L"فشل في إعادة تخصيص الذاكرة عند إنهاء السلسلة النصية (بدأت في السطر %zu)", start_line);
 
+    // For make_token, lexer->start should be at the opening quote, lexer->current should be after closing quote.
+    // The external dispatcher (baa_lexer_next_token) sets lexer->start.
+    // We've advanced lexer->current to be after the closing quote.
     BaaToken *token = malloc(sizeof(BaaToken));
-    if (!token) { free(buffer); return NULL; }
+    if (!token) { free(buffer); return NULL; } // Should ideally use make_token_with_lexeme
+
     token->type = BAA_TOKEN_STRING_LIT;
-    token->lexeme = buffer;
-    token->length = buffer_len - 1;
+    token->lexeme = buffer; // Transfer ownership of buffer
+    token->length = buffer_len - 1; // Don't count our internal null terminator
     token->line = start_line;
     token->column = start_col;
+    // This token creation is a bit different from make_token as it uses an already prepared buffer.
+    // Consider a make_token_from_buffer or similar if this pattern repeats.
+    // For now, this is okay.
     return token;
 }
 
 BaaToken *scan_char_literal(BaaLexer *lexer)
 {
+    // lexer->start is at the opening quote, as set by baa_lexer_next_token
+    // advance() in baa_lexer_next_token consumed the opening quote 'c'
+    // So, lexer->current is currently at the character *inside* the literal, or the escape sequence.
     size_t start_line = lexer->line;
-    size_t start_col = lexer->column -1; // Opening ' was consumed
+    size_t start_col = lexer->column -1; // Column of the opening '
+                                        // (since advance() in main dispatcher moved column forward)
     wchar_t value_char;
 
     if (is_at_end(lexer))
@@ -346,12 +386,12 @@ BaaToken *scan_char_literal(BaaLexer *lexer)
 
     if (peek(lexer) == L'\\')
     {
-        advance(lexer);
+        advance(lexer); // Consume '\'
         if (is_at_end(lexer))
         {
             return make_error_token(lexer, L"تسلسل هروب غير منته في قيمة حرفية (EOF بعد '\' في السطر %zu، العمود %zu)", start_line, start_col);
         }
-        wchar_t escape = advance(lexer);
+        wchar_t escape = advance(lexer); // Consume char after '\'
         switch (escape)
         {
         case L'n': value_char = L'\n'; break;
@@ -381,16 +421,17 @@ BaaToken *scan_char_literal(BaaLexer *lexer)
     }
     else
     {
-        value_char = advance(lexer);
+        value_char = advance(lexer); // Consume the character content
         if (value_char == L'\n')
         {
+            // Newlines are not allowed directly in char literals, must be escaped.
             BaaToken *error_token = make_error_token(lexer, L"سطر جديد غير مسموح به في قيمة حرفية (بدأت في السطر %zu، العمود %zu)", start_line, start_col);
-            synchronize(lexer);
+            synchronize(lexer); // Synchronize as this is a recoverable error.
             return error_token;
         }
-        if (value_char == L'\'')
+        if (value_char == L'\'') // e.g. '' (empty char literal)
         {
-            BaaToken *error_token = make_error_token(lexer, L"قيمة حرفية فارغة ('') (بدأت في السطر %zu، العمود %zu)", start_line, start_col);
+             BaaToken *error_token = make_error_token(lexer, L"قيمة حرفية فارغة ('') (بدأت في السطر %zu، العمود %zu)", start_line, start_col);
             synchronize(lexer);
             return error_token;
         }
@@ -398,22 +439,24 @@ BaaToken *scan_char_literal(BaaLexer *lexer)
 
     if (peek(lexer) == L'\'')
     {
-        advance(lexer);
-        // The make_token function will copy the raw lexeme including quotes and escape sequences.
-        // The actual value_char is not directly stored in the token's lexeme by make_token.
-        // If the interpreted value is needed, it should be handled by the parser/consumer.
+        advance(lexer); // Consume closing quote
+        // The make_token function will use lexer->start and lexer->current.
+        // lexer->start was at the opening quote.
+        // lexer->current is now after the closing quote.
         return make_token(lexer, BAA_TOKEN_CHAR_LIT);
     }
     else
     {
+        // Error: unterminated or too many characters
         if (is_at_end(lexer))
         {
             return make_error_token(lexer, L"قيمة حرفية غير منتهية (علامة اقتباس أحادية ' مفقودة، بدأت في السطر %zu، العمود %zu)", start_line, start_col);
         }
         else
         {
+            // If not EOF and not closing quote, it implies too many characters before closing quote or other syntax error.
             BaaToken *error_token = make_error_token(lexer, L"قيمة حرفية غير صالحة (متعددة الأحرف أو علامة اقتباس مفقودة؟ بدأت في السطر %zu، العمود %zu)", start_line, start_col);
-            synchronize(lexer);
+            synchronize(lexer); // Attempt to recover
             return error_token;
         }
     }

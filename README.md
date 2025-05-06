@@ -2,7 +2,7 @@
 
 B (باء) is a programming language designed to support Arabic syntax while maintaining full compatibility with K&R C features. It allows developers to write code using Arabic keywords and identifiers while following established C programming patterns.
 
-## Current Status (v0.1.9.9)
+## Current Status (v0.1.10.0)
 
 The project now supports:
 
@@ -46,10 +46,14 @@ The project now supports:
   - Method vs. function distinction
 
 - Literals
-  - Integer and Number scanning (`123`, `١٢٣`)
-  - String literals (`"..."` with basic escapes)
-  - Character literals (`'...'` with basic escapes)
-  - Boolean literals (`صحيح`, `خطأ`)
+  - **Numeric Literals:**
+    - Integers: Decimal (Western `0-9` & Arabic-Indic `٠-٩`), Binary (`0b`/`0B`), Hexadecimal (`0x`/`0X`).
+    - Floats: Using `.` or Arabic `٫` as decimal separator. Scientific notation (`e`/`E`).
+    - Underscores (`_`) supported as separators in all number types.
+    - Examples: `123`, `١٢٣`, `0b1010`, `0xFACE`, `1_000_000`, `3.14`, `٣٫١٤`, `1.5e-2`.
+  - **String Literals:** `"..."` with standard C escapes and Unicode escapes (`\uXXXX`).
+  - **Character Literals:** `'...'` with standard C escapes and Unicode escapes (`\uXXXX`).
+  - **Boolean Literals:** `صحيح` (true), `خطأ` (false).
 
 - Arabic File Support
   - Native `.ب` extension
@@ -67,7 +71,7 @@ For detailed information about Arabic support, see [Arabic Support Documentation
 - **Core Architecture**: Well-defined architecture with clear separation of concerns
 - **Type System**: Basic types including Boolean, type conversion rules, and type checking
 - **AST (Abstract Syntax Tree)**: Comprehensive node structure, program, function nodes, enhanced parameter handling
-- **Lexer**: UTF-16LE file reading, token recognition (keywords, types, bools, operators `+ - * / % = == != < > <= >= && || ! ++ -- += -= *= /= %=`, identifiers, int/number, string, char literals), line/col tracking, basic error tokens. support, advanced operators
+- **Lexer**: UTF-16LE file processing (from preprocessor output). Modularized structure. Robust token recognition for keywords, identifiers (Arabic/English), types, boolean literals, all operators. Advanced numeric literal scanning (Arabic-Indic digits, binary/hex prefixes, underscores, Arabic decimal separator `٫`, scientific notation). String and character literal scanning with standard and Unicode escapes. Accurate line/column tracking and error reporting.
 - **Parser**: Recursive descent implementation, expression parsing with precedence, statement parsing
 - **Utils**: Memory management, string handling, error infrastructure
 - **Preprocessor integration with include and basic macro support.**
@@ -228,6 +232,7 @@ A standalone tool is available to test the preprocessor in isolation:
 # After building the project:
 ./build/bin/baa_preprocessor_tester <path/to/your/file.baa>
 ```
+
 Note: The preprocessor currently expects input files to be encoded in UTF-16LE with a BOM.
 
 ## Features

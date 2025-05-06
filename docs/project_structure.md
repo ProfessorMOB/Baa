@@ -12,9 +12,9 @@ baa/
 │       │   ├── function.h     # تعريفات الدوال
 │       │   └── ast.h         # تعريفات عامة
 │       ├── lexer/         # المحلل اللفظي
-│       │   ├── lexer.h       # واجهة المحلل اللفظي
-│       │   ├── token.h       # تعريفات الرموز
-│       │   └── number.h      # معالجة الأرقام
+│       │   ├── lexer.h            # الواجهة الرئيسية للمحلل اللفظي (Public API)
+│       │   ├── token_scanners.h   # تعريفات دوال مسح الرموز (Token scanning functions)
+│       │   └── lexer_char_utils.h # أدوات مساعدة للتعامل مع الحروف (Character utilities)
 │       ├── parser/        # المحلل النحوي
 │       │   ├── parser.h      # واجهة المحلل النحوي
 │       │   ├── expression_parser.h # محلل التعبيرات
@@ -32,9 +32,10 @@ baa/
 │   │   ├── function.c     # تنفيذ دوال الشجرة
 │   │   └── ast.c         # تنفيذ عام للشجرة
 │   ├── lexer/             # تنفيذ المحلل اللفظي
-│   │   ├── lexer.c       # تنفيذ رئيسي
-│   │   ├── token.c       # تنفيذ الرموز
-│   │   └── number.c      # تنفيذ معالجة الأرقام
+│   │   ├── lexer.c              # المنطق الرئيسي للمحلل اللفظي (Core lexer logic)
+│   │   ├── token_scanners.c     # تنفيذ دوال مسح الرموز (Implementation of token scanners)
+│   │   ├── lexer_char_utils.c   # تنفيذ أدوات الحروف (Implementation of char utilities)
+│   │   └── number_parser.c      # محلل الأرقام (لتحويل النص إلى قيمة عددية - Number string to value parser)
 │   ├── parser/            # تنفيذ المحلل النحوي
 │   │   ├── parser.c      # تنفيذ رئيسي
 │   │   ├── expression_parser.c # تنفيذ معالجة التعبيرات

@@ -13,7 +13,7 @@ The Baa lexer processes source code written in the Baa language, which includes 
 - Recognizes Arabic keywords (e.g., `دالة`, `إذا`).
 - Supports Arabic characters within string literals.
 - Note: Bidirectional text display is dependent on the terminal/editor, not explicitly managed by the lexer logic itself.
-- Note: Standard C-style comments (`//`, `/* */`) and legacy `#` comments are supported.
+- Note: Standard C-style comments (`//`, `/* */`) are supported and skipped. Legacy `#` style comments are no longer supported by the lexer (preprocessor handles `#` for directives).
 
 ### Token Types
 
@@ -29,7 +29,7 @@ The lexer identifies the following categories of tokens:
 - Type Names (أسماء الأنواع - e.g., `عدد_صحيح`, `منطقي` scanned as specific `BAA_TOKEN_TYPE_*`)
 - Operators (عوامل - e.g., `+`, `==`, `+=`, `&&`, `++`)
 - Delimiters (فواصل - e.g., `(`, `;`, `{`)
-- Comments (تعليقات - `//`, `/* */`, `#` style comments are skipped, not tokenized)
+- Comments (تعليقات - `//`, `/* */` style comments are skipped, not tokenized. `#` is handled by the preprocessor.)
 
 ### Source Location Tracking
 
@@ -159,11 +159,40 @@ typedef enum {
 } BaaTokenType;
 ```
 
-## Number Parsing
+## Numeric Literals
 
-The lexer includes a specialized number parser (`number_parser.c`) that handles various formats after an initial `BAA_TOKEN_INT_LIT` is scanned.
+The lexer's `scan_number` function is responsible for identifying numeric literals and tokenizing them as either `BAA_TOKEN_INT_LIT` or `BAA_TOKEN_FLOAT_LIT`. It extracts the raw text of the number. The actual conversion of this text to a C numeric type (e.g., `long long`, `double`) is typically handled later by the parser or a dedicated utility like `baa_parse_number`.
 
-### BaaNumberType
+The lexer supports the following formats for numeric literals:
+
+### 1. Integer Literals (`BAA_TOKEN_INT_LIT`)
+    - **Decimal Integers**: Sequences of Western digits (`0`-`9`) and/or Arabic-Indic digits (`٠`-`٩` / U+0660-U+0669).
+        - Examples: `123`, `٤٢`, `0`, `٠`, `12٠3٤`
+    - **Binary Integers**: Must start with `0b` or `0B`, followed by binary digits (`0` or `1`).
+        - Examples: `0b1010`, `0B11001`
+    - **Hexadecimal Integers**: Must start with `0x` or `0X`, followed by hexadecimal digits (`0`-`9`, `a`-`f`, `A`-`F`).
+        - Examples: `0x1a3f`, `0XFF`, `0xDeadBeef`
+    - **Underscores for Readability**: Single underscores (`_`) can be used as separators within the digits of any integer literal type. They cannot be consecutive, at the very beginning of the digit sequence (immediately after a prefix like `0x_`), or at the end of the number.
+        - Examples: `1_000_000`, `0xFF_EC`, `0b1010_0101`, `١_٢٣٤_٥٦٧`
+
+### 2. Floating-Point Literals (`BAA_TOKEN_FLOAT_LIT`)
+    Float literals are identified if they contain a decimal point (`.` or `٫`) or an exponent part (`e` or `E`).
+    - **Decimal Representation**:
+        - Consist of an integer part, a decimal point, and a fractional part.
+        - The decimal point can be a period `.` (U+002E) or an Arabic Decimal Separator `٫` (U+066B).
+        - Digits in the integer and fractional parts can be Western (`0`-`9`) or Arabic-Indic (`٠`-`٩`).
+        - Examples: `3.14`, `0.5`, `٣٫١٤`, `123.456`, `٠.٥`
+        - Note: Literals starting with a dot (e.g., `.5`) or ending with a dot without a fractional part (e.g., `123.`) are tokenized differently by the lexer (e.g., `BAA_TOKEN_DOT` followed by `BAA_TOKEN_INT_LIT`, or `BAA_TOKEN_INT_LIT` followed by `BAA_TOKEN_DOT`). The parser would determine their validity as float literals.
+    - **Scientific Notation**:
+        - Can be appended to a decimal number (integer or fractional part).
+        - Introduced by `e` or `E`, followed by an optional sign (`+` or `-`), and then one or more decimal digits (Western or Arabic-Indic).
+        - Examples: `1.23e4`, `5.67E-3`, `42e+2`, `1e10`, `٣٫١٤e-2`, `12E+٠٥`
+    - **Underscores for Readability**: Single underscores (`_`) can be used as separators within the integer part, fractional part, and exponent part of float literals, with the same restrictions as for integer literals.
+        - Examples: `1_234.567_890`, `3.141_592e+1_0`
+
+*(The following sections describe a utility `baa_parse_number` which is separate from the lexer's `scan_number` but complements it by performing the actual string-to-value conversion. The lexer's `scan_number` primarily focuses on identifying the token type and boundaries.)*
+
+### BaaNumberType (Utility)
 
 ```c
 typedef enum {
@@ -200,31 +229,7 @@ typedef enum {
 } BaaNumberError;
 ```
 
-### Number Format Support
-
-The number parser supports:
-
-1.  **Integer Literals**:
-    -   Regular decimal integers: `123`, `42`, `0`
-    -   Binary integers (with `0b` or `0B` prefix): `0b1010`, `0B1100`
-    -   Hexadecimal integers (with `0x` or `0X` prefix): `0x1a3f`, `0XFF`
-    -   Support for Arabic-Indic digits: `١٢٣`, `٤٢`
-    -   Underscores for readability (e.g., `1_000_000`, `0xFF_FF`, `0b1010_1100`) - *[Implemented]*
-
-2.  **Floating-Point Literals**:
-    -   Regular decimal floats: `3.14`, `0.5`
-    -   Support for Arabic decimal separator: `3٫14`
-    -   Support for Arabic-Indic digits: `٣٫١٤`
-    -   Underscores for readability (e.g., `1_234.56_78`) - *[Implemented]*
-
-3.  **Scientific Notation**:
-    -   Standard form with `e` or `E`: `1.23e4`, `5.67e-3`, `42E2`
-    -   Support for Arabic-Indic digits: `١٫٢٣e٤`
-    -   Optional decimal point: `5e3` (equivalent to `5000`)
-    -   Optional sign in exponent: `1.2e+10`, `3.4e-5`
-    -   Underscores for readability (e.g., `1.23e+1_0`) - *[Implemented]*
-
-### Number Parsing Functions
+### Number Parsing Utility Functions (e.g., `baa_parse_number`)
 
 - `baa_parse_number`: Parse a string as a number, detecting the format automatically.
 - `baa_free_number`: Free a number structure.
@@ -272,9 +277,9 @@ The lexer supports a wide range of operators, tokenized with corresponding types
 
 ## Comment Support
 
-- Single line comments (`#` style - Skipped, not tokenized)
 - Single line comments (`//` style - Skipped, not tokenized)
 - Multi-line comments (`/* ... */` - Skipped, not tokenized)
+- Note: Legacy `#` style comments are no longer supported by the lexer. The preprocessor handles lines starting with `#` for directives.
 - Documentation comments (e.g., `/** ... */` or other syntax TBD)
 
 ## Usage

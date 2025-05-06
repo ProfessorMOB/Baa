@@ -41,6 +41,15 @@ This document compares K&R C features with their B (باء) equivalents and outl
 | `const`       | `ثابت`            | Partial  | Keyword `ثابت` exists and is parsed. Semantic enforcement needed. |
 | `volatile`    | `متطاير`          | Planned  | Keyword not observed. |
 
+### Literals
+
+| K&R C Feature        | B (باء) Equivalent & Extensions                                     | Status      | Notes                                                                                                                               |
+|----------------------|--------------------------------------------------------------------|-------------|-------------------------------------------------------------------------------------------------------------------------------------|
+| Integer Literals     | Decimal (Western & Arabic-Indic), Binary (`0b`/`0B`), Hex (`0x`/`0X`). Underscores (`_`) for readability. | Implemented | K&R C had decimal, octal, hex. Baa does not explicitly support octal via `0` prefix (a leading `0` is just zero unless part of `0b`/`0x`). |
+| Floating-Point Literals | Decimal point (`.` or `٫`), Scientific notation (`e`/`E`). Western & Arabic-Indic digits. Underscores for readability. | Implemented | K&R C had basic float forms. Baa extends with `٫` and full underscore/digit support.                                              |
+| Character Literals   | `'c'` (Western/Arabic). Standard escapes (`\n`, `\t`, `\\`, `\'`, `\"`, `\r`, `\0`), Unicode (`\uXXXX`). | Implemented | K&R C had basic escapes and octal escapes. Baa focuses on standard and Unicode escapes.                                           |
+| String Literals      | `"...\"` (Western/Arabic). Standard escapes, Unicode (`\uXXXX`).      | Implemented | K&R C had basic escapes. Baa supports richer character sets and Unicode escapes.                                                    |
+
 ### Control Flow
 
 | K&R C Feature | B (باء) Equivalent | Status      | Notes |

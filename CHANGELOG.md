@@ -5,6 +5,24 @@ All notable changes to the B (باء) compiler project will be documented in thi
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.10.0] - 2025-05-07
+### Changed
+- **Lexer Enhancements & Fixes:**
+    - **Numeric Literal Tokenization:**
+        - Correctly tokenizes Arabic-Indic digits (٠-٩ / U+0660-U+0669) as part of integer and float literals.
+        - Implemented support for binary (`0b`/`0B`) and hexadecimal (`0x`/`0X`) integer prefixes.
+        - Added support for underscores (`_`) as separators in all valid positions within numeric literals (integers, floats, including prefixed numbers and exponent parts).
+        - Recognizes the Arabic decimal separator (`٫`, U+066B) as a valid decimal point in float literals. (Note: Console display of `٫` in lexemes might appear as `?` due to terminal limitations, but internal processing is correct).
+    - **Dispatch Logic:** Refined character type dispatch in `baa_lexer_next_token` to correctly prioritize digit types (Arabic-Indic, then Western) before general identifier characters, resolving misidentification of Arabic-Indic digits as identifiers.
+    - **Error Messaging:** Clarified the error message for invalid escape sequences (e.g., `\'`) within string literals.
+    - **Modularization:** Further modularized the lexer by moving token scanning logic (`scan_identifier`, `scan_number`, `scan_string`, `scan_char_literal`) into `src/lexer/token_scanners.c` and character utilities into `src/lexer/lexer_char_utils.c`. Introduced `src/lexer/lexer_internal.h` for internal declarations. (This completes earlier modularization efforts and resolves associated build issues).
+- **Documentation:**
+    - Significantly updated `docs/lexer.md` to reflect the current capabilities regarding numeric literal parsing, Arabic language support, and overall lexer functionality.
+
+### Added
+- **Testing:**
+    - Created a new comprehensive lexer test suite: `tests/resources/lexer_test_cases/lexer_test_suite.baa` to cover a wide range of lexer features and edge cases.
+
 ## [0.1.9.9] - 2025-05-06
 ### Added
 - Standalone preprocessor tester executable (`tools/baa_preprocessor_tester.c`) for isolated testing.

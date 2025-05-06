@@ -38,12 +38,10 @@ static struct
     {L"منطقي", BAA_TOKEN_TYPE_BOOL}       // Type keyword: boolean
 };
 
-// Character utility functions are in lexer_char_utils.c
-
 // --- Implementations of core lexer helper functions (no longer static) ---
 bool is_at_end(BaaLexer *lexer)
 {
-    return lexer->source[lexer->current] == L'\0';
+    return lexer->current >= lexer->source_length;
 }
 
 wchar_t peek(BaaLexer *lexer)
@@ -97,6 +95,7 @@ void baa_init_lexer(BaaLexer *lexer, const wchar_t *source, const wchar_t *filen
         return; // Basic validation
 
     lexer->source = source;
+    lexer->source_length = wcslen(source); // Calculate and store source length
     lexer->start = 0;
     lexer->current = 0;
     lexer->line = 1;
@@ -253,11 +252,9 @@ static BaaToken *skip_whitespace(BaaLexer *lexer)
         case L'\n':
             advance(lexer);
             break;
-        case L'#':
-            // Skip single-line #-style comments
-            while (peek(lexer) != L'\n' && !is_at_end(lexer))
-                advance(lexer);
-            break;
+        // Removed legacy '#' comment support.
+        // The preprocessor handles lines starting with # for directives.
+        // Any non-directive '#' reaching the lexer should be an error or part of other syntax.
         case L'/':
             if (peek_next(lexer) == L'*')
             { // Start of /* comment */
@@ -497,13 +494,51 @@ BaaToken *baa_lexer_next_token(BaaLexer *lexer)
         return make_token(lexer, BAA_TOKEN_EOF); // Returns BaaToken*
     }
 
-    wchar_t c = advance(lexer);
+    // Peek first to decide the type of token
+    wchar_t current_char_peeked = peek(lexer);
 
-    if (iswalpha(c) || c == L'_' || is_arabic_letter(c)) // Include Arabic letters for identifiers
-        return scan_identifier(lexer);                   // Returns BaaToken*
-    if (iswdigit(c) || is_arabic_digit(c))               // Include Arabic digits for numbers
-        return scan_number(lexer);                       // Returns BaaToken*
+    // Handle string literals (single and multiline) by peeking
+    if (current_char_peeked == L'"') {
+        // Check for """
+        if (lexer->current + 2 < lexer->source_length &&
+            lexer->source[lexer->current + 1] == L'"' &&
+            lexer->source[lexer->current + 2] == L'"') {
+            // It's a multiline string. Consume all three quotes.
+            advance(lexer); // Consume first "
+            advance(lexer); // Consume second "
+            advance(lexer); // Consume third "
+            return scan_multiline_string_literal(lexer); // scan_multiline_string_literal starts *after* """
+        } else {
+            // It's a regular string. scan_string consumes the opening quote.
+            return scan_string(lexer);
+        }
+    }
 
+    // DEBUG PRINT
+    // fwprintf(stderr, L"DEBUG: baa_lexer_next_token: char_peeked='%lc'(%u), is_alpha_etc=%d, is_baa_digit=%d, is_arabic_digit=%d, iswdigit=%d\n",
+    //          current_char_peeked, (unsigned int)current_char_peeked,
+    //          (iswalpha(current_char_peeked) || current_char_peeked == L'_' || is_arabic_letter(current_char_peeked)),
+    //          is_baa_digit(current_char_peeked), is_arabic_digit(current_char_peeked), iswdigit(current_char_peeked));
+
+    // Prioritize digits: Arabic-Indic first, then Western, then general identifier characters.
+    if (is_arabic_digit(current_char_peeked)) {
+        // fwprintf(stderr, L"DEBUG: Calling scan_number for Arabic digit '%lc'\n", current_char_peeked);
+        return scan_number(lexer);
+    }
+    if (iswdigit(current_char_peeked)) { // For '0'-'9'
+        // fwprintf(stderr, L"DEBUG: Calling scan_number for Western digit '%lc'\n", current_char_peeked);
+        return scan_number(lexer);
+    }
+    if (iswalpha(current_char_peeked) || current_char_peeked == L'_' || is_arabic_letter(current_char_peeked)) {
+        // This will catch letters and underscore. is_arabic_letter is specific to letters.
+        // iswalpha might be true for Arabic-Indic digits in some locales, but we've already handled them.
+        // fwprintf(stderr, L"DEBUG: Calling scan_identifier for '%lc'\n", current_char_peeked);
+        return scan_identifier(lexer);
+    }
+    // fwprintf(stderr, L"DEBUG: char '%lc' is not identifier start or digit. Advancing for operator/delimiter.\n", current_char_peeked);
+
+    // If not identifier, number, or string, then advance to consume the character and use switch for other tokens
+    wchar_t c = advance(lexer); // This char is for single/double char tokens
     switch (c)
     {
     // Single character tokens
@@ -548,9 +583,7 @@ BaaToken *baa_lexer_next_token(BaaLexer *lexer)
     case L'>':
         return match(lexer, L'=') ? make_token(lexer, BAA_TOKEN_GREATER_EQUAL) : make_token(lexer, BAA_TOKEN_GREATER);
 
-    // String literal
-    case L'"':
-        return scan_string(lexer); // Returns BaaToken*
+    // String literal case L'"' is handled above by peeking
     // Character literal
     case L'\'':
         return scan_char_literal(lexer); // Returns BaaToken*

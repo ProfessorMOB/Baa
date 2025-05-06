@@ -27,21 +27,25 @@ The initial stage that processes the source file before tokenization:
   - *Planned:* Bitwise operators in conditional expressions, predefined macros (`__FILE__`, `__LINE__`), UTF-8 input support.
 
 ### 1. Lexer
-The lexical analyzer responsible for tokenizing source code:
-- **Token Generation**: Converts source text into tokens
-- **Unicode Support**: Full support for Arabic characters and identifiers
-- **Source Tracking**: Accurate line and column tracking
-- **Error Detection**: Identifies lexical errors and provides diagnostics
-- **Advanced Operators**: Support for compound assignments (+=, -=, etc.) and increment/decrement (++, --)
-- **Boolean Literals**: Recognition of صحيح (true) and خطأ (false)
-- **Number Parsing**: Support for various number formats including integers, floats, scientific notation, binary (`0b`), hex (`0x`), underscores (`_`), and Arabic-Indic digits. Lexer identifies syntax, `number_parser.c` handles value parsing.
-- **Comment Handling**: Support for single-line (`//`, `#`) and multi-line (`/* */`) comments (skipped).
-- **String/Char Literals**: Handles basic literals with escape sequences (`\n`, `\t`, `\r`, `\0`, `\uXXXX`, etc.).
+The lexical analyzer responsible for tokenizing source code. It has a modular structure:
+  - `lexer.c`: Core dispatch logic (`baa_lexer_next_token`) and helper functions.
+  - `token_scanners.c`: Implements specific scanning functions for identifiers, numbers, strings, and characters.
+  - `lexer_char_utils.c`: Provides character classification utilities (e.g., for Arabic letters, digits).
+- **Token Generation**: Converts source text (output from preprocessor) into a stream of tokens.
+- **Unicode Support**: Full support for Arabic characters in identifiers, literals, and keywords. Recognizes Arabic-Indic digits.
+- **Source Tracking**: Accurate line and column tracking for tokens and errors.
+- **Error Detection**: Identifies lexical errors (e.g., unexpected characters, unterminated literals, invalid escapes) and provides diagnostic messages.
+- **Numeric Literal Recognition**:
+    - Identifies various number formats: integers (decimal, binary `0b`/`0B`, hexadecimal `0x`/`0X`), floats (using `.` or `٫` as decimal separator), and scientific notation (`e`/`E`).
+    - Supports Arabic-Indic digits (`٠`-`٩`) and Western digits (`0`-`9`) within all parts of numbers.
+    - Supports underscores (`_`) as separators for readability in numbers.
+    - The lexer's `scan_number` function (in `token_scanners.c`) handles the syntactic recognition and extracts the raw lexeme. The separate `number_parser.c` utility can be used later for converting these lexemes to actual numeric values.
+- **Comment Handling**: Skips single-line (`//`, `#`) and multi-line (`/* */`) comments.
+- **String/Char Literals**: Handles string (`"..."`) and character (`'...'`) literals, including standard C escape sequences (`\n`, `\t`, `\\`, `\"`, `\'` (in char literals), `\r`, `\0`) and Unicode escapes (`\uXXXX`).
 - **Features & Status:**
-  - Fully implemented base lexer functionality.
-  - UTF-16LE encoding support assumed from preprocessor.
-  - Token handling for keywords, identifiers, operators, literals.
-  - Number format recognition (int, float, sci, bin, hex, underscores).
+  - Core lexer functionality and modular structure are implemented.
+  - UTF-16LE encoding is processed (input from preprocessor).
+  - Robust token handling for keywords, identifiers, operators, and various literal types.
   - String and character literal support with escapes.
   - Source position tracking.
   - Error token generation.

@@ -16,5 +16,6 @@ BaaToken *scan_identifier(BaaLexer *lexer);
 BaaToken *scan_number(BaaLexer *lexer);
 BaaToken *scan_string(BaaLexer *lexer);
 BaaToken *scan_char_literal(BaaLexer *lexer);
+BaaToken *scan_multiline_string_literal(BaaLexer *lexer);
 
 #endif // BAA_TOKEN_SCANNERS_H
