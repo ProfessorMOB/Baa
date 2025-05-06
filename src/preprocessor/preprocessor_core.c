@@ -744,10 +744,46 @@ wchar_t *process_file(BaaPreprocessor *pp_state, const char *file_path, wchar_t 
                             break;
                         }
 
-                        const BaaMacro *macro = find_macro(pp_state, identifier);
-                        if (macro && !is_macro_expanding(pp_state, macro))
-                        {
-                            // --- Push macro invocation location ---
+                        // Check for predefined dynamic macros first
+                        if (wcscmp(identifier, L"__الملف__") == 0) {
+                            wchar_t quoted_file_path[MAX_PATH_LEN + 3]; // For quotes, path, and null
+                            PpSourceLocation current_original_loc = get_current_original_location(pp_state);
+                            const char* original_file_path = current_original_loc.file_path ? current_original_loc.file_path : "unknown_file";
+
+                            // Convert char* path to wchar_t* for swprintf
+                            wchar_t w_current_physical_path[MAX_PATH_LEN];
+                            mbstowcs(w_current_physical_path, original_file_path, MAX_PATH_LEN);
+
+                            // Escape backslashes in the path for the string literal
+                            wchar_t escaped_path[MAX_PATH_LEN * 2]; // Worst case: all backslashes
+                            wchar_t *ep = escaped_path;
+                            for (const wchar_t *p = w_current_physical_path; *p; ++p) {
+                                if (*p == L'\\') {
+                                    *ep++ = L'\\';
+                                }
+                                *ep++ = *p;
+                            }
+                            *ep = L'\0';
+
+                            swprintf(quoted_file_path, sizeof(quoted_file_path)/sizeof(wchar_t), L"\"%ls\"", escaped_path);
+                            if (!append_to_dynamic_buffer(&substituted_line_buffer, quoted_file_path)) {
+                                success = false;
+                            }
+                            free(identifier); // Free the parsed identifier
+                        } else if (wcscmp(identifier, L"__السطر__") == 0) {
+                            wchar_t line_str[20]; // Buffer for line number string
+                            // Use the current physical line number being processed in the current file buffer
+                            swprintf(line_str, sizeof(line_str)/sizeof(wchar_t), L"\"%zu\"", pp_state->current_line_number);
+                            if (!append_to_dynamic_buffer(&substituted_line_buffer, line_str)) {
+                                success = false;
+                            }
+                            free(identifier); // Free the parsed identifier
+                        } else {
+                            // Not a predefined dynamic macro, proceed with normal macro lookup
+                            const BaaMacro *macro = find_macro(pp_state, identifier);
+                            if (macro && !is_macro_expanding(pp_state, macro))
+                            {
+                                // --- Push macro invocation location ---
                             PpSourceLocation invocation_loc = {.file_path = pp_state->current_file_path, .line = pp_state->current_line_number, .column = id_start_col};
                             if (!push_location(pp_state, &invocation_loc))
                             {
@@ -839,6 +875,7 @@ wchar_t *process_file(BaaPreprocessor *pp_state, const char *file_path, wchar_t 
                             }
                             else
                             { // Object-like macro
+                                // This is part of the original 'if (macro && !is_macro_expanding(pp_state, macro))' block
                                 DynamicWcharBuffer expansion_result_buffer;
                                 if (!init_dynamic_buffer(&expansion_result_buffer, 128))
                                 {
@@ -873,20 +910,20 @@ wchar_t *process_file(BaaPreprocessor *pp_state, const char *file_path, wchar_t 
                             {
                                 success = false;
                             }
-                        }
-                        else if (macro)
-                        { // Recursive expansion
-                            PpSourceLocation current_loc = get_current_original_location(pp_state);
-                            *error_message = format_preprocessor_error_at_location(&current_loc, L"تم اكتشاف استدعاء ذاتي للماكرو '%ls'.", macro->name);
-                            success = false;
-                        }
-                        else
-                        { // Not a macro
-                            if (!append_dynamic_buffer_n(&substituted_line_buffer, id_start, id_len))
+                           // End of 'if (macro && !is_macro_expanding(pp_state, macro))'
+                           } else if (macro) { // This 'else if' pairs with 'if (macro && !is_macro_expanding)'
+                                // Recursive expansion
+                                PpSourceLocation current_loc = get_current_original_location(pp_state);
+                                *error_message = format_preprocessor_error_at_location(&current_loc, L"تم اكتشاف استدعاء ذاتي للماكرو '%ls'.", macro->name);
                                 success = false;
-                            // Physical column already updated by initial scan
-                        }
-                        free(identifier);
+                           } else { // This 'else' pairs with 'if (macro && !is_macro_expanding)'
+                                // Not a macro (and not __الملف__ or __السطر__)
+                                if (!append_dynamic_buffer_n(&substituted_line_buffer, id_start, id_len))
+                                    success = false;
+                                // Physical column already updated by initial scan
+                           }
+                           free(identifier); // Free the parsed identifier here, after all checks
+                        } // End of 'else' for predefined dynamic macros check
                     }
                     else
                     {

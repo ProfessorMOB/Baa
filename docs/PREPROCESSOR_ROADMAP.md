@@ -53,6 +53,6 @@ This roadmap outlines the planned improvements and current status of the Baa lan
     - Support for UTF-8 input files.
     - Input source abstraction (file, string, stdin).
     - Support for bitwise operators (`&`, `|`, `^`, `~`, `<<`, `>>`) in conditional expressions.
-    - Predefined macros (e.g., `__FILE__`, `__LINE__`).
+    - [x] Predefined macros (`__الملف__`, `__السطر__`, `__التاريخ__`, `__الوقت__`)
 3.  **Macro Edge Cases:**
     - Address complex edge cases in macro substitution and argument parsing.

@@ -1,5 +1,6 @@
 #include "baa/preprocessor/preprocessor.h" // Public API
 #include "preprocessor_internal.h"       // Internal definitions and function declarations
+#include <time.h>                        // For __التاريخ__ and __الوقت__
 
 // --- Public Preprocessor Function ---
 
@@ -55,16 +56,65 @@ wchar_t *baa_preprocess(const char *main_file_path, const char **include_paths, 
     // pp_state.location_stack = NULL;      // Zero-initialized
     // pp_state.location_stack_count = 0;   // Zero-initialized
     // pp_state.location_stack_capacity = 0;// Zero-initialized
-    // --- End Initialize ---
 
-    // --- Push initial location ---
+    // --- Push initial location (needed early for potential errors during macro init) ---
     PpSourceLocation initial_loc = {
         .file_path = main_file_path, // Use the original path provided
+        .line = 0, // Line 0 for "compiler-defined" aspect before file processing
+        .column = 0
+    };
+    // Note: actual file processing will push its own line 1 later.
+
+    // --- Define __التاريخ__ and __الوقت__ macros ---
+    time_t now = time(NULL);
+    struct tm *t = localtime(&now);
+    wchar_t date_str[100];
+    wchar_t time_str[100];
+    wchar_t quoted_date_str[104]; // For quotes and null terminator
+    wchar_t quoted_time_str[104]; // For quotes and null terminator
+
+    // Format date e.g., "May 06 2024" (English month names are common in __DATE__)
+    // C standard format is "Mmm dd yyyy"
+    // For Arabic, a direct equivalent might be complex due to month names.
+    // Let's use a standard format that's easily parsable.
+    // Using wcsftime for locale-independent month names is tricky.
+    // Sticking to a fixed English month name format for __DATE__ as per C standard.
+    const char *months[] = {"Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
+    swprintf(date_str, sizeof(date_str)/sizeof(wchar_t), L"\"%hs %02d %04d\"", months[t->tm_mon], t->tm_mday, t->tm_year + 1900);
+
+    // Format time "HH:MM:SS"
+    swprintf(time_str, sizeof(time_str)/sizeof(wchar_t), L"\"%02d:%02d:%02d\"", t->tm_hour, t->tm_min, t->tm_sec);
+
+    // Add macros to preprocessor state
+    // Note: add_macro expects non-quoted body for string literals, it adds quotes if needed.
+    // However, the C standard for __DATE__ and __TIME__ is that they expand *to* string literals.
+    // So, the values themselves should be the quoted strings.
+    if (!add_macro(&pp_state, L"__التاريخ__", date_str, false, 0, NULL)) {
+        // Error handling if add_macro fails
+        *error_message = format_preprocessor_error_at_location(&initial_loc, L"فشل في تعريف الماكرو المدمج __التاريخ__.");
+        // Cleanup any partially initialized state if necessary before returning
+        return NULL;
+    }
+    if (!add_macro(&pp_state, L"__الوقت__", time_str, false, 0, NULL)) {
+        // Error handling if add_macro fails
+        *error_message = format_preprocessor_error_at_location(&initial_loc, L"فشل في تعريف الماكرو المدمج __الوقت__.");
+        // Cleanup...
+        return NULL;
+    }
+    // --- End Define __التاريخ__ and __الوقت__ ---
+
+    // --- End Initialize ---
+
+    // --- Push actual starting location for file processing ---
+    // The 'initial_loc' above was for pre-run definitions.
+    // Now, set up the true starting point for the main file.
+    PpSourceLocation file_start_loc = {
+        .file_path = main_file_path,
         .line = 1,
         .column = 1
     };
-    if (!push_location(&pp_state, &initial_loc)) {
-         *error_message = format_preprocessor_error_at_location(&initial_loc, L"فشل في دفع الموقع الأولي (نفاد الذاكرة؟).");
+    if (!push_location(&pp_state, &file_start_loc)) {
+         *error_message = format_preprocessor_error_at_location(&file_start_loc, L"فشل في دفع الموقع الأولي للملف (نفاد الذاكرة؟).");
          // No need to free stacks yet as they are likely empty/null
          return NULL;
     }

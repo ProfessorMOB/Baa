@@ -52,6 +52,14 @@ It operates on files assumed to be encoded in **UTF-16LE**.
 - Verifies the presence of the correct Byte Order Mark (BOM).
 - Outputs the processed source code as a UTF-16 `wchar_t*` string.
 
+### Predefined Macros (الماكروهات المدمجة المعرفة مسبقًا)
+The Baa preprocessor defines the following macros automatically. These names are inspired by standard C predefined macros but are in Arabic.
+
+- **`__الملف__` (`__FILE__`):** Expands to a string literal representing the name of the current input file being processed.
+- **`__السطر__` (`__LINE__`):** Expands to a string literal representing the current line number in the input file.
+- **`__التاريخ__` (`__DATE__`):** Expands to a string literal representing the date of preprocessing, in the format `"Mmm dd yyyy"` (e.g., `"May 06 2025"`). The month names are in English as per common C standard behavior.
+- **`__الوقت__` (`__TIME__`):** Expands to a string literal representing the time of preprocessing, in the format `"HH:MM:SS"` (e.g., `"19:32:14"`).
+
 ### Error Handling (معالجة الأخطاء)
 
 - Reports errors via an output parameter (`wchar_t** error_message`) in the main `baa_preprocess` function.
@@ -138,7 +146,6 @@ if (!processed_source) {
 
 - **Rescanning Expanded Macros:** Implement proper rescanning of macro expansion results for further macro substitutions, as required by the C standard.
 - **Bitwise Operators:** Add support for bitwise operators (`&`, `|`, `^`, `~`, `<<`, `>>`) in conditional expressions (`#إذا`, `#وإلا_إذا`).
-- **Predefined Macros:** Implement standard predefined macros (e.g., `__FILE__`, `__LINE__`, `__DATE__`, `__TIME__`).
 - **UTF-8 Input:** Add support for reading UTF-8 encoded source files in addition to UTF-16LE.
 - **Input Abstraction:** Abstract the input source to allow preprocessing from strings or standard input, not just files.
 - **Error Recovery:** Improve error recovery mechanisms within directives and expressions.
