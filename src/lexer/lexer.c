@@ -6,6 +6,7 @@
 #include <string.h>
 #include <wctype.h>
 #include <stdarg.h> // Needed for va_list, etc.
+#include "baa/lexer/lexer_char_utils.h" // Include the new char utils header
 
 // Forward declaration for error token creation
 static BaaToken *make_error_token(BaaLexer *lexer, const wchar_t *format, ...);
@@ -45,43 +46,7 @@ static struct
     {L"منطقي", BAA_TOKEN_TYPE_BOOL}       // Type keyword: boolean
 };
 
-// Helper functions
-static bool is_arabic_letter(wchar_t c)
-{
-    return (c >= 0x0600 && c <= 0x06FF) || (c >= 0xFB50 && c <= 0xFDFF) ||
-           (c >= 0xFE70 && c <= 0xFEFF); // Basic Arabic, Arabic Presentation Forms-A and B
-}
-
-static bool is_arabic_digit(wchar_t c)
-{
-    return (c >= 0x0660 && c <= 0x0669); // Arabic-Indic digits
-}
-
-// Helper to check if a character is a valid digit (ASCII or Arabic-Indic)
-static inline bool is_baa_digit(wchar_t c)
-{
-    return iswdigit(c) || is_arabic_digit(c);
-}
-
-// Helper to check if a character is a valid binary digit ('0' or '1')
-static inline bool is_baa_bin_digit(wchar_t c)
-{
-    return c == L'0' || c == L'1';
-}
-
-// Helper to check if a character is a valid hexadecimal digit (0-9, a-f, A-F)
-static inline bool is_baa_hex_digit(wchar_t c)
-{
-    return (c >= L'0' && c <= L'9') || (c >= L'a' && c <= L'f') || (c >= L'A' && c <= L'F');
-}
-
-static bool is_arabic_punctuation(wchar_t c)
-{
-    return (c == 0x060C) || // Arabic comma
-           (c == 0x061B) || // Arabic semicolon
-           (c == 0x061F) || // Arabic question mark
-           (c == 0x066D);   // Arabic five pointed star
-}
+// Character utility functions are now in lexer_char_utils.c
 
 static bool is_at_end(BaaLexer *lexer)
 {
@@ -350,64 +315,6 @@ static BaaToken *skip_whitespace(BaaLexer *lexer)
             return NULL; // Finished skipping whitespace/comments
         }
     }
-}
-
-long baa_file_size(FILE *file)
-{
-    if (!file)
-    {
-        return 0;
-    }
-    fpos_t original = 0;
-    if (fgetpos(file, &original) != 0)
-    {
-        printf("fgetpos() فشلت دالة: %i \n", errno);
-        return 0;
-    }
-    fseek(file, 0, SEEK_END);
-    long out = ftell(file);
-    if (fsetpos(file, &original) != 0)
-    {
-        printf("fsetpos() فشلت دالة: %i \n", errno);
-    }
-    return out;
-}
-
-wchar_t *baa_file_content(const wchar_t *path)
-{
-    FILE *file;
-    errno_t err = _wfopen_s(&file, path, L"rb, ccs=UTF-16LE");
-    if (err != 0)
-    {
-        printf("لا يمكن فتح الملف\n");
-        return NULL;
-    }
-
-    // Skip BOM if present
-    wchar_t bom;
-    if (fread(&bom, sizeof(wchar_t), 1, file) == 1)
-    {
-        if (bom != 0xFEFF)
-        {
-            fseek(file, 0, SEEK_SET);
-        }
-    }
-
-    long file_size = baa_file_size(file);
-    size_t char_count = (file_size / sizeof(wchar_t)) + 1; // +1 for null terminator
-    wchar_t *contents = malloc(char_count * sizeof(wchar_t));
-
-    if (!contents)
-    {
-        fclose(file);
-        return NULL;
-    }
-
-    size_t chars_read = fread(contents, sizeof(wchar_t), char_count - 1, file);
-    contents[chars_read] = L'\0';
-
-    fclose(file);
-    return contents;
 }
 
 // Corresponds to baa_create_lexer in header
@@ -1235,3 +1142,90 @@ BaaToken *baa_lexer_next_token(BaaLexer *lexer)
 // {
 //     return lexer->had_error;
 // }
+
+const wchar_t* baa_token_type_to_string(BaaTokenType type) {
+    switch (type) {
+        case BAA_TOKEN_EOF: return L"BAA_TOKEN_EOF";
+        case BAA_TOKEN_ERROR: return L"BAA_TOKEN_ERROR";
+        case BAA_TOKEN_UNKNOWN: return L"BAA_TOKEN_UNKNOWN";
+        case BAA_TOKEN_COMMENT: return L"BAA_TOKEN_COMMENT";
+        case BAA_TOKEN_IDENTIFIER: return L"BAA_TOKEN_IDENTIFIER";
+        case BAA_TOKEN_INT_LIT: return L"BAA_TOKEN_INT_LIT";
+        case BAA_TOKEN_FLOAT_LIT: return L"BAA_TOKEN_FLOAT_LIT";
+        case BAA_TOKEN_CHAR_LIT: return L"BAA_TOKEN_CHAR_LIT";
+        case BAA_TOKEN_STRING_LIT: return L"BAA_TOKEN_STRING_LIT";
+        case BAA_TOKEN_BOOL_LIT: return L"BAA_TOKEN_BOOL_LIT";
+        case BAA_TOKEN_FUNC: return L"BAA_TOKEN_FUNC";
+        case BAA_TOKEN_VAR: return L"BAA_TOKEN_VAR";
+        case BAA_TOKEN_CONST: return L"BAA_TOKEN_CONST";
+        case BAA_TOKEN_IF: return L"BAA_TOKEN_IF";
+        case BAA_TOKEN_ELSE: return L"BAA_TOKEN_ELSE";
+        case BAA_TOKEN_WHILE: return L"BAA_TOKEN_WHILE";
+        case BAA_TOKEN_FOR: return L"BAA_TOKEN_FOR";
+        case BAA_TOKEN_DO: return L"BAA_TOKEN_DO";
+        case BAA_TOKEN_CASE: return L"BAA_TOKEN_CASE";
+        case BAA_TOKEN_SWITCH: return L"BAA_TOKEN_SWITCH";
+        case BAA_TOKEN_RETURN: return L"BAA_TOKEN_RETURN";
+        case BAA_TOKEN_BREAK: return L"BAA_TOKEN_BREAK";
+        case BAA_TOKEN_CONTINUE: return L"BAA_TOKEN_CONTINUE";
+        case BAA_TOKEN_TYPE_INT: return L"BAA_TOKEN_TYPE_INT";
+        case BAA_TOKEN_TYPE_FLOAT: return L"BAA_TOKEN_TYPE_FLOAT";
+        case BAA_TOKEN_TYPE_CHAR: return L"BAA_TOKEN_TYPE_CHAR";
+        case BAA_TOKEN_TYPE_VOID: return L"BAA_TOKEN_TYPE_VOID";
+        case BAA_TOKEN_TYPE_BOOL: return L"BAA_TOKEN_TYPE_BOOL";
+        case BAA_TOKEN_PLUS: return L"BAA_TOKEN_PLUS";
+        case BAA_TOKEN_MINUS: return L"BAA_TOKEN_MINUS";
+        case BAA_TOKEN_STAR: return L"BAA_TOKEN_STAR";
+        case BAA_TOKEN_SLASH: return L"BAA_TOKEN_SLASH";
+        case BAA_TOKEN_PERCENT: return L"BAA_TOKEN_PERCENT";
+        case BAA_TOKEN_EQUAL: return L"BAA_TOKEN_EQUAL";
+        case BAA_TOKEN_EQUAL_EQUAL: return L"BAA_TOKEN_EQUAL_EQUAL";
+        case BAA_TOKEN_BANG: return L"BAA_TOKEN_BANG";
+        case BAA_TOKEN_BANG_EQUAL: return L"BAA_TOKEN_BANG_EQUAL";
+        case BAA_TOKEN_LESS: return L"BAA_TOKEN_LESS";
+        case BAA_TOKEN_LESS_EQUAL: return L"BAA_TOKEN_LESS_EQUAL";
+        case BAA_TOKEN_GREATER: return L"BAA_TOKEN_GREATER";
+        case BAA_TOKEN_GREATER_EQUAL: return L"BAA_TOKEN_GREATER_EQUAL";
+        case BAA_TOKEN_AND: return L"BAA_TOKEN_AND";
+        case BAA_TOKEN_OR: return L"BAA_TOKEN_OR";
+        case BAA_TOKEN_PLUS_EQUAL: return L"BAA_TOKEN_PLUS_EQUAL";
+        case BAA_TOKEN_MINUS_EQUAL: return L"BAA_TOKEN_MINUS_EQUAL";
+        case BAA_TOKEN_STAR_EQUAL: return L"BAA_TOKEN_STAR_EQUAL";
+        case BAA_TOKEN_SLASH_EQUAL: return L"BAA_TOKEN_SLASH_EQUAL";
+        case BAA_TOKEN_PERCENT_EQUAL: return L"BAA_TOKEN_PERCENT_EQUAL";
+        case BAA_TOKEN_INCREMENT: return L"BAA_TOKEN_INCREMENT";
+        case BAA_TOKEN_DECREMENT: return L"BAA_TOKEN_DECREMENT";
+        case BAA_TOKEN_LPAREN: return L"BAA_TOKEN_LPAREN";
+        case BAA_TOKEN_RPAREN: return L"BAA_TOKEN_RPAREN";
+        case BAA_TOKEN_LBRACE: return L"BAA_TOKEN_LBRACE";
+        case BAA_TOKEN_RBRACE: return L"BAA_TOKEN_RBRACE";
+        case BAA_TOKEN_LBRACKET: return L"BAA_TOKEN_LBRACKET";
+        case BAA_TOKEN_RBRACKET: return L"BAA_TOKEN_RBRACKET";
+        case BAA_TOKEN_COMMA: return L"BAA_TOKEN_COMMA";
+        case BAA_TOKEN_DOT: return L"BAA_TOKEN_DOT";
+        case BAA_TOKEN_SEMICOLON: return L"BAA_TOKEN_SEMICOLON";
+        case BAA_TOKEN_COLON: return L"BAA_TOKEN_COLON";
+        default: return L"BAA_TOKEN_INVALID_TYPE_IN_TO_STRING"; // Should not happen
+    }
+}
+
+// --- Token Utility Implementations ---
+
+bool baa_token_is_keyword(BaaTokenType type) {
+    // Check if the type is within the keyword range
+    return type >= BAA_TOKEN_FUNC && type <= BAA_TOKEN_CONTINUE;
+}
+
+bool baa_token_is_type(BaaTokenType type) {
+    // Check if the type is within the type name range
+    return type >= BAA_TOKEN_TYPE_INT && type <= BAA_TOKEN_TYPE_BOOL;
+}
+
+bool baa_token_is_operator(BaaTokenType type) {
+    // Check if the type is within any of the operator ranges
+    return (type >= BAA_TOKEN_PLUS && type <= BAA_TOKEN_OR) ||          // Arithmetic, Comparison, Logical
+           (type >= BAA_TOKEN_PLUS_EQUAL && type <= BAA_TOKEN_PERCENT_EQUAL) || // Compound Assignment
+           (type >= BAA_TOKEN_INCREMENT && type <= BAA_TOKEN_DECREMENT);       // Increment/Decrement
+    // Note: Does not include assignment (=) or delimiters like dot (.).
+    // Adjust ranges if definition of "operator" needs to change.
+}

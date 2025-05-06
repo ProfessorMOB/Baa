@@ -43,6 +43,7 @@ add_executable(baa
     # Lexer files
     src/lexer/lexer.c
     src/lexer/number_parser.c
+    src/lexer/lexer_char_utils.c # Added missing char utils source
 
     # Preprocessor files
     src/preprocessor/preprocessor.c
@@ -75,9 +76,8 @@ add_executable(baa
 target_include_directories(baa
     PRIVATE
         ${CMAKE_SOURCE_DIR}/include
-        # Add internal src include if necessary (e.g., src/preprocessor/preprocessor_internal.h)
-        # ${CMAKE_SOURCE_DIR}/src/include # Example if such a dir exists
-        ${CMAKE_SOURCE_DIR}/src/preprocessor # For preprocessor_internal.h
+        ${CMAKE_SOURCE_DIR}/src       # Allow includes like "lexer/lexer_char_utils.h" or relative from within src
+        # ${CMAKE_SOURCE_DIR}/src/preprocessor # Already covered by ../src
 )
 
 # --- Conditional LLVM Handling ---

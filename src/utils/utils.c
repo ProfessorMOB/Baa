@@ -168,3 +168,148 @@ wchar_t* baa_read_file(const wchar_t* filename) {
 
     return wide_buffer;
 }
+
+// Implementation moved from lexer.c
+long baa_file_size(FILE *file)
+{
+    if (!file)
+    {
+        return 0;
+    }
+    fpos_t original = 0;
+    if (fgetpos(file, &original) != 0)
+    {
+        // Consider using baa_set_error here or a more robust error handling
+        // For now, matches original print and return.
+        printf("fgetpos() فشلت دالة: %i \n", errno);
+        return 0;
+    }
+    fseek(file, 0, SEEK_END);
+    long out = ftell(file);
+    if (fsetpos(file, &original) != 0)
+    {
+        printf("fsetpos() فشلت دالة: %i \n", errno);
+    }
+    return out;
+}
+
+// Implementation moved from lexer.c
+// This version specifically handles UTF-16LE with BOM, suitable for Baa source files.
+wchar_t *baa_file_content(const wchar_t *path)
+{
+    FILE *file;
+#ifdef _WIN32
+    // Use _wfopen_s on Windows for potentially non-ASCII paths
+    errno_t err = _wfopen_s(&file, path, L"rb"); // Removed ", ccs=UTF-16LE" as BOM check is manual
+    if (err != 0) {
+        // baa_set_error(BAA_ERROR_FILE_OPEN, L"فشل في فتح الملف"); // Consider using baa_set_error
+        printf("لا يمكن فتح الملف (wfopen_s)\n");
+        return NULL;
+    }
+#else
+    // Convert wchar_t* to char* for non-Windows systems
+    size_t len = wcslen(path);
+    char* narrow_path = (char*)malloc(len * 4 + 1); // Max UTF-8 bytes
+    if (!narrow_path) {
+        // baa_set_error(BAA_ERROR_MEMORY, L"فشل في تخصيص الذاكرة لمسار الملف");
+        printf("فشل تخصيص الذاكرة لمسار الملف\n");
+        return NULL;
+    }
+    if (wcstombs(narrow_path, path, len * 4) == (size_t)-1) {
+        free(narrow_path);
+        // baa_set_error(BAA_ERROR_ENCODING, L"فشل في تحويل مسار الملف إلى متعدد البايتات");
+        printf("فشل تحويل مسار الملف\n");
+        return NULL;
+    }
+    narrow_path[len*4] = '\0'; // Ensure null termination if wcstombs doesn't fill buffer
+
+    file = fopen(narrow_path, "rb");
+    free(narrow_path);
+    if (!file) {
+        // baa_set_error(BAA_ERROR_FILE_OPEN, L"فشل في فتح الملف");
+        printf("لا يمكن فتح الملف (fopen)\n");
+        return NULL;
+    }
+#endif
+
+    // Skip BOM if present (UTF-16LE BOM is FF FE)
+    unsigned char bom_check[2];
+    if (fread(bom_check, 1, 2, file) == 2) {
+        if (bom_check[0] != 0xFF || bom_check[1] != 0xFE) {
+            fseek(file, 0, SEEK_SET); // Not a UTF-16LE BOM, rewind
+        }
+        // If it is a BOM, we've consumed it.
+    } else {
+        fseek(file, 0, SEEK_SET); // Couldn't read 2 bytes, rewind.
+    }
+
+
+    long file_size_bytes = baa_file_size(file); // Use the utility function
+    if (file_size_bytes <= 0 && ftell(file) == 0) { // Check if file is truly empty or baa_file_size failed
+         // If ftell is also 0 after BOM check and rewind, it might be an empty file or just BOM
+        fseek(file, 0, SEEK_END);
+        file_size_bytes = ftell(file); // Re-check size from current position
+        fseek(file, 0, SEEK_SET); // Rewind to start after BOM check
+
+        // Re-read and check BOM after ensuring position
+        if (fread(bom_check, 1, 2, file) == 2) {
+            if (bom_check[0] != 0xFF || bom_check[1] != 0xFE) {
+                fseek(file, 0, SEEK_SET);
+            }
+        } else {
+            fseek(file, 0, SEEK_SET);
+        }
+        file_size_bytes = baa_file_size(file); // Final check
+    }
+
+
+    // Correct calculation for content size after BOM handling
+    long current_pos = ftell(file);
+    fseek(file, 0, SEEK_END);
+    long end_pos = ftell(file);
+    fseek(file, current_pos, SEEK_SET); // Restore position after BOM check
+
+    long content_size_bytes_actual = end_pos - current_pos;
+
+    if (content_size_bytes_actual < 0) content_size_bytes_actual = 0;
+
+
+    if (content_size_bytes_actual == 0) { // File is empty or only BOM
+        fclose(file);
+        wchar_t *contents = baa_malloc(sizeof(wchar_t));
+        if (!contents) return NULL;
+        contents[0] = L'\0';
+        return contents;
+    }
+
+    // Ensure size is multiple of wchar_t for direct wchar_t reading
+    if (content_size_bytes_actual % sizeof(wchar_t) != 0) {
+        fclose(file);
+        // baa_set_error(BAA_ERROR_FILE_FORMAT, L"حجم الملف غير متوافق مع UTF-16LE");
+        printf("حجم الملف غير متوافق مع UTF-16LE\n");
+        return NULL;
+    }
+
+    size_t char_count = (content_size_bytes_actual / sizeof(wchar_t));
+    wchar_t *contents = baa_malloc((char_count + 1) * sizeof(wchar_t));
+
+    if (!contents) {
+        fclose(file);
+        // baa_set_error(BAA_ERROR_MEMORY, L"فشل تخصيص الذاكرة لمحتوى الملف");
+        return NULL;
+    }
+
+    size_t chars_read = fread(contents, sizeof(wchar_t), char_count, file);
+    contents[chars_read] = L'\0'; // Null-terminate based on actual chars read
+
+    fclose(file);
+
+    if (chars_read != char_count) {
+        // Potentially partial read, though fread itself doesn't distinguish short read from error easily
+        // baa_set_error(BAA_ERROR_FILE_READ, L"فشل في قراءة محتوى الملف بالكامل");
+        // For now, return what was read, null-terminated.
+        // Caller might need to check ferror(file) before fclose if this is critical.
+    }
+
+    return contents;
+}

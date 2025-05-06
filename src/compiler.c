@@ -61,6 +61,40 @@ int compile_baa_file(const char* filename) {
     BaaLexer lexer;
     baa_init_lexer(&lexer, source, wfilename);
 
+    // --- Lexer Debugging Loop ---
+    wprintf(L"\n--- Lexer Tokens ---\n");
+    BaaToken* token;
+    int token_count = 0;
+    do {
+        token = baa_lexer_next_token(&lexer); // Assuming this is the correct function
+        if (token) {
+            // Print token details: Type (as string), Lexeme, Line, Column
+            // Ensure lexeme is printed correctly, it's a const wchar_t*
+            // Need to handle potential NULL lexeme for EOF/Error if lexer sets it that way
+            const wchar_t* type_str = baa_token_type_to_string(token->type); // Get string representation of type
+            wprintf(L"Token %03d: Type=%ls, Lexeme='%.*ls', Line=%zu, Col=%zu\n",
+                    token_count++,
+                    type_str ? type_str : L"UNKNOWN_TYPE",
+                    (int)token->length, token->lexeme ? token->lexeme : L"", // Print up to length
+                    token->line,
+                    token->column);
+
+            // baa_free_token(token); // Assuming tokens from baa_lexer_next_token need to be freed if it allocates them.
+            // If baa_lexer_next_token returns a pointer to an internal lexer token, no free is needed here.
+            // Based on baa_scan_token and baa_free_token in lexer.h, it seems tokens might be allocated.
+            // For now, I will assume they are NOT freed here to avoid double free if lexer manages them internally or parser frees them.
+            // This is a common source of bugs; if crashes occur, this is a place to check.
+        }
+    } while (token && token->type != BAA_TOKEN_EOF && token->type != BAA_TOKEN_ERROR);
+    wprintf(L"--- End Lexer Tokens ---\n\n");
+
+    // Reset lexer to be used by parser (if baa_lexer_next_token modifies its state irreversibly)
+    // This might involve re-initializing or seeking to the beginning of the source.
+    // For simplicity in this debug step, we'll re-initialize.
+    // This means the preprocessed 'source' is tokenized twice if parsing proceeds.
+    baa_init_lexer(&lexer, source, wfilename);
+    // --- End Lexer Debugging Loop ---
+
     // Initialize parser
     BaaParser parser;
     baa_init_parser(&parser, &lexer); // Initialize the parser with the lexer

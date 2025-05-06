@@ -2,6 +2,7 @@
 #include "baa/parser/parser.h" // Include parser.h for BaaParser definition
 #include "baa/lexer/lexer.h"   // Include lexer.h for BaaLexer definition
 #include "baa/utils/utils.h"   // For baa_strdup
+#include "baa/lexer/lexer_char_utils.h" // Include the char utils from lexer directory
 #include <stdlib.h>
 #include <string.h>
 #include <wchar.h>
@@ -15,19 +16,19 @@ bool is_whitespace(wchar_t c)
     return c == L' ' || c == L'\t' || c == L'\n' || c == L'\r';
 }
 
-bool is_digit(wchar_t c)
-{
-    // Using iswdigit might be better
-    return c >= L'0' && c <= L'9';
-}
+// bool is_digit(wchar_t c) // Now using is_baa_digit from lexer_char_utils.h
+// {
+//     // Using iswdigit might be better
+//     return c >= L'0' && c <= L'9';
+// }
 
-bool is_arabic_letter(wchar_t c)
-{
-    // Check if character is in Arabic Unicode range
-    // Note: This range might need refinement depending on exact Arabic script coverage needed.
-    // 0x0600–0x06FF is the main Arabic block.
-    return (c >= 0x0600 && c <= 0x06FF);
-}
+// bool is_arabic_letter(wchar_t c) // Now using is_arabic_letter from lexer_char_utils.h
+// {
+//     // Check if character is in Arabic Unicode range
+//     // Note: This range might need refinement depending on exact Arabic script coverage needed.
+//     // 0x0600–0x06FF is the main Arabic block.
+//     return (c >= 0x0600 && c <= 0x06FF);
+// }
 
 bool is_identifier_start(wchar_t c)
 {
@@ -39,7 +40,7 @@ bool is_identifier_start(wchar_t c)
 bool is_identifier_part(wchar_t c)
 {
     // Allow identifier start characters or digits
-    return is_identifier_start(c) || is_digit(c);
+    return is_identifier_start(c) || is_baa_digit(c); // Use is_baa_digit
 }
 
 bool is_operator(wchar_t c)

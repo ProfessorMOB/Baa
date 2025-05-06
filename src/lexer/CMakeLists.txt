@@ -1,6 +1,7 @@
 add_library(baa_lexer
     lexer.c
     number_parser.c
+    lexer_char_utils.c
 )
 
 target_include_directories(baa_lexer

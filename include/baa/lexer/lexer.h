@@ -40,27 +40,6 @@ void baa_free_number(BaaNumber* number);
 const wchar_t* baa_number_error_message(BaaNumberError error);
 
 /**
- * @brief Get the size of a file.
- *
- * This function calculates the size of the given file by seeking to the end
- * and using ftell to determine the position.
- *
- * @param file A pointer to the FILE object.
- * @return The size of the file in bytes, or 0 if the file is NULL or an error occurs.
- */
-long baa_file_size(FILE *file);
-
-/**
- * @brief Read the content of a file.
- *
- * This function opens a file in read mode and reads its content into a wide character string.
- *
- * @param path The path to the file.
- * @return A pointer to the wide character string containing the file content, or NULL if the file cannot be opened.
- */
-wchar_t *baa_file_content(const wchar_t *path);
-
-/**
  * Token types for the Baa lexer
  */
 typedef enum {
@@ -165,13 +144,13 @@ typedef struct {
 } BaaLexer;
 
 // Lexer functions
-BaaLexer* baa_create_lexer(const wchar_t* source);
+BaaLexer* baa_create_lexer(const wchar_t* source); // Consider removing if baa_init_lexer is preferred
 void baa_free_lexer(BaaLexer* lexer);
-BaaToken* baa_scan_token(BaaLexer* lexer);
+// BaaToken* baa_scan_token(BaaLexer* lexer); // Removed, redundant with baa_lexer_next_token
 void baa_free_token(BaaToken* token);
 const wchar_t* baa_token_type_to_string(BaaTokenType type);
 
-// Additional lexer functions
+// Additional lexer functions (Main API)
 void baa_init_lexer(BaaLexer* lexer, const wchar_t* source, const wchar_t* filename);
 BaaToken* baa_lexer_next_token(BaaLexer* lexer);
 
@@ -180,8 +159,8 @@ bool baa_token_is_keyword(BaaTokenType type);
 bool baa_token_is_type(BaaTokenType type);
 bool baa_token_is_operator(BaaTokenType type);
 
-// Error handling
-const wchar_t* baa_get_lexer_error(BaaLexer* lexer);
-void baa_clear_lexer_error(BaaLexer* lexer);
+// Error handling (Removed, handled via BAA_TOKEN_ERROR)
+// const wchar_t* baa_get_lexer_error(BaaLexer* lexer);
+// void baa_clear_lexer_error(BaaLexer* lexer);
 
 #endif /* BAA_LEXER_H */

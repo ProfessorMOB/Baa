@@ -281,26 +281,32 @@ The lexer supports a wide range of operators, tokenized with corresponding types
 
 ### Initialization
 
-To lex a string directly:
+The primary way to initialize the lexer is using `baa_init_lexer`:
 
 ```c
-// Assuming 'source_code' is a null-terminated wchar_t* string
-BaaLexer* lexer = baa_create_lexer(source_code);
-if (!lexer) { /* Handle allocation error */ }
-```
+#include "baa/lexer/lexer.h"
+#include "baa/utils/utils.h" // For file reading
 
-To lex file content (Helper function provided):
+// ...
 
-```c
-const wchar_t* file_path = L"your_file.baa";
-wchar_t* file_content = baa_file_content(file_path);
-if (!file_content) { /* Handle file reading error */ }
+const wchar_t* filename = L"your_file.baa";
+// Use a utility function (e.g., from utils.h) to read the file content
+// Assuming baa_file_content (moved to utils) or similar exists:
+wchar_t* source_code = baa_file_content(filename); // Or baa_read_file
+if (!source_code) { /* Handle file reading error */ }
 
-BaaLexer* lexer = baa_create_lexer(file_content);
-if (!lexer) { /* Handle allocation error */ }
+BaaLexer lexer; // Allocate on stack or heap as needed
+baa_init_lexer(&lexer, source_code, filename); // Initialize the lexer state
 
-// Remember to free file_content later
-// free(file_content);
+// If using baa_create_lexer (allocates lexer struct on heap):
+// BaaLexer* lexer_ptr = baa_create_lexer(source_code);
+// if (!lexer_ptr) { /* Handle allocation error */ }
+// // Use lexer_ptr->...
+// baa_free_lexer(lexer_ptr); // Remember to free later
+
+// Remember to free source_code when done
+// free(source_code);
+
 ```
 
 ### Token Processing
@@ -317,8 +323,8 @@ do {
 
     // Process the token based on its type
     wprintf(L"Token: %ls, Lexeme: '%ls', Line: %zu, Col: %zu\n",
-            baa_token_type_to_string(token->type), // Assuming this function exists
-            token->lexeme,
+            baa_token_type_to_string(token->type), // Function exists
+            token->lexeme ? token->lexeme : L"<NULL>", // Handle potential NULL lexeme
             token->line,
             token->column);
 
@@ -341,20 +347,29 @@ baa_free_lexer(lexer);
 // free(file_content);
 ```
 
-*Note: The example assumes a `baa_token_type_to_string` function exists for printing token types.*
-*Note: The functions `baa_get_lexer_error` and `baa_clear_lexer_error` are declared in the header but not implemented in `lexer.c`. Error reporting currently relies on `BAA_TOKEN_ERROR` tokens.*
+*Note: Error reporting relies on the `BAA_TOKEN_ERROR` token type; the `lexeme` field of this token contains the error message.*
 
 ## Implementation Details
 
 ### Lexer Operations
 
-The lexer provides the following core functionality:
+The lexer provides the following core functionality (declared in `baa/lexer/lexer.h`):
 
-1.  **Initialization**: `baa_create_lexer`, `baa_init_lexer`
-2.  **Token Scanning**: `baa_scan_token`, `baa_lexer_next_token`
-3.  **Token Utilities**: `baa_token_is_keyword`, `baa_token_is_type`, `baa_token_is_operator`, `baa_token_type_to_string`
-4.  **File Handling**: `baa_file_size`, `baa_file_content`
-5.  **Memory Management**: `baa_free_lexer`, `baa_free_token`
+1.  **Initialization**:
+    - `baa_init_lexer(BaaLexer* lexer, const wchar_t* source, const wchar_t* filename)`: Initializes a pre-allocated `BaaLexer` struct.
+    - `baa_create_lexer(const wchar_t* source)`: Allocates and initializes a `BaaLexer` struct (caller must free with `baa_free_lexer`).
+2.  **Token Scanning**:
+    - `baa_lexer_next_token(BaaLexer* lexer)`: Gets the next token from the source. Returns a dynamically allocated `BaaToken` (caller must free with `baa_free_token`).
+3.  **Token Utilities**:
+    - `baa_token_type_to_string(BaaTokenType type)`: Converts a token type enum to its string representation.
+    - `baa_token_is_keyword(BaaTokenType type)`: Checks if a token type is a keyword.
+    - `baa_token_is_type(BaaTokenType type)`: Checks if a token type is a type name.
+    - `baa_token_is_operator(BaaTokenType type)`: Checks if a token type is an operator.
+4.  **Memory Management**:
+    - `baa_free_lexer(BaaLexer* lexer)`: Frees a lexer allocated by `baa_create_lexer`.
+    - `baa_free_token(BaaToken* token)`: Frees a token allocated by `baa_lexer_next_token` (including its lexeme if dynamically allocated).
+
+*(Note: General file handling utilities like `baa_file_size` and `baa_file_content` have been moved to `baa/utils/utils.h`)*
 
 ### Internal Lexer Helpers
 
