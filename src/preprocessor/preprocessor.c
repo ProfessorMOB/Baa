@@ -49,7 +49,24 @@ wchar_t *baa_preprocess(const char *main_file_path, const char **include_paths, 
     // pp_state.current_file_path = NULL; // Will be set within process_file
     // pp_state.current_line_number = 0;    // Will be set within process_file
     // pp_state.current_column_number = 0;  // Will be set within process_file
+    // pp_state.location_stack = NULL;      // Zero-initialized
+    // pp_state.location_stack_count = 0;   // Zero-initialized
+    // pp_state.location_stack_capacity = 0;// Zero-initialized
     // --- End Initialize ---
+
+    // --- Push initial location ---
+    PpSourceLocation initial_loc = {
+        .file_path = main_file_path, // Use the original path provided
+        .line = 1,
+        .column = 1
+    };
+    if (!push_location(&pp_state, &initial_loc)) {
+         *error_message = format_preprocessor_error(L"فشل في دفع الموقع الأولي (نفاد الذاكرة؟).");
+         // No need to free stacks yet as they are likely empty/null
+         return NULL;
+    }
+    // --- End Push initial location ---
+
 
     // Start recursive processing by calling the core function
     wchar_t *final_output = process_file(&pp_state, main_file_path, error_message);
@@ -60,6 +77,7 @@ wchar_t *baa_preprocess(const char *main_file_path, const char **include_paths, 
     free_macros(&pp_state);
     free_conditional_stack(&pp_state);
     free_macro_expansion_stack(&pp_state);
+    free_location_stack(&pp_state); // Free the location stack
     // Note: pp_state.current_file_path is managed within process_file and its callers
 
     // Check for unterminated conditional block after processing is complete
