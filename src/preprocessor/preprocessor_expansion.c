@@ -59,7 +59,8 @@ bool stringify_argument(BaaPreprocessor *pp_state, DynamicWcharBuffer *output_bu
     DynamicWcharBuffer temp_buffer;
     if (!init_dynamic_buffer(&temp_buffer, initial_capacity))
     {
-        *error_message = format_preprocessor_error_with_context(pp_state, L"فشل في تخصيص ذاكرة مؤقتة لتسلسل الوسيطة.");
+        PpSourceLocation error_loc = get_current_original_location(pp_state);
+        *error_message = format_preprocessor_error_at_location(&error_loc, L"فشل في تخصيص ذاكرة مؤقتة لتسلسل الوسيطة.");
         return false;
     }
 
@@ -106,7 +107,8 @@ bool stringify_argument(BaaPreprocessor *pp_state, DynamicWcharBuffer *output_bu
     {
         if (!append_to_dynamic_buffer(output_buffer, temp_buffer.buffer))
         {
-            *error_message = format_preprocessor_error_with_context(pp_state, L"فشل في إلحاق الوسيطة المتسلسلة للمخرج.");
+            PpSourceLocation error_loc = get_current_original_location(pp_state);
+            *error_message = format_preprocessor_error_at_location(&error_loc, L"فشل في إلحاق الوسيطة المتسلسلة للمخرج.");
             success = false;
         }
     }
@@ -159,7 +161,8 @@ wchar_t **parse_macro_arguments(BaaPreprocessor *pp_state, const wchar_t **invoc
             }
             else
             {
-                *error_message = format_preprocessor_error_with_context(pp_state, L"تنسيق استدعاء الماكرو غير صالح: متوقع ',' أو ')' بين الوسيطات.");
+                PpSourceLocation error_loc = get_current_original_location(pp_state);
+                *error_message = format_preprocessor_error_at_location(&error_loc, L"تنسيق استدعاء الماكرو غير صالح: متوقع ',' أو ')' بين الوسيطات.");
                 goto parse_error; // Use goto for cleanup
             }
         }
@@ -215,7 +218,8 @@ wchar_t **parse_macro_arguments(BaaPreprocessor *pp_state, const wchar_t **invoc
                     paren_level--;
                     if (paren_level < 0)
                     { // Mismatched parentheses
-                        *error_message = format_preprocessor_error_with_context(pp_state, L"تنسيق استدعاء الماكرو غير صالح: أقواس غير متطابقة في الوسيطات.");
+                        PpSourceLocation error_loc = get_current_original_location(pp_state);
+                        *error_message = format_preprocessor_error_at_location(&error_loc, L"تنسيق استدعاء الماكرو غير صالح: أقواس غير متطابقة في الوسيطات.");
                         goto parse_error;
                     }
                 }
@@ -252,12 +256,14 @@ wchar_t **parse_macro_arguments(BaaPreprocessor *pp_state, const wchar_t **invoc
 
         if (paren_level != 0)
         { // Mismatched parentheses at the end
-            *error_message = format_preprocessor_error_with_context(pp_state, L"تنسيق استدعاء الماكرو غير صالح: أقواس غير متطابقة في نهاية الوسيطات.");
+            PpSourceLocation error_loc = get_current_original_location(pp_state);
+            *error_message = format_preprocessor_error_at_location(&error_loc, L"تنسيق استدعاء الماكرو غير صالح: أقواس غير متطابقة في نهاية الوسيطات.");
             goto parse_error;
         }
         if (in_string || in_char)
         { // Unterminated literal at the end
-            *error_message = format_preprocessor_error_with_context(pp_state, L"تنسيق استدعاء الماكرو غير صالح: علامة اقتباس غير منتهية في الوسيطات.");
+            PpSourceLocation error_loc = get_current_original_location(pp_state);
+            *error_message = format_preprocessor_error_at_location(&error_loc, L"تنسيق استدعاء الماكرو غير صالح: علامة اقتباس غير منتهية في الوسيطات.");
             goto parse_error;
         }
 
@@ -275,7 +281,8 @@ wchar_t **parse_macro_arguments(BaaPreprocessor *pp_state, const wchar_t **invoc
         wchar_t *arg_str = wcsndup_internal(arg_start, arg_len);
         if (!arg_str)
         {
-            *error_message = format_preprocessor_error_with_context(pp_state, L"فشل في تخصيص ذاكرة لوسيطة الماكرو.");
+            PpSourceLocation error_loc = get_current_original_location(pp_state);
+            *error_message = format_preprocessor_error_at_location(&error_loc, L"فشل في تخصيص ذاكرة لوسيطة الماكرو.");
             goto parse_error;
         }
 
@@ -287,7 +294,8 @@ wchar_t **parse_macro_arguments(BaaPreprocessor *pp_state, const wchar_t **invoc
             if (!new_args)
             {
                 free(arg_str);
-                *error_message = format_preprocessor_error_with_context(pp_state, L"فشل في إعادة تخصيص الذاكرة لوسيطات الماكرو.");
+                PpSourceLocation error_loc = get_current_original_location(pp_state);
+                *error_message = format_preprocessor_error_at_location(&error_loc, L"فشل في إعادة تخصيص الذاكرة لوسيطات الماكرو.");
                 goto parse_error;
             }
             args = new_args;
@@ -299,7 +307,8 @@ wchar_t **parse_macro_arguments(BaaPreprocessor *pp_state, const wchar_t **invoc
         // ptr should already be pointing at the delimiter (',' or ')') or end of string
         if (*ptr == L'\0')
         { // Reached end of string unexpectedly
-            *error_message = format_preprocessor_error_with_context(pp_state, L"تنسيق استدعاء الماكرو غير صالح: قوس الإغلاق ')' مفقود.");
+            PpSourceLocation error_loc = get_current_original_location(pp_state);
+            *error_message = format_preprocessor_error_at_location(&error_loc, L"تنسيق استدعاء الماكرو غير صالح: قوس الإغلاق ')' مفقود.");
             goto parse_error;
         }
         // If it was ',', the next loop iteration will consume it.
@@ -310,7 +319,8 @@ wchar_t **parse_macro_arguments(BaaPreprocessor *pp_state, const wchar_t **invoc
     // Check if we exited loop because of ')'
     if (ptr == *invocation_ptr_ref || *(ptr - 1) != L')')
     { // Check the character before the current ptr position, handle empty list case
-        *error_message = format_preprocessor_error_with_context(pp_state, L"تنسيق استدعاء الماكرو غير صالح: قوس الإغلاق ')' مفقود بعد الوسيطات.");
+        PpSourceLocation error_loc = get_current_original_location(pp_state);
+        *error_message = format_preprocessor_error_at_location(&error_loc, L"تنسيق استدعاء الماكرو غير صالح: قوس الإغلاق ')' مفقود بعد الوسيطات.");
         goto parse_error;
     }
 
@@ -344,7 +354,8 @@ bool substitute_macro_body(BaaPreprocessor *pp_state, DynamicWcharBuffer *output
 
     if (!init_dynamic_buffer(&pending_token_buffer, 64))
     {
-        *error_message = format_preprocessor_error_with_context(pp_state, L"فشل في تهيئة المخزن المؤقت للرمز المميز المعلق.");
+        PpSourceLocation error_loc = get_current_original_location(pp_state);
+        *error_message = format_preprocessor_error_at_location(&error_loc, L"فشل في تهيئة المخزن المؤقت للرمز المميز المعلق.");
         return false;
     }
 
@@ -385,7 +396,8 @@ bool substitute_macro_body(BaaPreprocessor *pp_state, DynamicWcharBuffer *output
             if (!pending_token_active)
             {
                 // ## cannot appear at the start or after whitespace without a preceding token
-                *error_message = format_preprocessor_error_with_context(pp_state, L"المعامل ## يظهر في موقع غير صالح في الماكرو '%ls'.", macro->name);
+                PpSourceLocation error_loc = get_current_original_location(pp_state);
+                *error_message = format_preprocessor_error_at_location(&error_loc, L"المعامل ## يظهر في موقع غير صالح في الماكرو '%ls'.", macro->name);
                 success = false;
                 break;
             }
@@ -399,7 +411,8 @@ bool substitute_macro_body(BaaPreprocessor *pp_state, DynamicWcharBuffer *output
             {
                 // Allow numbers as RHS for pasting too
                 if (!iswdigit(*body_ptr)) {
-                    *error_message = format_preprocessor_error_with_context(pp_state, L"المعامل ## يجب أن يتبعه معرف أو رقم في الماكرو '%ls'.", macro->name);
+                    PpSourceLocation error_loc = get_current_original_location(pp_state);
+                    *error_message = format_preprocessor_error_at_location(&error_loc, L"المعامل ## يجب أن يتبعه معرف أو رقم في الماكرو '%ls'.", macro->name);
                     success = false;
                     break;
                 }
@@ -416,7 +429,8 @@ bool substitute_macro_body(BaaPreprocessor *pp_state, DynamicWcharBuffer *output
             wchar_t *rhs_token = wcsndup_internal(rhs_start, rhs_len);
              if (!rhs_token)
             {
-                *error_message = format_preprocessor_error_with_context(pp_state, L"فشل في تخصيص ذاكرة لرمز RHS لـ ##.");
+                PpSourceLocation error_loc = get_current_original_location(pp_state);
+                *error_message = format_preprocessor_error_at_location(&error_loc, L"فشل في تخصيص ذاكرة لرمز RHS لـ ##.");
                 success = false;
                 break;
             }
@@ -454,7 +468,8 @@ bool substitute_macro_body(BaaPreprocessor *pp_state, DynamicWcharBuffer *output
             free(rhs_token);
             if (!rhs_value)
             {
-                *error_message = format_preprocessor_error_with_context(pp_state, L"فشل في تخصيص ذاكرة لقيمة RHS لـ ##.");
+                PpSourceLocation error_loc = get_current_original_location(pp_state);
+                *error_message = format_preprocessor_error_at_location(&error_loc, L"فشل في تخصيص ذاكرة لقيمة RHS لـ ##.");
                 success = false;
                 break;
             }
@@ -476,7 +491,8 @@ bool substitute_macro_body(BaaPreprocessor *pp_state, DynamicWcharBuffer *output
 
             free(rhs_value);
             if (!success) {
-                 *error_message = format_preprocessor_error_with_context(pp_state, L"فشل في إلحاق قيمة RHS لـ ##.");
+                 PpSourceLocation error_loc = get_current_original_location(pp_state);
+                 *error_message = format_preprocessor_error_at_location(&error_loc, L"فشل في إلحاق قيمة RHS لـ ##.");
                  break;
             }
 
@@ -521,7 +537,8 @@ bool substitute_macro_body(BaaPreprocessor *pp_state, DynamicWcharBuffer *output
                 wchar_t *identifier = wcsndup_internal(id_start, id_len);
                 if (!identifier)
                 {
-                    *error_message = format_preprocessor_error_with_context(pp_state, L"فشل في تخصيص ذاكرة للمعرف بعد '#' في نص الماكرو '%ls'.", macro->name);
+                    PpSourceLocation error_loc = get_current_original_location(pp_state);
+                    *error_message = format_preprocessor_error_at_location(&error_loc, L"فشل في تخصيص ذاكرة للمعرف بعد '#' في نص الماكرو '%ls'.", macro->name);
                     success = false;
                     break;
                 }
@@ -535,7 +552,10 @@ bool substitute_macro_body(BaaPreprocessor *pp_state, DynamicWcharBuffer *output
                         if (!stringify_argument(pp_state, output_buffer, arguments[i], error_message))
                         {
                             // Error message set by helper
-                            if (!*error_message) *error_message = format_preprocessor_error_with_context(pp_state, L"خطأ في تسلسل الوسيطة '%ls' للماكرو '%ls'.", arguments[i], macro->name);
+                            if (!*error_message) {
+                                PpSourceLocation error_loc = get_current_original_location(pp_state);
+                                *error_message = format_preprocessor_error_at_location(&error_loc, L"خطأ في تسلسل الوسيطة '%ls' للماكرو '%ls'.", arguments[i], macro->name);
+                            }
                             success = false;
                         }
                         param_found = true;
@@ -552,7 +572,8 @@ bool substitute_macro_body(BaaPreprocessor *pp_state, DynamicWcharBuffer *output
                     // '#' was not followed by a valid parameter name. Treat '#' literally.
                     if (!append_dynamic_buffer_n(output_buffer, operator_ptr, 1))
                     {
-                        *error_message = format_preprocessor_error_with_context(pp_state, L"فشل في إلحاق '#' الحرفية من نص الماكرو '%ls'.", macro->name);
+                        PpSourceLocation error_loc = get_current_original_location(pp_state);
+                        *error_message = format_preprocessor_error_at_location(&error_loc, L"فشل في إلحاق '#' الحرفية من نص الماكرو '%ls'.", macro->name);
                         success = false;
                         break;
                     }
@@ -566,7 +587,8 @@ bool substitute_macro_body(BaaPreprocessor *pp_state, DynamicWcharBuffer *output
                 // '#' not followed by identifier, treat '#' as literal
                 if (!append_dynamic_buffer_n(output_buffer, operator_ptr, 1))
                 {
-                    *error_message = format_preprocessor_error_with_context(pp_state, L"فشل في إلحاق '#' الحرفية من نص الماكرو '%ls'.", macro->name);
+                    PpSourceLocation error_loc = get_current_original_location(pp_state);
+                    *error_message = format_preprocessor_error_at_location(&error_loc, L"فشل في إلحاق '#' الحرفية من نص الماكرو '%ls'.", macro->name);
                     success = false;
                     break;
                 }
@@ -586,7 +608,8 @@ bool substitute_macro_body(BaaPreprocessor *pp_state, DynamicWcharBuffer *output
             wchar_t *identifier = wcsndup_internal(id_start, id_len);
             if (!identifier)
             {
-                *error_message = format_preprocessor_error_with_context(pp_state, L"فشل في تخصيص ذاكرة للمعرف في نص الماكرو '%ls'.", macro->name);
+                PpSourceLocation error_loc = get_current_original_location(pp_state);
+                *error_message = format_preprocessor_error_at_location(&error_loc, L"فشل في تخصيص ذاكرة للمعرف في نص الماكرو '%ls'.", macro->name);
                 success = false;
                 break;
             }
@@ -651,7 +674,8 @@ bool substitute_macro_body(BaaPreprocessor *pp_state, DynamicWcharBuffer *output
             success = false;
             if (!*error_message)
             { // Set error if not already set
-                *error_message = format_preprocessor_error_with_context(pp_state, L"فشل في إلحاق الرمز المميز المعلق الأخير في الماكرو '%ls'.", macro->name);
+                PpSourceLocation error_loc = get_current_original_location(pp_state);
+                *error_message = format_preprocessor_error_at_location(&error_loc, L"فشل في إلحاق الرمز المميز المعلق الأخير في الماكرو '%ls'.", macro->name);
             }
         }
     }

@@ -63,7 +63,7 @@ It operates on files assumed to be encoded in **UTF-16LE**.
     - Macro errors (recursion, argument count mismatch, invalid ## usage).
     - Conditional expression evaluation errors (syntax errors, division by zero).
     - Memory allocation failures.
-- Error messages are provided in Arabic and include file path, line number, and column number context (e.g., `file:line:col: خطأ: ...`).
+- Error messages are provided in Arabic and consistently include the original file path, line number, and column number where the error originated, even through includes and macro expansions (e.g., `original_file:line:col: خطأ: ...`). This is achieved using an internal location stack and a unified error formatting function.
 
 ## Preprocessor Structure (بنية المعالج المسبق)
 
@@ -142,4 +142,3 @@ if (!processed_source) {
 - **UTF-8 Input:** Add support for reading UTF-8 encoded source files in addition to UTF-16LE.
 - **Input Abstraction:** Abstract the input source to allow preprocessing from strings or standard input, not just files.
 - **Error Recovery:** Improve error recovery mechanisms within directives and expressions.
-- **Original Location Tracking:** Enhance error reporting to track the original source location (file, line, column) through macro expansions and includes, providing more accurate error pinpointing.

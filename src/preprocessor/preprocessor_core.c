@@ -15,8 +15,9 @@ wchar_t *process_file(BaaPreprocessor *pp_state, const char *file_path, wchar_t 
     char *abs_path = get_absolute_path(file_path);
     if (!abs_path)
     {
-        // Use the simpler error formatter here as full context might not be set
-        *error_message = format_preprocessor_error(L"فشل في الحصول على المسار المطلق للملف '%hs'.", file_path);
+        // Get the location of the #include directive that caused this error
+        PpSourceLocation error_loc = get_current_original_location(pp_state);
+        *error_message = format_preprocessor_error_at_location(&error_loc, L"فشل في الحصول على المسار المطلق لملف التضمين '%hs'.", file_path);
         // Restore context before returning on error (though it might be the same)
         pp_state->current_file_path = prev_file_path;
         pp_state->current_line_number = prev_line_number;

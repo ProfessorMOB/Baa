@@ -272,177 +272,6 @@ wchar_t *wcsndup_internal(const wchar_t *s, size_t n)
     return result;
 }
 
-// --- Error Formatting ---
-
-// Helper to format error messages *with* file/line context
-// Prepends "filepath:line: error: " to the message.
-wchar_t *format_preprocessor_error_with_context(BaaPreprocessor *pp_state, const wchar_t *format, ...)
-{
-    // Prepare the prefix
-    // Estimate buffer size: path len + ~10 for line num + ~10 for col num + ~20 for ": error: " + null
-    size_t prefix_base_len = wcslen(L":%zu:%zu: خطأ: "); // Added %zu for column
-    size_t path_len = pp_state->current_file_path ? strlen(pp_state->current_file_path) : strlen("(unknown file)");
-    size_t prefix_buffer_size = path_len + prefix_base_len + 30; // Extra space for line/column number digits
-    char *prefix_mb = malloc(prefix_buffer_size);
-    if (!prefix_mb)
-    {
-        // Fallback if prefix allocation fails - return original format attempt
-        // This is suboptimal but better than crashing.
-        va_list args_fallback;
-        va_start(args_fallback, format);
-        // Determine required size for original format
-        va_list args_copy_fallback;
-        va_copy(args_copy_fallback, args_fallback);
-        int needed_fallback = vswprintf(NULL, 0, format, args_copy_fallback);
-        va_end(args_copy_fallback);
-        if (needed_fallback < 0)
-        {
-            va_end(args_fallback);
-            return _wcsdup(L"فشل في تنسيق رسالة الخطأ (وفشل تخصيص البادئة).");
-        }
-        size_t buffer_size_fallback = (size_t)needed_fallback + 1;
-        wchar_t *buffer_fallback = malloc(buffer_size_fallback * sizeof(wchar_t));
-        if (!buffer_fallback)
-        {
-            va_end(args_fallback);
-            return _wcsdup(L"فشل في تنسيق رسالة الخطأ (وفشل تخصيص البادئة والمخزن المؤقت).");
-        }
-        vswprintf(buffer_fallback, buffer_size_fallback, format, args_fallback);
-        va_end(args_fallback);
-        return buffer_fallback;
-    }
-
-    // Format the prefix including the column number
-    snprintf(prefix_mb, prefix_buffer_size, "%hs:%zu:%zu: خطأ: ",
-             pp_state->current_file_path ? pp_state->current_file_path : "(unknown file)",
-             pp_state->current_line_number,
-             pp_state->current_column_number); // Added column number
-
-    // Convert prefix to wchar_t
-    wchar_t *prefix_w = NULL;
-    int required_wchars = MultiByteToWideChar(CP_UTF8, 0, prefix_mb, -1, NULL, 0);
-    if (required_wchars > 0)
-    {
-        prefix_w = malloc(required_wchars * sizeof(wchar_t));
-        if (prefix_w)
-        {
-            MultiByteToWideChar(CP_UTF8, 0, prefix_mb, -1, prefix_w, required_wchars);
-        }
-    }
-    free(prefix_mb); // Free the multibyte prefix buffer
-
-    if (!prefix_w)
-    {
-        // Fallback if prefix conversion fails - similar to allocation failure above
-        va_list args_fallback;
-        va_start(args_fallback, format);
-        va_list args_copy_fallback;
-        va_copy(args_copy_fallback, args_fallback);
-        int needed_fallback = vswprintf(NULL, 0, format, args_copy_fallback);
-        va_end(args_copy_fallback);
-        if (needed_fallback < 0)
-        {
-            va_end(args_fallback);
-            return _wcsdup(L"فشل في تنسيق رسالة الخطأ (وفشل تحويل البادئة).");
-        }
-        size_t buffer_size_fallback = (size_t)needed_fallback + 1;
-        wchar_t *buffer_fallback = malloc(buffer_size_fallback * sizeof(wchar_t));
-        if (!buffer_fallback)
-        {
-            va_end(args_fallback);
-            return _wcsdup(L"فشل في تنسيق رسالة الخطأ (وفشل تحويل البادئة والمخزن المؤقت).");
-        }
-        vswprintf(buffer_fallback, buffer_size_fallback, format, args_fallback);
-        va_end(args_fallback);
-        return buffer_fallback;
-    }
-
-    // Now format the user's message part
-    va_list args;
-    va_start(args, format);
-    va_list args_copy;
-    va_copy(args_copy, args);
-    int needed_msg = vswprintf(NULL, 0, format, args_copy);
-    va_end(args_copy);
-
-    if (needed_msg < 0)
-    {
-        va_end(args);
-        free(prefix_w);
-        return _wcsdup(L"فشل في تنسيق جزء الرسالة من خطأ المعالج المسبق."); // Basic fallback
-    }
-
-    // Combine prefix and message
-    size_t prefix_len = wcslen(prefix_w);
-    size_t msg_len = (size_t)needed_msg;
-    size_t total_len = prefix_len + msg_len;
-    wchar_t *final_buffer = malloc((total_len + 1) * sizeof(wchar_t));
-
-    if (!final_buffer)
-    {
-        va_end(args);
-        free(prefix_w);
-        return _wcsdup(L"فشل في تخصيص الذاكرة لرسالة خطأ المعالج المسبق الكاملة."); // Basic fallback
-    }
-
-    // Copy prefix
-    wcscpy(final_buffer, prefix_w);
-    free(prefix_w); // Free the wide prefix buffer now
-
-    // Append formatted message
-    vswprintf(final_buffer + prefix_len, msg_len + 1, format, args);
-    va_end(args);
-
-    return final_buffer;
-}
-
-// Original error formatter (without context) - kept for potential use where context is unavailable
-wchar_t *format_preprocessor_error(const wchar_t *format, ...)
-{
-    va_list args;
-    va_start(args, format);
-
-    // Determine required size
-    va_list args_copy;
-    va_copy(args_copy, args);
-    int needed = vswprintf(NULL, 0, format, args_copy);
-    va_end(args_copy);
-
-    if (needed < 0)
-    {
-        va_end(args);
-        // Fallback error message
-        const wchar_t *fallback = L"فشل في تنسيق رسالة خطأ المعالج المسبق.";
-        wchar_t *error_msg;
-#ifdef _WIN32
-        error_msg = _wcsdup(fallback);
-#else
-        error_msg = _wcsdup(fallback); // Use _wcsdup here too
-#endif
-        return error_msg;
-    }
-
-    size_t buffer_size = (size_t)needed + 1;
-    wchar_t *buffer = malloc(buffer_size * sizeof(wchar_t));
-    if (!buffer)
-    {
-        va_end(args);
-        const wchar_t *fallback = L"فشل في تخصيص الذاكرة لرسالة خطأ المعالج المسبق.";
-        wchar_t *error_msg;
-#ifdef _WIN32
-        error_msg = _wcsdup(fallback);
-#else
-        error_msg = _wcsdup(fallback); // Use _wcsdup here too
-#endif
-        return error_msg; // Allocation failed
-    }
-
-    vswprintf(buffer, buffer_size, format, args);
-    va_end(args);
-
-    return buffer;
-}
-
 // --- File I/O ---
 
 // Reads the content of a UTF-16LE encoded file.
@@ -460,14 +289,15 @@ wchar_t *read_file_content_utf16le(BaaPreprocessor *pp_state, const char *file_p
     int required_wchars = MultiByteToWideChar(CP_UTF8, 0, file_path, -1, NULL, 0);
     if (required_wchars <= 0)
     {
-        // Context might not be fully set here if this is the *first* file, but attempt anyway.
-        *error_message = format_preprocessor_error_with_context(pp_state, L"فشل في تحويل مسار الملف '%hs' إلى UTF-16.", file_path);
+        PpSourceLocation error_loc = get_current_original_location(pp_state);
+        *error_message = format_preprocessor_error_at_location(&error_loc, L"فشل في تحويل مسار الملف '%hs' إلى UTF-16.", file_path);
         return NULL;
     }
     wchar_t *w_file_path = malloc(required_wchars * sizeof(wchar_t));
     if (!w_file_path)
     {
-        *error_message = format_preprocessor_error_with_context(pp_state, L"فشل في تخصيص الذاكرة لمسار الملف (UTF-16) '%hs'.", file_path);
+        PpSourceLocation error_loc = get_current_original_location(pp_state);
+        *error_message = format_preprocessor_error_at_location(&error_loc, L"فشل في تخصيص الذاكرة لمسار الملف (UTF-16) '%hs'.", file_path);
         return NULL;
     }
     MultiByteToWideChar(CP_UTF8, 0, file_path, -1, w_file_path, required_wchars);
@@ -480,7 +310,8 @@ wchar_t *read_file_content_utf16le(BaaPreprocessor *pp_state, const char *file_p
 
     if (!file)
     {
-        *error_message = format_preprocessor_error_with_context(pp_state, L"فشل في فتح الملف '%hs'.", file_path);
+        PpSourceLocation error_loc = get_current_original_location(pp_state);
+        *error_message = format_preprocessor_error_at_location(&error_loc, L"فشل في فتح الملف '%hs'.", file_path);
         return NULL;
     }
 
@@ -488,20 +319,22 @@ wchar_t *read_file_content_utf16le(BaaPreprocessor *pp_state, const char *file_p
     unsigned char bom[2];
     if (fread(bom, 1, 2, file) != 2)
     {
-        *error_message = format_preprocessor_error_with_context(pp_state, L"فشل في قراءة BOM من الملف '%hs'.", file_path);
+        PpSourceLocation error_loc = get_current_original_location(pp_state);
+        *error_message = format_preprocessor_error_at_location(&error_loc, L"فشل في قراءة BOM من الملف '%hs'.", file_path);
         fclose(file);
         return NULL;
     }
     if (bom[0] != 0xFF || bom[1] != 0xFE)
     {
         // Check for UTF-16BE BOM (0xFE, 0xFF) - specific error?
+        PpSourceLocation error_loc = get_current_original_location(pp_state);
         if (bom[0] == 0xFE && bom[1] == 0xFF)
         {
-            *error_message = format_preprocessor_error_with_context(pp_state, L"الملف '%hs' يستخدم ترميز UTF-16BE (Big Endian)، مطلوب UTF-16LE (Little Endian).", file_path);
+            *error_message = format_preprocessor_error_at_location(&error_loc, L"الملف '%hs' يستخدم ترميز UTF-16BE (Big Endian)، مطلوب UTF-16LE (Little Endian).", file_path);
         }
         else
         {
-            *error_message = format_preprocessor_error_with_context(pp_state, L"الملف '%hs' ليس UTF-16LE (BOM غير موجود أو غير صحيح).", file_path);
+            *error_message = format_preprocessor_error_at_location(&error_loc, L"الملف '%hs' ليس UTF-16LE (BOM غير موجود أو غير صحيح).", file_path);
         }
         fclose(file);
         return NULL;
@@ -519,7 +352,8 @@ wchar_t *read_file_content_utf16le(BaaPreprocessor *pp_state, const char *file_p
         buffer = malloc(sizeof(wchar_t)); // Allocate space for null terminator
         if (!buffer)
         {
-            *error_message = format_preprocessor_error_with_context(pp_state, L"فشل في تخصيص الذاكرة لملف فارغ (بعد BOM) '%hs'.", file_path);
+            PpSourceLocation error_loc = get_current_original_location(pp_state);
+            *error_message = format_preprocessor_error_at_location(&error_loc, L"فشل في تخصيص الذاكرة لملف فارغ (بعد BOM) '%hs'.", file_path);
             return NULL;
         }
         buffer[0] = L'\0';
@@ -529,7 +363,8 @@ wchar_t *read_file_content_utf16le(BaaPreprocessor *pp_state, const char *file_p
     long content_size_bytes = file_size_bytes - 2;
     if (content_size_bytes % sizeof(wchar_t) != 0)
     {
-        *error_message = format_preprocessor_error_with_context(pp_state, L"حجم محتوى الملف '%hs' (بعد BOM) ليس من مضاعفات حجم wchar_t.", file_path);
+        PpSourceLocation error_loc = get_current_original_location(pp_state);
+        *error_message = format_preprocessor_error_at_location(&error_loc, L"حجم محتوى الملف '%hs' (بعد BOM) ليس من مضاعفات حجم wchar_t.", file_path);
         fclose(file);
         return NULL;
     }
@@ -540,7 +375,8 @@ wchar_t *read_file_content_utf16le(BaaPreprocessor *pp_state, const char *file_p
     buffer = malloc((num_wchars + 1) * sizeof(wchar_t));
     if (!buffer)
     {
-        *error_message = format_preprocessor_error_with_context(pp_state, L"فشل في تخصيص الذاكرة لمحتوى الملف '%hs'.", file_path);
+        PpSourceLocation error_loc = get_current_original_location(pp_state);
+        *error_message = format_preprocessor_error_at_location(&error_loc, L"فشل في تخصيص الذاكرة لمحتوى الملف '%hs'.", file_path);
         fclose(file);
         return NULL;
     }
@@ -549,7 +385,8 @@ wchar_t *read_file_content_utf16le(BaaPreprocessor *pp_state, const char *file_p
     size_t bytes_read = fread(buffer, 1, content_size_bytes, file);
     if (bytes_read != (size_t)content_size_bytes)
     {
-        *error_message = format_preprocessor_error_with_context(pp_state, L"فشل في قراءة محتوى الملف بالكامل من '%hs'.", file_path);
+        PpSourceLocation error_loc = get_current_original_location(pp_state);
+        *error_message = format_preprocessor_error_at_location(&error_loc, L"فشل في قراءة محتوى الملف بالكامل من '%hs'.", file_path);
         free(buffer);
         fclose(file);
         return NULL;

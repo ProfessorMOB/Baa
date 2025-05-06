@@ -5,12 +5,18 @@
 // Helper to create an error token
 static PpExprToken make_error_token(PpExprTokenizer* tz, const wchar_t* message) {
     if (tz->error_message && !*tz->error_message) { // Set error only once
-        // Use the context-aware formatter if possible, passing the pp_state
         if (tz->pp_state) {
-             *tz->error_message = format_preprocessor_error_with_context(tz->pp_state, message);
+            PpSourceLocation error_loc = get_current_original_location(tz->pp_state);
+            // If the message is a format string, we need to handle potential varargs.
+            // For simplicity in this refactor, assuming 'message' is a simple string or we pass it as a single arg.
+            // A more robust solution might involve changing make_error_token to accept varargs.
+            wchar_t final_message[512]; // Assuming a max length for simplicity
+            swprintf(final_message, sizeof(final_message)/sizeof(wchar_t), L"%ls", message); // Basic formatting
+            *tz->error_message = format_preprocessor_error_at_location(&error_loc, final_message);
         } else {
-            // Fallback if pp_state isn't available (shouldn't happen in normal flow)
-            *tz->error_message = format_preprocessor_error(L"خطأ في مقيم التعبير (لا يوجد سياق): %ls", message);
+            // Fallback if pp_state isn't available
+            PpSourceLocation generic_loc = {"(expr_eval_no_context)", 0, 0};
+            *tz->error_message = format_preprocessor_error_at_location(&generic_loc, L"خطأ في مقيم التعبير (لا يوجد سياق): %ls", message);
         }
     }
     return (PpExprToken){ .type = PP_EXPR_TOKEN_ERROR };

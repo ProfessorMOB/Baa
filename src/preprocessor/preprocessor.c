@@ -9,7 +9,10 @@ wchar_t *baa_preprocess(const char *main_file_path, const char **include_paths, 
     {
         if (error_message) {
             // Use the basic error formatter as full state isn't initialized
-            *error_message = format_preprocessor_error(L"وسيطات غير صالحة تم تمريرها إلى المعالج المسبق (main_file_path أو error_message هو NULL).");
+            // For this very early error, pp_state is not available.
+            // We'll use a generic location.
+            PpSourceLocation early_error_loc = {"(preprocessor_init)", 0, 0};
+            *error_message = format_preprocessor_error_at_location(&early_error_loc, L"وسيطات غير صالحة تم تمريرها إلى المعالج المسبق (main_file_path أو error_message هو NULL).");
         }
         return NULL;
     }
@@ -61,7 +64,7 @@ wchar_t *baa_preprocess(const char *main_file_path, const char **include_paths, 
         .column = 1
     };
     if (!push_location(&pp_state, &initial_loc)) {
-         *error_message = format_preprocessor_error(L"فشل في دفع الموقع الأولي (نفاد الذاكرة؟).");
+         *error_message = format_preprocessor_error_at_location(&initial_loc, L"فشل في دفع الموقع الأولي (نفاد الذاكرة؟).");
          // No need to free stacks yet as they are likely empty/null
          return NULL;
     }
@@ -87,8 +90,8 @@ wchar_t *baa_preprocess(const char *main_file_path, const char **include_paths, 
         // If an error already occurred, keep that primary error message
         // Otherwise, report the unterminated block error.
         free(*error_message); // Free previous non-error message if any
-        // Use context-aware formatter, passing the state
-        *error_message = format_preprocessor_error_with_context(&pp_state, L"كتلة شرطية غير منتهية في نهاية المعالجة (مفقود #نهاية_إذا).");
+        PpSourceLocation error_loc = get_current_original_location(&pp_state);
+        *error_message = format_preprocessor_error_at_location(&error_loc, L"كتلة شرطية غير منتهية في نهاية المعالجة (مفقود #نهاية_إذا).");
         free(final_output); // Free the potentially partially generated output
         final_output = NULL;
     }
