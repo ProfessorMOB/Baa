@@ -5,11 +5,16 @@ All notable changes to the B (باء) compiler project will be documented in thi
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
-
+## [0.1.9.9] - 2025-05-06
 ### Added
 - Standalone preprocessor tester executable (`tools/baa_preprocessor_tester.c`) for isolated testing.
 - Placeholder implementations for missing parser functions (`baa_parse_if_statement`, `baa_parse_while_statement`, `baa_parse_for_statement`, `baa_parse_return_statement`, `baa_create_compound_assignment_expr`, `baa_create_grouping_expr`) to allow the build to complete.
+- Added Arabic predefined macros to the preprocessor:
+    - `__الملف__` (equivalent to `__FILE__`)
+    - `__السطر__` (equivalent to `__LINE__`)
+    - `__التاريخ__` (equivalent to `__DATE__`)
+    - `__الوقت__` (equivalent to `__TIME__`)
+- Unified preprocessor error reporting to consistently use original source location (file, line, column) for all errors.
 
 ### Fixed
 - Preprocessor: Fixed bug where `#إذا` directives using macros defined as simple integers (e.g., `#تعريف DEBUG 1`) were not evaluated correctly, causing the enclosed block to be skipped erroneously. The expression evaluator now handles this case.

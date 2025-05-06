@@ -2,7 +2,7 @@
 
 B (باء) is a programming language designed to support Arabic syntax while maintaining full compatibility with K&R C features. It allows developers to write code using Arabic keywords and identifiers while following established C programming patterns.
 
-## Current Status (v0.1.9.8)
+## Current Status (v0.1.9.9)
 
 The project now supports:
 
@@ -10,9 +10,11 @@ The project now supports:
 
 - **Preprocessor Directives:**
   - `#تضمين <...>` and `#تضمين "..."` (Include files)
-  - `#تعريف NAME ...` (Parameterless macro definition/substitution)
+  - `#تعريف NAME ...` (Parameterless and function-like macro definition/substitution)
   - `#الغاء_تعريف NAME` (Undefine macro)
-  - Conditional compilation (`#إذا_عرف`, `#إذا_لم_يعرف`, `#إلا`, `#نهاية_إذا`)
+  - Conditional compilation (`#إذا_عرف`, `#إذا_لم_يعرف`, `#إذا`, `#وإلا_إذا`, `#إلا`, `#نهاية_إذا`)
+  - Stringification (`#`) and Token Pasting (`##`) operators in macros.
+  - Predefined Arabic macros: `__الملف__` (FILE), `__السطر__` (LINE), `__التاريخ__` (DATE), `__الوقت__` (TIME).
 
 - Basic type system with K&R C compatibility
   - عدد_صحيح (int) - 32-bit integer
@@ -61,7 +63,7 @@ For detailed information about Arabic support, see [Arabic Support Documentation
 
 #### What's Working
 
-- **Preprocessor**: Handles includes (`#تضمين`), basic macros (`#تعريف`), undefines (`#الغاء_تعريف`), and conditional compilation (`#إذا_عرف`, `#إذا_لم_يعرف`, `#إلا`, `#نهاية_إذا`).
+- **Preprocessor**: Handles includes (`#تضمين`), object-like and function-like macros (`#تعريف` with parameters, `#`, `##`), undefines (`#الغاء_تعريف`), conditional compilation (including expression evaluation for `#إذا`/`#وإلا_إذا`), predefined Arabic macros (`__الملف__`, `__السطر__`, `__التاريخ__`, `__الوقت__`). Error reporting is unified and provides original source locations (file, line, column).
 - **Core Architecture**: Well-defined architecture with clear separation of concerns
 - **Type System**: Basic types including Boolean, type conversion rules, and type checking
 - **AST (Abstract Syntax Tree)**: Comprehensive node structure, program, function nodes, enhanced parameter handling
@@ -104,7 +106,7 @@ For detailed information about Arabic support, see [Arabic Support Documentation
 - Test files for Arabic program parsing
 - UTF-8 support for Arabic identifiers in the parser
 - LLVM code generation infrastructure (placeholder)
-- Improved error handling system
+- Improved error handling system (including unified preprocessor error reporting)
 
 **Changed:**
 
