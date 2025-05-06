@@ -46,6 +46,9 @@ int compile_baa_file(const char* filename) {
         return 1;
     }
 
+    // Print preprocessed source for debugging
+    wprintf(L"--- Preprocessed Source ---\n%ls\n--- End Preprocessed Source ---\n", source);
+
     // Convert filename to wide string for lexer/output path
     wchar_t* wfilename = char_to_wchar_compiler(filename);
     if (!wfilename) {
