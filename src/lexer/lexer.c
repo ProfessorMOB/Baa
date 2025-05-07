@@ -503,11 +503,13 @@ BaaToken *baa_lexer_next_token(BaaLexer *lexer)
         if (lexer->current + 2 < lexer->source_length &&
             lexer->source[lexer->current + 1] == L'"' &&
             lexer->source[lexer->current + 2] == L'"') {
-            // It's a multiline string. Consume all three quotes.
+            // It's a multiline string.
+            size_t start_line = lexer->line;   // Capture line before consuming """
+            size_t start_col = lexer->column; // Capture column before consuming """
             advance(lexer); // Consume first "
             advance(lexer); // Consume second "
             advance(lexer); // Consume third "
-            return scan_multiline_string_literal(lexer); // scan_multiline_string_literal starts *after* """
+            return scan_multiline_string_literal(lexer, start_line, start_col);
         } else {
             // It's a regular string. scan_string consumes the opening quote.
             return scan_string(lexer);
