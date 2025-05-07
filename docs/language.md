@@ -189,7 +189,17 @@ Literals represent fixed values in the source code.
     *   `"مرحباً"` - *[Implemented]*
     *   `"Hello, World!"` - *[Implemented]*
     *   Escape Sequences: Similar to characters: `\n`, `\t`, `\"`, `\\`, `\r`, `\0`, `\uXXXX` are implemented. - *[Implemented]*
-    *   *Planned:* Multiline/raw strings.
+    *   **Multiline Strings:** Sequences of characters enclosed in triple double quotes (`"""`). Newlines within the string are preserved. Escape sequences are processed as in regular strings. - *[Implemented]*
+        - Example: `متغير نص_متعدد = """سطر أول\nسطر ثاني مع \t تاب.""".`
+    *   **Raw String Literals:** Prefixed with `خ` (Kha), these strings do not process escape sequences. All characters between the delimiters are taken literally.
+        - Single-line raw strings: `خ"..."`
+        - Multiline raw strings: `خ"""..."""` (newlines are preserved)
+        - Examples:
+            - `متغير مسار = خ"C:\Users\MyFolder\file.txt".` (Backslashes are literal)
+            - `متغير تعبير_نمطي = خ"\\d{3}-\\d{2}-\\d{4}".`
+            - `متغير خام_متعدد = خ"""هذا \n نص خام.
+              الهروب \t لا يعمل هنا.""".`
+        - *[Implemented]*
 
 ### 2.5 Operators
 

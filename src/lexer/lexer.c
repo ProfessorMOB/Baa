@@ -497,7 +497,34 @@ BaaToken *baa_lexer_next_token(BaaLexer *lexer)
     // Peek first to decide the type of token
     wchar_t current_char_peeked = peek(lexer);
 
-    // Handle string literals (single and multiline) by peeking
+    // Handle raw string literals (خ"..." and خ"""...""")
+    if (current_char_peeked == L'\u062E') { // 'خ'
+        if (lexer->current + 1 < lexer->source_length && lexer->source[lexer->current + 1] == L'"') {
+            // Potential خ" or خ"""
+            if (lexer->current + 3 < lexer->source_length && // Check for خ"""
+                lexer->source[lexer->current + 2] == L'"' &&
+                lexer->source[lexer->current + 3] == L'"') {
+                // It's خ"""
+                size_t start_line = lexer->line;
+                size_t start_col = lexer->column;
+                advance(lexer); // Consume خ
+                advance(lexer); // Consume "
+                advance(lexer); // Consume "
+                advance(lexer); // Consume "
+                return scan_raw_string_literal(lexer, true, start_line, start_col); // true for multiline
+            } else {
+                // It's خ"
+                size_t start_line = lexer->line;
+                size_t start_col = lexer->column;
+                advance(lexer); // Consume خ
+                advance(lexer); // Consume "
+                return scan_raw_string_literal(lexer, false, start_line, start_col); // false for single line
+            }
+        }
+        // If 'خ' is not followed by '"' or '"""', it will be treated as a normal identifier start below.
+    }
+
+    // Handle regular string literals (single and multiline) by peeking
     if (current_char_peeked == L'"') {
         // Check for """
         if (lexer->current + 2 < lexer->source_length &&
@@ -541,6 +568,18 @@ BaaToken *baa_lexer_next_token(BaaLexer *lexer)
 
     // If not identifier, number, or string, then advance to consume the character and use switch for other tokens
     wchar_t c = advance(lexer); // This char is for single/double char tokens
+
+    // Safeguard: If advance() returned L'\0' because we were already at the end
+    // (e.g., if the initial is_at_end() check was somehow bypassed or state was inconsistent),
+    // this should definitively become an EOF token.
+    if (c == L'\0' && is_at_end(lexer)) {
+        // lexer->start should ideally be lexer->current here for a zero-length EOF token.
+        // The main is_at_end() check at the top of the function should have caught this.
+        // This is a defensive measure.
+        lexer->start = lexer->current; // Ensure start is at current for a clean EOF token
+        return make_token(lexer, BAA_TOKEN_EOF);
+    }
+
     switch (c)
     {
     // Single character tokens

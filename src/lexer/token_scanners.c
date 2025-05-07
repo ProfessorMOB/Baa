@@ -560,3 +560,81 @@ BaaToken *scan_multiline_string_literal(BaaLexer *lexer, size_t token_start_line
 
     return token;
 }
+
+BaaToken *scan_raw_string_literal(BaaLexer *lexer, bool is_multiline, size_t token_start_line, size_t token_start_col) {
+    size_t buffer_cap = 128;
+    size_t buffer_len = 0;
+    wchar_t *buffer = malloc(buffer_cap * sizeof(wchar_t));
+    if (!buffer) {
+        return make_error_token(lexer, L"فشل في تخصيص ذاكرة لسلسلة نصية خام (بدأت في السطر %zu، العمود %zu)", token_start_line, token_start_col);
+    }
+
+    // When this function is called:
+    // lexer->start points to 'خ'.
+    // The prefix ('خ' and opening quote(s)) have been consumed by the dispatcher.
+    // lexer->current is positioned *after* the opening 'خ"' or 'خ"""'.
+    // token_start_line and token_start_col refer to the position of 'خ'.
+
+    if (is_multiline) {
+        // Looking for closing """
+        while (true) {
+            if (is_at_end(lexer)) {
+                free(buffer);
+                BaaToken *err_token = make_error_token(lexer, L"سلسلة نصية خام متعددة الأسطر غير منتهية (بدأت في السطر %zu، العمود %zu)", token_start_line, token_start_col);
+                return err_token;
+            }
+
+            if (peek(lexer) == L'"' &&
+                lexer->current + 2 < lexer->source_length &&
+                lexer->source[lexer->current + 1] == L'"' &&
+                lexer->source[lexer->current + 2] == L'"') {
+                advance(lexer); // Consume first " of closing """
+                advance(lexer); // Consume second " of closing """
+                advance(lexer); // Consume third " of closing """
+                break;
+            }
+            // No escape sequence processing for raw strings
+            append_char_to_buffer(&buffer, &buffer_len, &buffer_cap, advance(lexer));
+            if (buffer == NULL) return make_error_token(lexer, L"فشل في إعادة تخصيص ذاكرة لسلسلة خام متعددة الأسطر (السطر %zu)", token_start_line);
+        }
+    } else {
+        // Looking for closing "
+        while (peek(lexer) != L'"' && !is_at_end(lexer)) {
+            if (peek(lexer) == L'\n') {
+                // Newline not allowed in single-line raw string before closing quote
+                free(buffer);
+                // Error message should indicate that raw strings don't span lines unless multiline syntax is used.
+                BaaToken *err_token = make_error_token(lexer, L"سلسلة نصية خام أحادية السطر غير منتهية قبل السطر الجديد (بدأت في السطر %zu، العمود %zu)", token_start_line, token_start_col);
+                // Do not consume the newline, let synchronize handle it or next token be on new line.
+                synchronize(lexer); // Try to recover
+                return err_token;
+            }
+            // No escape sequence processing for raw strings
+            append_char_to_buffer(&buffer, &buffer_len, &buffer_cap, advance(lexer));
+            if (buffer == NULL) return make_error_token(lexer, L"فشل في إعادة تخصيص ذاكرة لسلسلة خام (السطر %zu)", token_start_line);
+        }
+
+        if (is_at_end(lexer) || peek(lexer) != L'"') { // Could be EOF or some other char if newline was hit and error generated
+            free(buffer);
+            BaaToken *err_token = make_error_token(lexer, L"سلسلة نصية خام أحادية السطر غير منتهية (بدأت في السطر %zu، العمود %zu)", token_start_line, token_start_col);
+            // No synchronize if at EOF, otherwise synchronize might have been called if newline was hit
+            if (!is_at_end(lexer) && peek(lexer) != L'\n') synchronize(lexer);
+            return err_token;
+        }
+        advance(lexer); // Consume closing quote "
+    }
+
+    append_char_to_buffer(&buffer, &buffer_len, &buffer_cap, L'\0'); // Null-terminate
+    if (buffer == NULL) return make_error_token(lexer, L"فشل في إعادة تخصيص الذاكرة عند إنهاء السلسلة الخام (بدأت في السطر %zu)", token_start_line);
+
+    BaaToken *token = malloc(sizeof(BaaToken));
+    if (!token) { free(buffer); return NULL; }
+
+    token->type = BAA_TOKEN_STRING_LIT; // Reusing BAA_TOKEN_STRING_LIT
+    token->lexeme = buffer;
+    token->length = buffer_len - 1;
+    token->line = token_start_line;
+    token->column = token_start_col;
+
+    return token;
+}

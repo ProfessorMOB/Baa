@@ -273,7 +273,8 @@ The lexer supports a wide range of operators, tokenized with corresponding types
 - [x] Character literal support (single quotes)
 - [x] Basic escape sequences in strings/chars (\n, \t, \\, \", \', \r, \0)
 - [x] Unicode escape sequences (\uXXXX)
-- [ ] Multiline strings
+- [x] Multiline strings (`"""..."""`): Newlines are preserved, escape sequences are processed.
+- [x] Raw string literals (`خ"..."`, `خ"""..."""`): Newlines are preserved in multiline raw strings; no escape sequences are processed in any raw string.
 
 ## Comment Support
 
@@ -402,5 +403,4 @@ The lexer uses several internal helper functions:
 - Performance optimizations for large files
 - Advanced error recovery mechanisms
 - Extended Unicode range support
-- Implement multi-line string literals
-- Implement raw string literals
+- Implement documentation comments

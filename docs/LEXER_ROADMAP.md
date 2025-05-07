@@ -48,8 +48,8 @@ This roadmap outlines the planned improvements and current status of the Baa lan
 - [x] Character literal support (single quotes)
 - [x] Basic escape sequences in strings/chars (\n, \t, \\, \", \', \r, \0)
 - [x] Unicode escape sequences (\uXXXX)
-- [ ] Multiline strings
-- [ ] Raw string literals
+- [x] Multiline strings (`"""..."""`)
+- [x] Raw string literals (e.g., `خ"..."`, `خ"""..."""` - no escape processing)
 
 ## Comment Support
 
@@ -126,13 +126,13 @@ This roadmap outlines the planned improvements and current status of the Baa lan
     - Add integration tests with the parser.
 
 4. **Advanced Features:**
-    - Underscores in number literals (`1_000`).
-    - Multiline strings / Raw strings.
-    - Documentation comments.
+    - [x] Underscores in number literals (`1_000`). (*Marked as done, was completed earlier*)
+    - [x] Multiline strings (`"""..."""`)
+    - [x] Raw string literals (using `خ"..."` and `خ"""..."""`)
+    - [ ] Documentation comments.
 
 5. **Performance Optimizations:**
     - Keyword lookup optimization.
     - String interning.
 
 6.  **[Misc]** Implement remaining basic escape sequences (`\r`, `\0` in strings, `\"` in chars). *[Done]*
-
