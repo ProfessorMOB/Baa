@@ -489,9 +489,11 @@ BaaToken *baa_lexer_next_token(BaaLexer *lexer)
 
     lexer->start = lexer->current; // Set start for every token attempt
 
-    if (is_at_end(lexer))
-    {
-        return make_token(lexer, BAA_TOKEN_EOF); // Returns BaaToken*
+    // Explicit EOF Check: Check if current position is at or beyond the source length.
+    if (lexer->current >= lexer->source_length) {
+        // Ensure start is also at the end for a zero-length EOF token
+        lexer->start = lexer->current;
+        return make_token(lexer, BAA_TOKEN_EOF);
     }
 
     // Peek first to decide the type of token
