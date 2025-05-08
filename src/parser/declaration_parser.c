@@ -1,4 +1,4 @@
-#include "baa/parser/parser.h"
+ #include "baa/parser/parser.h"
 #include "baa/parser/parser_helper.h"
 #include "baa/ast/ast.h" // Added for BaaParameter, BaaFunction declarations
 #include "baa/ast/expressions.h"
@@ -11,7 +11,7 @@
 
 // Forward declarations for functions defined in other files
 extern BaaExpr* baa_parse_expression(BaaParser* parser);
-extern BaaType* baa_parse_type_annotation(BaaParser* parser);
+extern BaaType* baa_parse_type_annotatiozn(BaaParser* parser);
 extern void baa_set_parser_error(BaaParser *parser, const wchar_t *message);
 extern void baa_unexpected_token_error(BaaParser *parser, const wchar_t *expected);
 
@@ -19,7 +19,6 @@ extern void baa_unexpected_token_error(BaaParser *parser, const wchar_t *expecte
 BaaStmt* baa_parse_variable_declaration(BaaParser* parser);
 BaaParameter* baa_parse_parameter(BaaParser* parser);
 BaaFunction* baa_parse_function_declaration(BaaParser* parser);
-BaaStmt* baa_parse_import_directive(BaaParser* parser); // Added forward declaration
 BaaStmt* baa_parse_declaration(BaaParser* parser);
 
 // Function implementations for parameter handling (Definitions moved to src/ast/function.c)
@@ -337,16 +336,9 @@ BaaStmt* baa_parse_declaration(BaaParser* parser)
         } else {
             return NULL; // Error during parsing
         }
-    } else if (parser->current_token.type == BAA_TOKEN_IDENTIFIER &&
-               parser->current_token.lexeme != NULL && // Check for NULL lexeme
-               wcscmp(parser->current_token.lexeme, L"#تضمين") == 0)
-    {
-        // Found import directive identifier
-        baa_parser_advance_token(parser); // Consume '#تضمين' identifier *before* calling
-        return baa_parse_import_directive(parser);
     } else {
         // Not a recognized declaration start
-        baa_unexpected_token_error(parser, L"تصريح (متغير، دالة، #تضمين)");
+        baa_unexpected_token_error(parser, L"تصريح (متغير، دالة)");
         return NULL;
     }
 }
@@ -354,97 +346,3 @@ BaaStmt* baa_parse_declaration(BaaParser* parser)
 
 // --- Implementation moved from parser.c ---
 
-/**
- * Parse an import directive (implementation moved from parser.c)
- */
-BaaStmt* baa_parse_import_directive(BaaParser* parser) // Made non-static
-{
-    // Assumes the '#تضمين' token/identifier has already been consumed by the caller
-    BaaToken start_token = parser->previous_token; // Location is the '#تضمين' token
-
-    // Lexer should handle whitespace between '#تضمين' and path
-
-    wchar_t *clean_path = NULL;
-    wchar_t *alias = NULL; // Alias support not fully implemented in original code
-    BaaStmt *import_stmt = NULL;
-    BaaNode *node = NULL; // Node creation might be better handled by caller (e.g., baa_parse)
-
-    // Check for system import '<...>' or local import '"..."'
-    if (parser->current_token.type == BAA_TOKEN_LESS)
-    {
-        baa_parser_advance_token(parser); // Consume '<'
-
-        // TODO: Parse the path until '>'
-        // This requires careful handling of the token stream or direct lexer interaction
-        // For now, assume the path is a single token (e.g., IDENTIFIER or STRING_LIT)
-        if (parser->current_token.type != BAA_TOKEN_IDENTIFIER && parser->current_token.type != BAA_TOKEN_STRING_LIT) {
-             baa_unexpected_token_error(parser, L"مسار النظام");
-             return NULL;
-        }
-        clean_path = baa_strdup(parser->current_token.lexeme);
-        baa_parser_advance_token(parser); // Consume path token
-
-        if (parser->current_token.type != BAA_TOKEN_GREATER) {
-            baa_unexpected_token_error(parser, L">");
-            baa_free(clean_path);
-            return NULL;
-        }
-        baa_parser_advance_token(parser); // Consume '>'
-
-        // Mark as system import? (Maybe add a flag to BaaImportStmt)
-    }
-    else if (parser->current_token.type == BAA_TOKEN_STRING_LIT)
-    {
-        // Local import "..."
-        clean_path = baa_strdup(parser->current_token.lexeme); // Path includes quotes? Needs cleaning.
-        // TODO: Remove surrounding quotes from clean_path if present
-        baa_parser_advance_token(parser); // Consume string literal token
-    }
-    else
-    {
-        baa_unexpected_token_error(parser, L"< أو سلسلة نصية");
-        return NULL;
-    }
-
-    if (!clean_path) {
-         baa_set_parser_error(parser, L"فشل في استخراج مسار التضمين");
-         return NULL;
-    }
-
-    // TODO: Parse optional 'as alias' part
-
-    // Create the import statement
-    // Assuming baa_create_import_stmt exists and handles allocation
-    import_stmt = baa_create_import_stmt(clean_path, alias);
-    baa_free(clean_path); // baa_create_import_stmt should copy the path
-    // baa_free(alias); // If alias is implemented and copied
-
-    if (!import_stmt)
-    {
-        baa_set_parser_error(parser, L"فشل في إنشاء عبارة التضمين");
-        return NULL;
-    }
-
-    // Link to AST node (optional here, maybe done by caller)
-    // node = baa_create_node(BAA_NODE_STMT, import_stmt);
-    // if (!node) {
-    //     baa_set_parser_error(parser, L"فشل في إنشاء عقدة التضمين");
-    //     baa_free_stmt(import_stmt);
-    //     return NULL;
-    // }
-    // import_stmt->ast_node = node;
-    // node->location = start_token.location; // Set location if node created here
-
-    // Expect semicolon
-    // skip_whitespace(parser); // Lexer handles whitespace
-    if (parser->current_token.type != BAA_TOKEN_DOT) // Assuming DOT is semicolon
-    {
-        baa_unexpected_token_error(parser, L".");
-        baa_free_stmt(import_stmt); // Free the created statement
-        // baa_free_node(node); // Free node if created
-        return NULL;
-    }
-    baa_parser_advance_token(parser); // Consume the dot
-
-    return import_stmt; // Return the statement itself
-}
