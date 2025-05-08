@@ -6,6 +6,7 @@ typedef enum
     // Special tokens
     TOKEN_EOF = 0,
     TOKEN_ERROR,
+    TOKEN_DOC_COMMENT, // Documentation comment /** ... */
     TOKEN_DOT, // Statement terminator '.'
 
     // Keywords

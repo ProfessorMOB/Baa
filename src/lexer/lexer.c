@@ -255,54 +255,44 @@ static BaaToken *skip_whitespace(BaaLexer *lexer)
         // Removed legacy '#' comment support.
         // The preprocessor handles lines starting with # for directives.
         // Any non-directive '#' reaching the lexer should be an error or part of other syntax.
-        case L'/':
-            if (peek_next(lexer) == L'*')
-            { // Start of /* comment */
-                size_t start_line = lexer->line;
-                size_t start_col = lexer->column;
-                advance(lexer); // Consume '/'
-                advance(lexer); // Consume '*'
-                while (!(peek(lexer) == L'*' && peek_next(lexer) == L'/') && !is_at_end(lexer))
-                {
-                    // Need to handle newline increments within the comment
-                    if (peek(lexer) == L'\n')
-                    {
-                        // advance() handles line increment and column reset
+    case L'/':
+        if (peek_next(lexer) == L'*') { // Potential /* or /**
+            size_t start_line = lexer->line;
+            size_t start_col = lexer->column;
+            advance(lexer); // Consume '/'
+            advance(lexer); // Consume '*'
+
+            if (peek(lexer) == L'*' && peek_next(lexer) != L'/') { // Check for /** (but not /**/)
+                // Documentation Comment /** ... */
+                advance(lexer); // Consume the second '*'
+                // Need a function to scan the doc comment content
+                return scan_doc_comment(lexer, start_line, start_col);
+            } else {
+                // Regular Multi-line Comment /* ... */
+                while (!(peek(lexer) == L'*' && peek_next(lexer) == L'/') && !is_at_end(lexer)) {
+                    if (peek(lexer) == L'\n') {
                         advance(lexer);
-                    }
-                    else
-                    {
+                    } else {
                         advance(lexer);
                     }
                 }
-                if (!is_at_end(lexer))
-                {
+                if (!is_at_end(lexer)) {
                     advance(lexer); // Consume '*'
                     advance(lexer); // Consume '/'
-                }
-                else
-                {
-                    // Reached EOF without closing comment - error!
-                    BaaToken *error_token = make_error_token(lexer, L"تعليق متعدد الأسطر غير منتهٍ (بدأ في السطر %zu، العمود %zu)",
-                                                             start_line, start_col);
-                    // No synchronization needed at EOF
+                } else {
+                    BaaToken *error_token = make_error_token(lexer, L"تعليق متعدد الأسطر غير منتهٍ (بدأ في السطر %zu، العمود %zu)", start_line, start_col);
                     return error_token;
                 }
             }
-            else if (peek_next(lexer) == L'/')
-            { // Start of // comment
-                // Skip // style comments
-                while (peek(lexer) != L'\n' && !is_at_end(lexer))
-                    advance(lexer);
-                // No need to consume newline here, outer loop handles it.
-            }
-            else
-            {
-                // Just a slash, not a comment start
-                return NULL; // Finished skipping whitespace/comments
-            }
-            break;
-        default:
+        } else if (peek_next(lexer) == L'/') { // Single-line comment //
+            while (peek(lexer) != L'\n' && !is_at_end(lexer))
+                advance(lexer);
+        } else {
+            // Just a slash, not a comment start
+            return NULL; // Finished skipping whitespace/comments
+        }
+        break;
+    default:
             return NULL; // Finished skipping whitespace/comments
         }
     }
@@ -681,6 +671,7 @@ const wchar_t* baa_token_type_to_string(BaaTokenType type) {
         case BAA_TOKEN_ERROR: return L"BAA_TOKEN_ERROR";
         case BAA_TOKEN_UNKNOWN: return L"BAA_TOKEN_UNKNOWN";
         case BAA_TOKEN_COMMENT: return L"BAA_TOKEN_COMMENT";
+        case BAA_TOKEN_DOC_COMMENT: return L"BAA_TOKEN_DOC_COMMENT";
         case BAA_TOKEN_IDENTIFIER: return L"BAA_TOKEN_IDENTIFIER";
         case BAA_TOKEN_INT_LIT: return L"BAA_TOKEN_INT_LIT";
         case BAA_TOKEN_FLOAT_LIT: return L"BAA_TOKEN_FLOAT_LIT";

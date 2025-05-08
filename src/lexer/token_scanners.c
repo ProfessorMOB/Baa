@@ -374,6 +374,60 @@ BaaToken *scan_string(BaaLexer *lexer)
     return token;
 }
 
+// Scans a documentation comment /** ... */
+// Assumes the initial /** has already been consumed.
+BaaToken *scan_doc_comment(BaaLexer *lexer, size_t token_start_line, size_t token_start_col) {
+    size_t buffer_cap = 128;
+    size_t buffer_len = 0;
+    wchar_t *buffer = malloc(buffer_cap * sizeof(wchar_t));
+    if (!buffer) {
+        return make_error_token(lexer, L"فشل في تخصيص ذاكرة لتعليق التوثيق (بدأ في السطر %zu، العمود %zu)", token_start_line, token_start_col);
+    }
+
+    // When called, lexer->current is positioned *after* the opening /**
+    // token_start_line/col refer to the position of the initial '/'.
+
+    while (true) {
+        if (is_at_end(lexer)) {
+            free(buffer);
+            BaaToken *err_token = make_error_token(lexer, L"تعليق توثيق غير منتهٍ (بدأ في السطر %zu، العمود %zu)", token_start_line, token_start_col);
+            return err_token;
+        }
+
+        // Check for closing */
+        if (peek(lexer) == L'*' && peek_next(lexer) == L'/') {
+            advance(lexer); // Consume '*'
+            advance(lexer); // Consume '/'
+            break; // End of doc comment
+        }
+
+        // Append the character to the buffer
+        // advance() handles line/column updates for newline
+        wchar_t c = advance(lexer);
+        append_char_to_buffer(&buffer, &buffer_len, &buffer_cap, c);
+        if (buffer == NULL) { // Check if realloc failed in append_char_to_buffer
+             // Error token creation might fail too, but try
+             return make_error_token(lexer, L"فشل في إعادة تخصيص الذاكرة لتعليق التوثيق (السطر %zu)", token_start_line);
+        }
+    }
+
+    append_char_to_buffer(&buffer, &buffer_len, &buffer_cap, L'\0'); // Null-terminate the content
+    if (buffer == NULL) {
+        return make_error_token(lexer, L"فشل في إعادة تخصيص الذاكرة عند إنهاء تعليق التوثيق (بدأ في السطر %zu)", token_start_line);
+    }
+
+    BaaToken *token = malloc(sizeof(BaaToken));
+    if (!token) { free(buffer); return NULL; }
+
+    token->type = BAA_TOKEN_DOC_COMMENT; // Use the new token type
+    token->lexeme = buffer; // Transfer ownership
+    token->length = buffer_len - 1; // Don't count our internal null terminator
+    token->line = token_start_line;
+    token->column = token_start_col;
+
+    return token;
+}
+
 BaaToken *scan_char_literal(BaaLexer *lexer)
 {
     // lexer->start is at the opening quote, as set by baa_lexer_next_token

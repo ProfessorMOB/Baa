@@ -47,7 +47,8 @@ typedef enum {
     BAA_TOKEN_EOF,        // End of file
     BAA_TOKEN_ERROR,      // Error token
     BAA_TOKEN_UNKNOWN,    // Unknown token
-    BAA_TOKEN_COMMENT,    // Comment
+    BAA_TOKEN_COMMENT,    // Comment (Currently skipped, but type exists)
+    BAA_TOKEN_DOC_COMMENT,// Documentation Comment /** ... */
     // BAA_TOKEN_INCLUDE, // #تضمين - Handled by preprocessor, not lexer
 
     // Literals

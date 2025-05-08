@@ -56,7 +56,7 @@ This roadmap outlines the planned improvements and current status of the Baa lan
 - [x] Single line comments (`#` style - Skipped, not tokenized)
 - [x] Single line comments (`//` style - Skipped, not tokenized)
 - [x] Multi-line comments (`/* ... */` - Skipped, not tokenized)
-- [ ] Documentation comments (e.g., `/** ... */` or other syntax TBD)
+- [x] Documentation comments (`/** ... */` - Tokenized as `BAA_TOKEN_DOC_COMMENT`)
 
 ## Arabic Language Support
 
@@ -129,7 +129,7 @@ This roadmap outlines the planned improvements and current status of the Baa lan
     - [x] Underscores in number literals (`1_000`). (*Marked as done, was completed earlier*)
     - [x] Multiline strings (`"""..."""`)
     - [x] Raw string literals (using `خ"..."` and `خ"""..."""`)
-    - [ ] Documentation comments.
+    - [x] Documentation comments (`/** ... */`).
 
 5. **Performance Optimizations:**
     - Keyword lookup optimization.

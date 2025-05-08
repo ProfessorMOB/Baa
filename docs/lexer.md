@@ -279,9 +279,9 @@ The lexer supports a wide range of operators, tokenized with corresponding types
 ## Comment Support
 
 - Single line comments (`//` style - Skipped, not tokenized)
-- Multi-line comments (`/* ... */` - Skipped, not tokenized)
+- Multi-line comments (`/* ... */` - Skipped, not tokenized). Unterminated multi-line comments result in `BAA_TOKEN_ERROR`.
+- **Documentation Comments:** `/** ... */` - These are specifically recognized and tokenized as `BAA_TOKEN_DOC_COMMENT`. The lexeme of the token includes the content *between* the opening `/**` and the closing `*/` (including leading/trailing whitespace and asterisks on intermediate lines). These tokens can be used by later stages (like documentation generators or IDEs). Unterminated documentation comments will result in a `BAA_TOKEN_ERROR`.
 - Note: Legacy `#` style comments are no longer supported by the lexer. The preprocessor handles lines starting with `#` for directives.
-- Documentation comments (e.g., `/** ... */` or other syntax TBD)
 
 ## Usage
 
