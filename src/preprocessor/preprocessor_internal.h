@@ -126,7 +126,8 @@ bool append_to_dynamic_buffer(DynamicWcharBuffer *db, const wchar_t *str_to_appe
 bool append_dynamic_buffer_n(DynamicWcharBuffer *db, const wchar_t *str_to_append, size_t n);
 void free_dynamic_buffer(DynamicWcharBuffer *db);
 wchar_t *wcsndup_internal(const wchar_t *s, size_t n); // Renamed to avoid potential conflicts if wcsndup exists
-wchar_t *read_file_content_utf16le(BaaPreprocessor *pp_state, const char *file_path, wchar_t **error_message);
+// Reads file content, detecting UTF-8/UTF-16LE encoding.
+wchar_t *read_file_content(BaaPreprocessor *pp_state, const char *file_path, wchar_t **error_message);
 char *get_absolute_path(const char *file_path);
 char *get_directory_part(const char *file_path);
 // Updated error formatter to potentially accept an explicit location

@@ -10,7 +10,7 @@ This roadmap outlines the planned improvements and current status of the Baa lan
 - [x] Dynamic buffer for output generation
 - [x] Error reporting via output parameter
 - [ ] Input source abstraction (file, string, stdin)
-- [ ] Support for UTF-8 input files (with conversion to internal wchar_t)
+- [x] Support for UTF-8 input files (with conversion to internal wchar_t)
 - [x] Improved error reporting (unified system with original file, line, and column numbers, including through expansions)
 
 ## Directive Handling
@@ -50,7 +50,7 @@ This roadmap outlines the planned improvements and current status of the Baa lan
 ## Implementation Priorities (Excluding Testing for now)
 
 1.  **Robustness & Advanced Features:**
-    - Support for UTF-8 input files.
+    - [x] Support for UTF-8 input files.
     - Input source abstraction (file, string, stdin).
     - Support for bitwise operators (`&`, `|`, `^`, `~`, `<<`, `>>`) in conditional expressions.
     - [x] Predefined macros (`__الملف__`, `__السطر__`, `__التاريخ__`, `__الوقت__`)

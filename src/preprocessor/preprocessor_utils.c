@@ -274,28 +274,28 @@ wchar_t *wcsndup_internal(const wchar_t *s, size_t n)
 
 // --- File I/O ---
 
-// Reads the content of a UTF-16LE encoded file.
+// Reads the content of a file, detecting UTF-8 or UTF-16LE encoding via BOM.
+// Assumes UTF-8 if no BOM is present.
 // Returns a dynamically allocated wchar_t* string (caller must free).
 // Returns NULL on error and sets error_message.
-wchar_t *read_file_content_utf16le(BaaPreprocessor *pp_state, const char *file_path, wchar_t **error_message)
+wchar_t *read_file_content(BaaPreprocessor *pp_state, const char *file_path, wchar_t **error_message)
 {
     *error_message = NULL;
     FILE *file = NULL;
-    wchar_t *buffer = NULL;
+    wchar_t *buffer_w = NULL; // Wide char buffer (final result)
+    char *buffer_mb = NULL;   // Multi-byte buffer (for UTF-8 reading)
 
 #ifdef _WIN32
     // Use _wfopen on Windows for potentially non-ASCII paths
     // Convert UTF-8 path (common) to UTF-16
     int required_wchars = MultiByteToWideChar(CP_UTF8, 0, file_path, -1, NULL, 0);
-    if (required_wchars <= 0)
-    {
+    if (required_wchars <= 0) {
         PpSourceLocation error_loc = get_current_original_location(pp_state);
         *error_message = format_preprocessor_error_at_location(&error_loc, L"فشل في تحويل مسار الملف '%hs' إلى UTF-16.", file_path);
         return NULL;
     }
     wchar_t *w_file_path = malloc(required_wchars * sizeof(wchar_t));
-    if (!w_file_path)
-    {
+    if (!w_file_path) {
         PpSourceLocation error_loc = get_current_original_location(pp_state);
         *error_message = format_preprocessor_error_at_location(&error_loc, L"فشل في تخصيص الذاكرة لمسار الملف (UTF-16) '%hs'.", file_path);
         return NULL;
@@ -308,95 +308,176 @@ wchar_t *read_file_content_utf16le(BaaPreprocessor *pp_state, const char *file_p
     file = fopen(file_path, "rb");
 #endif
 
-    if (!file)
-    {
+    if (!file) {
         PpSourceLocation error_loc = get_current_original_location(pp_state);
         *error_message = format_preprocessor_error_at_location(&error_loc, L"فشل في فتح الملف '%hs'.", file_path);
         return NULL;
     }
 
-    // Check for UTF-16LE BOM (0xFF, 0xFE)
-    unsigned char bom[2];
-    if (fread(bom, 1, 2, file) != 2)
-    {
-        PpSourceLocation error_loc = get_current_original_location(pp_state);
-        *error_message = format_preprocessor_error_at_location(&error_loc, L"فشل في قراءة BOM من الملف '%hs'.", file_path);
-        fclose(file);
-        return NULL;
-    }
-    if (bom[0] != 0xFF || bom[1] != 0xFE)
-    {
-        // Check for UTF-16BE BOM (0xFE, 0xFF) - specific error?
-        PpSourceLocation error_loc = get_current_original_location(pp_state);
-        if (bom[0] == 0xFE && bom[1] == 0xFF)
-        {
-            *error_message = format_preprocessor_error_at_location(&error_loc, L"الملف '%hs' يستخدم ترميز UTF-16BE (Big Endian)، مطلوب UTF-16LE (Little Endian).", file_path);
-        }
-        else
-        {
-            *error_message = format_preprocessor_error_at_location(&error_loc, L"الملف '%hs' ليس UTF-16LE (BOM غير موجود أو غير صحيح).", file_path);
-        }
-        fclose(file);
-        return NULL;
+    // --- BOM Detection ---
+    unsigned char bom[3] = {0};
+    size_t bom_read = fread(bom, 1, 3, file);
+    long file_start_pos = 0;
+    bool is_utf16le = false;
+    bool is_utf8 = false;
+
+    if (bom_read >= 2 && bom[0] == 0xFF && bom[1] == 0xFE) {
+        is_utf16le = true;
+        file_start_pos = 2; // Skip BOM
+    } else if (bom_read == 3 && bom[0] == 0xEF && bom[1] == 0xBB && bom[2] == 0xBF) {
+        is_utf8 = true;
+        file_start_pos = 3; // Skip BOM
+    } else {
+        // No recognized BOM, assume UTF-8
+        is_utf8 = true;
+        file_start_pos = 0; // Start from beginning
     }
 
-    // Get file size (after BOM)
+    // Reset file position to after BOM or beginning
+    fseek(file, file_start_pos, SEEK_SET);
+
+    // Get file size (from current position to end)
+    long current_pos = ftell(file);
     fseek(file, 0, SEEK_END);
-    long file_size_bytes = ftell(file);
-    // Reset position to after BOM
-    fseek(file, 2, SEEK_SET);
+    long file_end_pos = ftell(file);
+    fseek(file, current_pos, SEEK_SET); // Go back to where we were
 
-    if (file_size_bytes < 2)
-    { // Only BOM present or error
+    long content_size_bytes = file_end_pos - current_pos;
+
+    if (content_size_bytes < 0) { // Should not happen, but check
+        PpSourceLocation error_loc = get_current_original_location(pp_state);
+        *error_message = format_preprocessor_error_at_location(&error_loc, L"خطأ في حساب حجم الملف '%hs'.", file_path);
         fclose(file);
-        buffer = malloc(sizeof(wchar_t)); // Allocate space for null terminator
-        if (!buffer)
-        {
+        return NULL;
+    }
+     if (content_size_bytes == 0) { // Empty file (after BOM or no BOM)
+        fclose(file);
+        buffer_w = malloc(sizeof(wchar_t)); // Allocate space for null terminator
+        if (!buffer_w) {
             PpSourceLocation error_loc = get_current_original_location(pp_state);
-            *error_message = format_preprocessor_error_at_location(&error_loc, L"فشل في تخصيص الذاكرة لملف فارغ (بعد BOM) '%hs'.", file_path);
+            *error_message = format_preprocessor_error_at_location(&error_loc, L"فشل في تخصيص الذاكرة لملف فارغ '%hs'.", file_path);
             return NULL;
         }
-        buffer[0] = L'\0';
-        return buffer; // Return empty, null-terminated string
+        buffer_w[0] = L'\0';
+        return buffer_w; // Return empty, null-terminated string
     }
 
-    long content_size_bytes = file_size_bytes - 2;
-    if (content_size_bytes % sizeof(wchar_t) != 0)
-    {
+
+    // --- Read based on detected encoding ---
+    if (is_utf16le) {
+        // Read UTF-16LE directly into wchar_t buffer
+        if (content_size_bytes % sizeof(wchar_t) != 0) {
+            PpSourceLocation error_loc = get_current_original_location(pp_state);
+            *error_message = format_preprocessor_error_at_location(&error_loc, L"حجم محتوى الملف '%hs' (UTF-16LE) ليس من مضاعفات حجم wchar_t.", file_path);
+            fclose(file);
+            return NULL;
+        }
+        size_t num_wchars = content_size_bytes / sizeof(wchar_t);
+        buffer_w = malloc((num_wchars + 1) * sizeof(wchar_t));
+        if (!buffer_w) {
+            PpSourceLocation error_loc = get_current_original_location(pp_state);
+            *error_message = format_preprocessor_error_at_location(&error_loc, L"فشل في تخصيص الذاكرة لمحتوى الملف (UTF-16LE) '%hs'.", file_path);
+            fclose(file);
+            return NULL;
+        }
+        size_t bytes_read = fread(buffer_w, 1, content_size_bytes, file);
+        if (bytes_read != (size_t)content_size_bytes) {
+            PpSourceLocation error_loc = get_current_original_location(pp_state);
+            *error_message = format_preprocessor_error_at_location(&error_loc, L"فشل في قراءة محتوى الملف (UTF-16LE) بالكامل من '%hs'.", file_path);
+            free(buffer_w);
+            fclose(file);
+            return NULL;
+        }
+        buffer_w[num_wchars] = L'\0'; // Null-terminate
+    }
+    else if (is_utf8) {
+        // Read UTF-8 into byte buffer, then convert
+        buffer_mb = malloc(content_size_bytes + 1); // +1 for potential null terminator
+        if (!buffer_mb) {
+            PpSourceLocation error_loc = get_current_original_location(pp_state);
+            *error_message = format_preprocessor_error_at_location(&error_loc, L"فشل في تخصيص الذاكرة لمحتوى الملف (UTF-8) '%hs'.", file_path);
+            fclose(file);
+            return NULL;
+        }
+        size_t bytes_read = fread(buffer_mb, 1, content_size_bytes, file);
+        if (bytes_read != (size_t)content_size_bytes) {
+            PpSourceLocation error_loc = get_current_original_location(pp_state);
+            *error_message = format_preprocessor_error_at_location(&error_loc, L"فشل في قراءة محتوى الملف (UTF-8) بالكامل من '%hs'.", file_path);
+            free(buffer_mb);
+            fclose(file);
+            return NULL;
+        }
+        buffer_mb[content_size_bytes] = '\0'; // Null-terminate the byte buffer
+
+        // Convert UTF-8 buffer_mb to wchar_t buffer_w
+#ifdef _WIN32
+        int required_wchars = MultiByteToWideChar(CP_UTF8, 0, buffer_mb, -1, NULL, 0);
+        if (required_wchars <= 0) {
+            PpSourceLocation error_loc = get_current_original_location(pp_state);
+            *error_message = format_preprocessor_error_at_location(&error_loc, L"فشل في حساب حجم التحويل من UTF-8 للملف '%hs'.", file_path);
+            free(buffer_mb);
+            fclose(file);
+            return NULL;
+        }
+        buffer_w = malloc(required_wchars * sizeof(wchar_t));
+        if (!buffer_w) {
+            PpSourceLocation error_loc = get_current_original_location(pp_state);
+            *error_message = format_preprocessor_error_at_location(&error_loc, L"فشل في تخصيص الذاكرة للمخزن المؤقت wchar_t للملف '%hs'.", file_path);
+            free(buffer_mb);
+            fclose(file);
+            return NULL;
+        }
+        int converted_wchars = MultiByteToWideChar(CP_UTF8, 0, buffer_mb, -1, buffer_w, required_wchars);
+        if (converted_wchars <= 0) {
+             PpSourceLocation error_loc = get_current_original_location(pp_state);
+            *error_message = format_preprocessor_error_at_location(&error_loc, L"فشل في تحويل محتوى الملف '%hs' من UTF-8 إلى wchar_t.", file_path);
+            free(buffer_w);
+            free(buffer_mb);
+            fclose(file);
+            return NULL;
+        }
+#else
+        // Use mbstowcs on POSIX (requires locale to be set correctly, e.g., "en_US.UTF-8")
+        // Ensure locale is set via setlocale(LC_ALL, "") in main or preprocessor init
+        size_t required_wchars_check = mbstowcs(NULL, buffer_mb, 0);
+        if (required_wchars_check == (size_t)-1) {
+            PpSourceLocation error_loc = get_current_original_location(pp_state);
+            *error_message = format_preprocessor_error_at_location(&error_loc, L"تسلسل بايت UTF-8 غير صالح في الملف '%hs' أو فشل في تحديد حجم التحويل.", file_path);
+            free(buffer_mb);
+            fclose(file);
+            return NULL;
+        }
+        size_t num_wchars = required_wchars_check;
+        buffer_w = malloc((num_wchars + 1) * sizeof(wchar_t));
+        if (!buffer_w) {
+            PpSourceLocation error_loc = get_current_original_location(pp_state);
+            *error_message = format_preprocessor_error_at_location(&error_loc, L"فشل في تخصيص الذاكرة للمخزن المؤقت wchar_t للملف '%hs'.", file_path);
+            free(buffer_mb);
+            fclose(file);
+            return NULL;
+        }
+        size_t converted_wchars = mbstowcs(buffer_w, buffer_mb, num_wchars + 1);
+        if (converted_wchars == (size_t)-1) {
+            PpSourceLocation error_loc = get_current_original_location(pp_state);
+            *error_message = format_preprocessor_error_at_location(&error_loc, L"فشل في تحويل محتوى الملف '%hs' من UTF-8 إلى wchar_t (تسلسل غير صالح؟).", file_path);
+            free(buffer_w);
+            free(buffer_mb);
+            fclose(file);
+            return NULL;
+        }
+        buffer_w[num_wchars] = L'\0'; // Ensure null termination
+#endif
+        free(buffer_mb); // Free the intermediate byte buffer
+    } else {
+        // Should not happen due to logic above, but handle defensively
         PpSourceLocation error_loc = get_current_original_location(pp_state);
-        *error_message = format_preprocessor_error_at_location(&error_loc, L"حجم محتوى الملف '%hs' (بعد BOM) ليس من مضاعفات حجم wchar_t.", file_path);
+        *error_message = format_preprocessor_error_at_location(&error_loc, L"خطأ داخلي: ترميز ملف غير معروف تم اكتشافه لـ '%hs'.", file_path);
         fclose(file);
         return NULL;
     }
-
-    size_t num_wchars = content_size_bytes / sizeof(wchar_t);
-
-    // Allocate buffer (+1 for null terminator)
-    buffer = malloc((num_wchars + 1) * sizeof(wchar_t));
-    if (!buffer)
-    {
-        PpSourceLocation error_loc = get_current_original_location(pp_state);
-        *error_message = format_preprocessor_error_at_location(&error_loc, L"فشل في تخصيص الذاكرة لمحتوى الملف '%hs'.", file_path);
-        fclose(file);
-        return NULL;
-    }
-
-    // Read content
-    size_t bytes_read = fread(buffer, 1, content_size_bytes, file);
-    if (bytes_read != (size_t)content_size_bytes)
-    {
-        PpSourceLocation error_loc = get_current_original_location(pp_state);
-        *error_message = format_preprocessor_error_at_location(&error_loc, L"فشل في قراءة محتوى الملف بالكامل من '%hs'.", file_path);
-        free(buffer);
-        fclose(file);
-        return NULL;
-    }
-
-    // Null-terminate
-    buffer[num_wchars] = L'\0';
 
     fclose(file);
-    return buffer;
+    return buffer_w;
 }
 
 // --- Path Helpers ---

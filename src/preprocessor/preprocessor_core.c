@@ -41,11 +41,11 @@ wchar_t *process_file(BaaPreprocessor *pp_state, const char *file_path, wchar_t 
         return NULL;
     }
 
-    // 2. Read File Content
-    wchar_t *file_content = read_file_content_utf16le(pp_state, abs_path, error_message);
+    // 2. Read File Content (handles UTF-8 and UTF-16LE with BOM detection)
+    wchar_t *file_content = read_file_content(pp_state, abs_path, error_message);
     if (!file_content)
     {
-        // error_message should be set by read_file_content_utf16le using current physical context
+        // error_message should be set by read_file_content using current physical context
         pop_file_stack(pp_state); // Pop before returning error
         free(abs_path);
         pp_state->current_file_path = prev_file_path; // Restore before returning

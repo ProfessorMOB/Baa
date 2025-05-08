@@ -46,11 +46,15 @@ It operates on files assumed to be encoded in **UTF-16LE**.
 - Tracks the stack of currently open files using their absolute paths.
 - Prevents infinite loops by detecting and reporting circular `#تضمين` directives.
 
-### UTF-16LE Support (دعم UTF-16LE)
+### File Encoding Support (دعم ترميز الملفات)
 
-- Reads source files assuming UTF-16 Little Endian encoding.
-- Verifies the presence of the correct Byte Order Mark (BOM).
-- Outputs the processed source code as a UTF-16 `wchar_t*` string.
+- Reads source files and automatically detects the encoding based on the Byte Order Mark (BOM):
+    - **UTF-16LE:** Recognizes the `FF FE` BOM.
+    - **UTF-8:** Recognizes the `EF BB BF` BOM.
+- If no BOM is present, the file is assumed to be **UTF-8**.
+- Files encoded in UTF-16BE are currently **not** supported.
+- Internally, the preprocessor works with wide characters (`wchar_t`). UTF-8 input is converted to this internal representation.
+- Outputs the processed source code as a UTF-16 `wchar_t*` string, suitable for the lexer.
 
 ### Predefined Macros (الماكروهات المدمجة المعرفة مسبقًا)
 The Baa preprocessor defines the following macros automatically. These names are inspired by standard C predefined macros but are in Arabic.
@@ -146,6 +150,5 @@ if (!processed_source) {
 
 - **Rescanning Expanded Macros:** Implement proper rescanning of macro expansion results for further macro substitutions, as required by the C standard.
 - **Bitwise Operators:** Add support for bitwise operators (`&`, `|`, `^`, `~`, `<<`, `>>`) in conditional expressions (`#إذا`, `#وإلا_إذا`).
-- **UTF-8 Input:** Add support for reading UTF-8 encoded source files in addition to UTF-16LE.
 - **Input Abstraction:** Abstract the input source to allow preprocessing from strings or standard input, not just files.
 - **Error Recovery:** Improve error recovery mechanisms within directives and expressions.
