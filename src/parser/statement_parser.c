@@ -1,9 +1,9 @@
-#include "baa/parser/parser.h"       // Needs BaaParser, BaaStmt, etc.
+#include "baa/parser/parser.h"        // Needs BaaParser, BaaStmt, etc.
 #include "baa/parser/parser_helper.h" // Needs advance, match_keyword, etc.
-#include "baa/ast/ast.h"           // Needs BaaNode, baa_create_node, etc.
-#include "baa/ast/statements.h"    // Needs BaaBlock, baa_create_block_stmt, etc.
-#include "baa/ast/expressions.h"   // Needs BaaExpr
-#include "baa/utils/utils.h"       // Needs baa_malloc, etc. (implicitly via other headers?)
+#include "baa/ast/ast.h"              // Needs BaaNode, baa_create_node, etc.
+#include "baa/ast/statements.h"       // Needs BaaBlock, baa_create_block_stmt, etc.
+#include "baa/ast/expressions.h"      // Needs BaaExpr
+#include "baa/utils/utils.h"          // Needs baa_malloc, etc. (implicitly via other headers?)
 #include <stdlib.h>
 #include <string.h>
 #include <wchar.h>
@@ -90,8 +90,8 @@ BaaStmt *baa_parse_block(BaaParser *parser) // Made non-static
     // BaaStmt* block_stmt = baa_create_stmt(BAA_STMT_BLOCK);
     // block_stmt->data = block;
     // Let's stick to the original code's apparent intent for now:
-    baa_free_block((BaaBlock*)block_stmt->data); // Free the default empty block
-    block_stmt->data = block; // Assign our parsed block
+    baa_free_block((BaaBlock *)block_stmt->data); // Free the default empty block
+    block_stmt->data = block;                     // Assign our parsed block
 
     // Create the AST Node for the statement (optional here, could be done by caller)
     // BaaNode *node = baa_create_node(BAA_NODE_STMT, block_stmt);
@@ -143,29 +143,43 @@ BaaStmt *baa_parse_statement(BaaParser *parser) // Made non-static
         baa_token_next(parser); // Consume '{' before calling baa_parse_block
         return baa_parse_block(parser);
     }
-    else if (parser->current_token.type == BAA_TOKEN_VAR || parser->current_token.type == BAA_TOKEN_CONST)
+    // Check for local variable/constant declaration (starts with type or 'ثابت')
+    else if (is_type_token(parser->current_token.type) || parser->current_token.type == BAA_TOKEN_CONST)
     {
-        // Delegate to declaration parser (assumed external)
-        BaaStmt *decl_stmt = baa_parse_declaration(parser);
-        // Expect semicolon after declaration
-        if (decl_stmt && parser->current_token.type == BAA_TOKEN_DOT) // Assuming DOT is semicolon
-        {
-            baa_parser_advance_token(parser); // Use advance from helper
-            return decl_stmt;
+        bool is_const = false;
+        if (parser->current_token.type == BAA_TOKEN_CONST) {
+            is_const = true;
+            baa_token_next(parser); // Consume 'ثابت'
+            if (!is_type_token(parser->current_token.type)) {
+                 baa_unexpected_token_error(parser, L"نوع بعد 'ثابت'");
+                 return NULL; // Error recovery should happen in caller (baa_parse_block)
+            }
         }
-        else if (decl_stmt)
-        {
-            baa_unexpected_token_error(parser, L"."); // Use helper
-            baa_free_stmt(decl_stmt);
+        // Now we know it starts with a type
+        BaaType* decl_type = baa_parse_type(parser);
+        if (!decl_type) return NULL; // Error set by baa_parse_type
+
+        if (parser->current_token.type != BAA_TOKEN_IDENTIFIER) {
+            baa_unexpected_token_error(parser, L"معرف بعد النوع");
+            baa_free_type(decl_type);
             return NULL;
         }
-        else
-        {
-            // Error already set by baa_parse_declaration
-            return NULL;
-        }
+        BaaToken identifier_token = parser->current_token;
+        baa_token_next(parser); // Consume identifier
+
+        // Now parse the rest of the variable declaration (initializer and dot)
+        // Use the helper from declaration_parser.c
+        BaaStmt* var_stmt = baa_parse_variable_rest(parser, decl_type, identifier_token.lexeme, identifier_token.length, is_const);
+        // baa_parse_variable_rest consumes the final '.'
+        // It also frees decl_type if an error occurs *during its execution*.
+        // If it returns NULL due to an error, the error is already set.
+        // If it returns successfully, decl_type ownership is transferred to the statement.
+        return var_stmt; // Return the parsed statement or NULL on error
     }
     // Add other statement types like break, continue, switch here
+    // else if (match_keyword(parser, L"توقف")) { /* parse break */ }
+    // else if (match_keyword(parser, L"أكمل")) { /* parse continue */ }
+    // else if (match_keyword(parser, L"اختر")) { /* parse switch */ }
     else
     {
         // Default to expression statement
@@ -187,7 +201,7 @@ BaaStmt *baa_parse_statement(BaaParser *parser) // Made non-static
         if (parser->current_token.type != BAA_TOKEN_DOT) // Assuming DOT is semicolon
         {
             baa_unexpected_token_error(parser, L"."); // Use helper
-            baa_free_expr(expr); // Use correct free function
+            baa_free_expr(expr);                      // Use correct free function
             return NULL;
         }
         baa_parser_advance_token(parser); // Use helper

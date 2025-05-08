@@ -10,27 +10,31 @@
 #include <wchar.h>
 
 // Forward declarations for functions defined in other files
-extern BaaExpr* baa_parse_expression(BaaParser* parser);
-extern BaaType* baa_parse_type_annotation(BaaParser* parser);
+extern BaaExpr *baa_parse_expression(BaaParser *parser);
+extern BaaType *baa_parse_type_annotation(BaaParser *parser);
 extern void baa_set_parser_error(BaaParser *parser, const wchar_t *message);
 extern void baa_unexpected_token_error(BaaParser *parser, const wchar_t *expected);
 
 // Forward declarations for functions defined in this file
-BaaStmt* baa_parse_variable_declaration(BaaParser* parser);
-BaaParameter* baa_parse_parameter(BaaParser* parser);
-BaaFunction* baa_parse_function_declaration(BaaParser* parser);
-BaaStmt* baa_parse_import_directive(BaaParser* parser); // Added forward declaration
-BaaStmt* baa_parse_declaration(BaaParser* parser);
+// Renamed and modified signatures
+BaaStmt *baa_parse_variable_rest(BaaParser *parser, BaaType *type, const wchar_t *name, size_t name_len, bool is_const);
+BaaParameter *baa_parse_parameter(BaaParser *parser);
+BaaFunction *baa_parse_function_rest(BaaParser *parser, BaaType *return_type, const wchar_t *name, size_t name_len);
+BaaStmt *baa_parse_import_directive(BaaParser *parser);
+// Removed baa_parse_declaration - logic moved to baa_parse_program
 
 // Function implementations for parameter handling (Definitions moved to src/ast/function.c)
 
 // Function implementations for statement creation
-BaaStmt* baa_create_variable_declaration(const wchar_t* name, size_t name_length, BaaType* type, BaaExpr* initializer) {
-    BaaVarDeclStmt* var_decl = baa_malloc(sizeof(BaaVarDeclStmt));
-    if (!var_decl) return NULL;
+BaaStmt *baa_create_variable_declaration(const wchar_t *name, size_t name_length, BaaType *type, BaaExpr *initializer)
+{
+    BaaVarDeclStmt *var_decl = baa_malloc(sizeof(BaaVarDeclStmt));
+    if (!var_decl)
+        return NULL;
 
     var_decl->name = baa_strndup(name, name_length);
-    if (!var_decl->name) {
+    if (!var_decl->name)
+    {
         baa_free(var_decl);
         return NULL;
     }
@@ -39,9 +43,10 @@ BaaStmt* baa_create_variable_declaration(const wchar_t* name, size_t name_length
     var_decl->type = type;
     var_decl->initializer = initializer;
 
-    BaaStmt* stmt = baa_malloc(sizeof(BaaStmt));
-    if (!stmt) {
-        baa_free((void*)var_decl->name);
+    BaaStmt *stmt = baa_malloc(sizeof(BaaStmt));
+    if (!stmt)
+    {
+        baa_free((void *)var_decl->name);
         baa_free(var_decl);
         return NULL;
     }
@@ -51,14 +56,17 @@ BaaStmt* baa_create_variable_declaration(const wchar_t* name, size_t name_length
     return stmt;
 }
 
-static BaaFunction* baa_create_function(const wchar_t* name, size_t name_length,
-                                      BaaParameter** params, size_t param_count,
-                                      BaaType* return_type, BaaBlock* body) {
-    BaaFunction* func = baa_malloc(sizeof(BaaFunction));
-    if (!func) return NULL;
+static BaaFunction *baa_create_function(const wchar_t *name, size_t name_length,
+                                        BaaParameter **params, size_t param_count,
+                                        BaaType *return_type, BaaBlock *body)
+{
+    BaaFunction *func = baa_malloc(sizeof(BaaFunction));
+    if (!func)
+        return NULL;
 
     func->name = baa_strndup(name, name_length);
-    if (!func->name) {
+    if (!func->name)
+    {
         baa_free(func);
         return NULL;
     }
@@ -80,34 +88,16 @@ static BaaFunction* baa_create_function(const wchar_t* name, size_t name_length,
 }
 
 /**
- * Parse a variable declaration
+ * Parse the rest of a variable declaration after type and identifier.
+ * Handles optional initializer and expects dot terminator.
  */
-BaaStmt* baa_parse_variable_declaration(BaaParser* parser)
+BaaStmt *baa_parse_variable_rest(BaaParser *parser, BaaType *type, const wchar_t *name, size_t name_len, bool is_const)
 {
-    // Consume the 'متغير' token
-    baa_token_next(parser);
-
-    // Expect an identifier for the variable name
-    if (parser->current_token.type != BAA_TOKEN_IDENTIFIER) {
-        baa_unexpected_token_error(parser, L"معرف");
-        return NULL;
-    }
-
-    // Get the variable name
-    const wchar_t* name = parser->current_token.lexeme;
-    size_t name_len = parser->current_token.length;
-
-    // Consume the identifier token
-    baa_token_next(parser);
-
-    // Parse optional type annotation
-    BaaType* type = baa_parse_type_annotation(parser);
-    if (!type) {
-        return NULL;
-    }
+    // Type and identifier are already parsed and passed in.
+    // 'is_const' flag is also passed in.
 
     // Initialize expression
-    BaaExpr* initializer = NULL;
+    BaaExpr *initializer = NULL;
 
     // Check for initializer
     if (parser->current_token.type == BAA_TOKEN_ASSIGN) {
@@ -117,65 +107,82 @@ BaaStmt* baa_parse_variable_declaration(BaaParser* parser)
         // Parse the initializer expression
         initializer = baa_parse_expression(parser);
         if (!initializer) {
-            baa_free_type(type);
-            return NULL;
+            // Type is owned by caller (baa_parse_program), don't free here on error
+            // baa_free_type(type);
+            return NULL; // Error should be set by baa_parse_expression
         }
+    } else if (is_const) {
+        // Constants must be initialized
+        baa_set_parser_error(parser, L"يجب تهيئة الثوابت");
+        // baa_free_type(type); // Caller owns type
+        return NULL;
     }
 
-    // Expect semicolon at the end of the declaration
-    if (parser->current_token.type != BAA_TOKEN_SEMICOLON) {
-        baa_unexpected_token_error(parser, L";");
+    // Expect dot at the end of the declaration
+    if (parser->current_token.type != BAA_TOKEN_DOT)
+    {                                             // Changed from SEMICOLON to DOT
+        baa_unexpected_token_error(parser, L"."); // Changed expected token in error message
         baa_free_type(type);
-        if (initializer) {
-            baa_free_expr(initializer); // Ensure correct name is used
+        if (initializer)
+        {
+            baa_free_expr(initializer);
         }
         return NULL;
     }
 
-    // Consume the semicolon
+    // Consume the dot
     baa_token_next(parser);
 
     // Create the variable declaration statement
-    BaaStmt* statement = baa_create_variable_declaration(name, name_len, type, initializer);
+    // TODO: Need a way to represent const-ness in the AST statement/node
+    BaaStmt *statement = baa_create_variable_declaration(name, name_len, type, initializer);
     if (!statement) {
         baa_set_parser_error(parser, L"فشل في إنشاء تصريح المتغير");
-        baa_free_type(type);
+        // baa_free_type(type); // Caller owns type
         if (initializer) {
-            baa_free_expr(initializer); // Ensure correct name is used
+            baa_free_expr(initializer);
         }
         return NULL;
     }
+    // TODO: Set a flag like ((BaaVarDeclStmt*)statement->data)->is_const = is_const;
+    // This requires adding is_const to BaaVarDeclStmt in statements.h/c
 
     return statement;
 }
 
+
 /**
  * Parse a parameter for a function declaration
  */
-BaaParameter* baa_parse_parameter(BaaParser* parser)
+BaaParameter *baa_parse_parameter(BaaParser *parser)
 {
+    // Expect a type first
+    BaaType *type = baa_parse_type(parser); // Use the function that parses type names directly
+    if (!type)
+    {
+        // baa_parse_type should set the error
+        return NULL;
+    }
+
     // Expect an identifier for the parameter name
-    if (parser->current_token.type != BAA_TOKEN_IDENTIFIER) {
-        baa_unexpected_token_error(parser, L"معرف");
+    if (parser->current_token.type != BAA_TOKEN_IDENTIFIER)
+    {
+        baa_unexpected_token_error(parser, L"معرف الوسيط");
+        baa_free_type(type); // Clean up parsed type
         return NULL;
     }
 
     // Get the parameter name
-    const wchar_t* name = parser->current_token.lexeme;
+    const wchar_t *name = parser->current_token.lexeme;
     size_t name_len = parser->current_token.length;
 
     // Consume the identifier token
     baa_token_next(parser);
 
-    // Parse type annotation
-    BaaType* type = baa_parse_type_annotation(parser);
-    if (!type) {
-        return NULL;
-    }
-
-    // Create the parameter
-    BaaParameter* parameter = baa_create_parameter(name, name_len, type, false);
-    if (!parameter) {
+    // Create the parameter (assuming mutable=false by default for params)
+    BaaParameter *parameter = baa_create_parameter(name, name_len, type, false);
+    if (!parameter)
+    {
         baa_set_parser_error(parser, L"فشل في إنشاء وسيط");
         baa_free_type(type);
         return NULL;
@@ -185,28 +192,16 @@ BaaParameter* baa_parse_parameter(BaaParser* parser)
 }
 
 /**
- * Parse a function declaration
+ * Parse the rest of a function declaration after return type and identifier.
+ * Parses parameters and body.
  */
-BaaFunction* baa_parse_function_declaration(BaaParser* parser)
+BaaFunction *baa_parse_function_rest(BaaParser *parser, BaaType *return_type, const wchar_t *name, size_t name_len)
 {
-    // Consume the 'دالة' token
-    baa_token_next(parser);
-
-    // Expect an identifier for the function name
-    if (parser->current_token.type != BAA_TOKEN_IDENTIFIER) {
-        baa_unexpected_token_error(parser, L"معرف");
-        return NULL;
-    }
-
-    // Get the function name
-    const wchar_t* name = parser->current_token.lexeme;
-    size_t name_len = parser->current_token.length;
-
-    // Consume the identifier token
-    baa_token_next(parser);
+    // Return type and identifier are already parsed and passed in.
 
     // Expect open parenthesis
-    if (parser->current_token.type != BAA_TOKEN_LEFT_PAREN) {
+    if (parser->current_token.type != BAA_TOKEN_LEFT_PAREN)
+    {
         baa_unexpected_token_error(parser, L"(");
         return NULL;
     }
@@ -215,18 +210,22 @@ BaaFunction* baa_parse_function_declaration(BaaParser* parser)
     baa_token_next(parser);
 
     // Parse parameters
-    BaaParameter** parameters = NULL;
+    BaaParameter **parameters = NULL;
     size_t parameter_count = 0;
     size_t parameter_capacity = 0;
 
     // Parse parameters until we reach the closing parenthesis
-    if (parser->current_token.type != BAA_TOKEN_RIGHT_PAREN) {
-        do {
+    if (parser->current_token.type != BAA_TOKEN_RIGHT_PAREN)
+    {
+        do
+        {
             // Parse a parameter
-            BaaParameter* parameter = baa_parse_parameter(parser);
-            if (!parameter) {
+            BaaParameter *parameter = baa_parse_parameter(parser);
+            if (!parameter)
+            {
                 // Free already parsed parameters
-                for (size_t i = 0; i < parameter_count; i++) {
+                for (size_t i = 0; i < parameter_count; i++)
+                {
                     baa_free_parameter(parameters[i]);
                 }
                 free(parameters);
@@ -234,13 +233,16 @@ BaaFunction* baa_parse_function_declaration(BaaParser* parser)
             }
 
             // Add parameter to the list
-            if (parameter_count >= parameter_capacity) {
+            if (parameter_count >= parameter_capacity)
+            {
                 parameter_capacity = parameter_capacity == 0 ? 4 : parameter_capacity * 2;
-                BaaParameter** new_parameters = (BaaParameter**)realloc(parameters, parameter_capacity * sizeof(BaaParameter*));
-                if (!new_parameters) {
+                BaaParameter **new_parameters = (BaaParameter **)realloc(parameters, parameter_capacity * sizeof(BaaParameter *));
+                if (!new_parameters)
+                {
                     baa_set_parser_error(parser, L"فشل في تخصيص الذاكرة للوسائط");
                     baa_free_parameter(parameter);
-                    for (size_t i = 0; i < parameter_count; i++) {
+                    for (size_t i = 0; i < parameter_count; i++)
+                    {
                         baa_free_parameter(parameters[i]);
                     }
                     free(parameters);
@@ -252,18 +254,23 @@ BaaFunction* baa_parse_function_declaration(BaaParser* parser)
             parameters[parameter_count++] = parameter;
 
             // Check for comma
-            if (parser->current_token.type == BAA_TOKEN_COMMA) {
+            if (parser->current_token.type == BAA_TOKEN_COMMA)
+            {
                 baa_token_next(parser);
-            } else {
+            }
+            else
+            {
                 break;
             }
         } while (parser->current_token.type != BAA_TOKEN_RIGHT_PAREN);
     }
 
     // Expect closing parenthesis
-    if (parser->current_token.type != BAA_TOKEN_RIGHT_PAREN) {
+    if (parser->current_token.type != BAA_TOKEN_RIGHT_PAREN)
+    {
         baa_unexpected_token_error(parser, L")");
-        for (size_t i = 0; i < parameter_count; i++) {
+        for (size_t i = 0; i < parameter_count; i++)
+        {
             baa_free_parameter(parameters[i]);
         }
         free(parameters);
@@ -273,39 +280,46 @@ BaaFunction* baa_parse_function_declaration(BaaParser* parser)
     // Consume the closing parenthesis
     baa_token_next(parser);
 
-    // Parse return type
-    BaaType* return_type = baa_parse_type_annotation(parser);
+    // Return type is passed in, use it directly.
+    // If the caller didn't parse a type, it should pass a default void type.
     if (!return_type) {
-        for (size_t i = 0; i < parameter_count; i++) {
-            baa_free_parameter(parameters[i]);
-        }
-        free(parameters);
-        return NULL;
+         // This shouldn't happen if caller handles default correctly, but check defensively.
+         baa_set_parser_error(parser, L"نوع الإرجاع مفقود داخليًا");
+         for (size_t i = 0; i < parameter_count; i++) {
+             baa_free_parameter(parameters[i]);
+         }
+         free(parameters);
+         return NULL;
     }
 
     // Parse function body - expect a block
-    BaaStmt* body_stmt = baa_parse_block(parser);
-    if (!body_stmt || body_stmt->kind != BAA_STMT_BLOCK) {
+    BaaStmt *body_stmt = baa_parse_block(parser);
+    if (!body_stmt || body_stmt->kind != BAA_STMT_BLOCK)
+    {
         baa_set_parser_error(parser, L"توقع كتلة نصية لجسم الدالة");
         baa_free_type(return_type);
-        for (size_t i = 0; i < parameter_count; i++) {
+        for (size_t i = 0; i < parameter_count; i++)
+        {
             baa_free_parameter(parameters[i]);
         }
         free(parameters);
-        if (body_stmt) baa_free_stmt(body_stmt); // Free if it was parsed but wrong type
+        if (body_stmt)
+            baa_free_stmt(body_stmt); // Free if it was parsed but wrong type
         return NULL;
     }
-    BaaBlock* body_block = (BaaBlock*)body_stmt->data;
-    body_stmt->data = NULL; // Avoid double free, ownership transferred to BaaFunction
+    BaaBlock *body_block = (BaaBlock *)body_stmt->data;
+    body_stmt->data = NULL;   // Avoid double free, ownership transferred to BaaFunction
     baa_free_stmt(body_stmt); // Free the wrapper BaaStmt
 
     // Create the function structure
-    BaaFunction* function = baa_create_function(name, name_len, parameters, parameter_count, return_type, body_block);
-    if (!function) {
+    BaaFunction *function = baa_create_function(name, name_len, parameters, parameter_count, return_type, body_block);
+    if (!function)
+    {
         baa_set_parser_error(parser, L"فشل في إنشاء تصريح الدالة");
         baa_free_type(return_type);
         baa_free_block(body_block); // Use baa_free_block
-        for (size_t i = 0; i < parameter_count; i++) {
+        for (size_t i = 0; i < parameter_count; i++)
+        {
             baa_free_parameter(parameters[i]);
         }
         free(parameters); // Parameters array itself was allocated with realloc/malloc
@@ -316,48 +330,17 @@ BaaFunction* baa_parse_function_declaration(BaaParser* parser)
 }
 
 /**
- * Parse a declaration (variable, function, or import)
+ * Parse a declaration (variable, function, or import) - **REMOVED**
+ * Logic moved to baa_parse_program in parser.c
  */
-BaaStmt* baa_parse_declaration(BaaParser* parser)
-{
-    // Check for specific declaration keywords/tokens first
-    if (parser->current_token.type == BAA_TOKEN_VAR) {
-        return baa_parse_variable_declaration(parser);
-    } else if (parser->current_token.type == BAA_TOKEN_FUNC) {
-        // Function declarations are handled differently (not regular statements)
-        BaaFunction* func = baa_parse_function_declaration(parser);
-        if (func) {
-            // TODO: Handle function storage in Program AST.
-            // The main baa_parse loop should handle adding functions.
-            // Returning NULL here signals it's not a statement for a block.
-            // We should NOT free the function here; the caller (baa_parse) owns it.
-             printf("Parsed function (will be handled by caller): %ls\n", func->name); // Debug print
-            // baa_free_function(func); // Caller should handle freeing on error or adding to program
-            return NULL; // Indicate not a statement
-        } else {
-            return NULL; // Error during parsing
-        }
-    } else if (parser->current_token.type == BAA_TOKEN_IDENTIFIER &&
-               parser->current_token.lexeme != NULL && // Check for NULL lexeme
-               wcscmp(parser->current_token.lexeme, L"#تضمين") == 0)
-    {
-        // Found import directive identifier
-        baa_parser_advance_token(parser); // Consume '#تضمين' identifier *before* calling
-        return baa_parse_import_directive(parser);
-    } else {
-        // Not a recognized declaration start
-        baa_unexpected_token_error(parser, L"تصريح (متغير، دالة، #تضمين)");
-        return NULL;
-    }
-}
-
+// BaaStmt *baa_parse_declaration(BaaParser *parser) { ... } // Removed
 
 // --- Implementation moved from parser.c ---
 
 /**
  * Parse an import directive (implementation moved from parser.c)
  */
-BaaStmt* baa_parse_import_directive(BaaParser* parser) // Made non-static
+BaaStmt *baa_parse_import_directive(BaaParser *parser) // Made non-static
 {
     // Assumes the '#تضمين' token/identifier has already been consumed by the caller
     BaaToken start_token = parser->previous_token; // Location is the '#تضمين' token
@@ -377,14 +360,16 @@ BaaStmt* baa_parse_import_directive(BaaParser* parser) // Made non-static
         // TODO: Parse the path until '>'
         // This requires careful handling of the token stream or direct lexer interaction
         // For now, assume the path is a single token (e.g., IDENTIFIER or STRING_LIT)
-        if (parser->current_token.type != BAA_TOKEN_IDENTIFIER && parser->current_token.type != BAA_TOKEN_STRING_LIT) {
-             baa_unexpected_token_error(parser, L"مسار النظام");
-             return NULL;
+        if (parser->current_token.type != BAA_TOKEN_IDENTIFIER && parser->current_token.type != BAA_TOKEN_STRING_LIT)
+        {
+            baa_unexpected_token_error(parser, L"مسار النظام");
+            return NULL;
         }
         clean_path = baa_strdup(parser->current_token.lexeme);
         baa_parser_advance_token(parser); // Consume path token
 
-        if (parser->current_token.type != BAA_TOKEN_GREATER) {
+        if (parser->current_token.type != BAA_TOKEN_GREATER)
+        {
             baa_unexpected_token_error(parser, L">");
             baa_free(clean_path);
             return NULL;
@@ -406,9 +391,10 @@ BaaStmt* baa_parse_import_directive(BaaParser* parser) // Made non-static
         return NULL;
     }
 
-    if (!clean_path) {
-         baa_set_parser_error(parser, L"فشل في استخراج مسار التضمين");
-         return NULL;
+    if (!clean_path)
+    {
+        baa_set_parser_error(parser, L"فشل في استخراج مسار التضمين");
+        return NULL;
     }
 
     // TODO: Parse optional 'as alias' part

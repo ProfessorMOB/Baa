@@ -118,34 +118,7 @@ void baa_clear_parser_error(BaaParser *parser)
     }
 }
 
-// Function removed: parse_declaration - This seems to be a wrapper, maybe keep it?
-// Let's re-evaluate if parse_declaration wrapper is needed.
-// It calls baa_parse_declaration and wraps the result in a node.
-// This seems specific to how declarations are handled *within* parser.c's main loop
-// or other internal functions. If baa_parse_statement now calls baa_parse_declaration directly,
-// this wrapper might be redundant *unless* top-level parsing in baa_parse needs it.
-// Let's keep parse_declaration for now as it might be used by baa_parse.
-static BaaNode *parse_declaration(BaaParser *parser)
-{
-    BaaStmt *stmt = baa_parse_declaration(parser);
-    if (!stmt)
-    {
-        // baa_parse_declaration handles setting the error or returned NULL for function
-        return NULL;
-    }
-
-    BaaNode *node = baa_create_node(BAA_NODE_STMT, stmt);
-    if (!node)
-    {
-        baa_set_parser_error(parser, L"فشل في إنشاء عقدة AST للتصريح");
-        baa_free_stmt(stmt);
-        return NULL;
-    }
-    // Optionally set location from the start token of the statement if needed
-    // node->location = parser->start_token_location; // Example
-
-    return node;
-}
+// Removed static parse_declaration wrapper - no longer needed with new top-level parsing logic
 
 // Function removed: parse_block (moved to statement_parser.c)
 
@@ -157,72 +130,135 @@ static BaaNode *parse_declaration(BaaParser *parser)
 
 // Function removed: parse_import_directive (moved to declaration_parser.c)
 
+// Helper function to check if a token type represents a type keyword
+static bool is_type_token(BaaTokenType type) {
+    return type == BAA_TOKEN_TYPE_INT || type == BAA_TOKEN_TYPE_FLOAT ||
+           type == BAA_TOKEN_TYPE_CHAR || type == BAA_TOKEN_TYPE_BOOL ||
+           type == BAA_TOKEN_TYPE_VOID; // Add other type tokens if they exist
+           // || type == BAA_TOKEN_IDENTIFIER; // Potentially allow identifiers for user types
+}
+
 // Main parsing function - parses the entire program from the token stream provided by the parser's lexer.
 BaaProgram *baa_parse_program(BaaParser *parser)
 {
     if (!parser || !parser->lexer) {
-        // Cannot proceed without a valid parser and lexer
-        // TODO: How to report this error? Maybe return NULL and expect caller to check?
         return NULL;
     }
 
     BaaProgram *program = baa_create_program();
-    if (!program)
-    {
-        // Allocation failed
-        // TODO: Set parser error?
+    if (!program) {
         return NULL;
     }
 
     // Create the root AST node for the program
     program->ast_node = baa_create_node(BAA_NODE_PROGRAM, program);
-    if (!program->ast_node)
-    {
-        baa_free_program(program); // Frees the inner program struct too
-        // TODO: Set parser error?
+    if (!program->ast_node) {
+        baa_free_program(program);
         return NULL;
     }
 
-    // Assume parser is already initialized and first token is loaded by the caller (e.g., compiler.c)
-    // parser->had_error = false; // Should be initialized by caller
-    // parser->panic_mode = false; // Should be initialized by caller
+    // Initialize parser state (should be done by caller, but ensure here)
+    parser->had_error = false;
+    parser->panic_mode = false;
 
     while (parser->current_token.type != BAA_TOKEN_EOF)
     {
-        // Try parsing top-level declarations (functions or global vars)
-        // TODO: Add support for top-level variable/import declarations if allowed
-        if (parser->current_token.type == BAA_TOKEN_FUNC)
-        {
-            // Call the function declaration parser directly
-            BaaFunction *func = baa_parse_function_declaration(parser);
-            if (func)
-            {
-                // Create the AST node for the function
-                BaaNode *func_node = baa_create_node(BAA_NODE_FUNCTION, func);
-                if (func_node)
-                {
-                    func->ast_node = func_node; // Link function back to node
-                    baa_add_node_to_program(program, func_node);
-                }
-                else
-                {
-                    baa_free_function(func); // Cleanup if node creation fails
-                    parser->had_error = true; // Signal error
-                    // TODO: Set a specific error message? baa_create_node should ideally do this
-                }
+        BaaType* potential_return_type = NULL;
+        bool is_const = false;
+
+        // --- Check for Declaration Start ---
+        if (parser->current_token.type == BAA_TOKEN_CONST) {
+            is_const = true;
+            baa_token_next(parser); // Consume 'ثابت'
+            // Now expect a type
+            if (!is_type_token(parser->current_token.type)) {
+                 baa_unexpected_token_error(parser, L"نوع بعد 'ثابت'");
+                 synchronize(parser); // Error recovery
+                 continue;
             }
-            // Error handling or NULL return already managed within baa_parse_function_declaration
+            // Fall through to type parsing
         }
-        // TODO: Add support for top-level variable declarations if needed
-        // else if (parser->current_token.type == BAA_TOKEN_VAR) { ... }
-        else
-        {
-            // If it's not a known top-level declaration, report error or skip
-            baa_unexpected_token_error(parser, L"تصريح دالة أو نهاية الملف");
-            // Attempt error recovery
+
+        if (is_type_token(parser->current_token.type)) {
+            // Could be variable, constant variable (if is_const is true), or function
+            BaaType* decl_type = baa_parse_type(parser); // Parse the type
+            if (!decl_type) {
+                 // Error during type parsing, synchronize
+                 synchronize(parser);
+                 continue;
+            }
+
+            // Now expect an identifier
+            if (parser->current_token.type != BAA_TOKEN_IDENTIFIER) {
+                baa_unexpected_token_error(parser, L"معرف بعد النوع");
+                baa_free_type(decl_type);
+                synchronize(parser);
+                continue;
+            }
+            BaaToken identifier_token = parser->current_token; // Save identifier info
+            baa_token_next(parser); // Consume identifier
+
+            // Check what follows the identifier
+            if (parser->current_token.type == BAA_TOKEN_LPAREN) {
+                // --- Function Declaration ---
+                if (is_const) {
+                    baa_set_parser_error(parser, L"لا يمكن استخدام 'ثابت' مع الدوال");
+                    baa_free_type(decl_type);
+                    synchronize(parser);
+                    continue;
+                }
+                // Pass the parsed type and identifier to a function parser helper
+                BaaFunction* func = baa_parse_function_rest(parser, decl_type, identifier_token.lexeme, identifier_token.length);
+                if (func) {
+                    baa_add_function_to_program(program, func); // Add function to program list
+                    // Optionally link AST nodes if needed
+                    // baa_add_child_node(program->ast_node, func->ast_node);
+                } else {
+                    // Error occurred in function parsing, synchronize
+                    // Note: baa_parse_function_rest should free decl_type on error
+                    synchronize(parser);
+                }
+            } else if (parser->current_token.type == BAA_TOKEN_ASSIGN || parser->current_token.type == BAA_TOKEN_DOT) {
+                // --- Variable or Constant Variable Declaration ---
+                // Pass type, const flag, and identifier to variable parser helper
+                BaaStmt* var_stmt = baa_parse_variable_rest(parser, decl_type, identifier_token.lexeme, identifier_token.length, is_const);
+                if (var_stmt) {
+                    // TODO: Add var_stmt to program->top_level_statements
+                    // For now, just print a warning and free it
+                    fwprintf(stderr, L"Warning: Top-level variable/const declaration parsed but not stored.\n");
+                    baa_free_stmt(var_stmt);
+                } else {
+                    // Error occurred in variable parsing, synchronize
+                    // Note: baa_parse_variable_rest should free decl_type on error
+                    synchronize(parser);
+                }
+            } else {
+                // Unexpected token after type identifier
+                baa_unexpected_token_error(parser, L"( أو = أو .");
+                baa_free_type(decl_type);
+                synchronize(parser);
+            }
+        }
+        else if (parser->current_token.type == BAA_TOKEN_IDENTIFIER && wcscmp(parser->current_token.lexeme, L"#تضمين") == 0) {
+             // --- Import Directive ---
+             baa_token_next(parser); // Consume '#تضمين'
+             BaaStmt* import_stmt = baa_parse_import_directive(parser);
+             if (import_stmt) {
+                 // TODO: Add import_stmt to program->top_level_statements
+                 fwprintf(stderr, L"Warning: Import directive parsed but not stored.\n");
+                 baa_free_stmt(import_stmt);
+             } else {
+                 synchronize(parser);
+             }
+        }
+        // Removed check for BAA_TOKEN_FUNC (old syntax)
+        else {
+            // Unexpected token at top level
+            baa_unexpected_token_error(parser, L"تصريح (نوع، ثابت، #تضمين)");
             synchronize(parser);
         }
 
+        // --- Error Recovery Handling ---
         if (parser->had_error)
         {
             if (!parser->panic_mode)

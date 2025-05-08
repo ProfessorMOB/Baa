@@ -1,5 +1,6 @@
 add_library(baa_ast
     ast.c
+    ast_printer.c # Add the new printer source file
     expressions.c
     statements.c
     literals.c

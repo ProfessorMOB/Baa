@@ -38,14 +38,13 @@ Functions are declared using the `دالة` keyword.
 
 
 ```baa
-// [Implemented] Main function (entry point)
-دالة رئيسية() {
+// [Implementation Pending] Main function (entry point) - Assuming void return if omitted
+فراغ رئيسية() {
     // Function body
 }
 
-// [Implemented] Function with integer parameter and return value
-// Note: Return type syntax `-> type` might need verification against parser implementation.
-دالة مربع(عدد_صحيح س) -> عدد_صحيح {
+// [Implementation Pending] Function with integer parameter and return value
+عدد_صحيح مربع(عدد_صحيح س) {
     إرجع س * س.
 }
 ```
@@ -53,7 +52,7 @@ Functions are declared using the `دالة` keyword.
 ### 1.4 Variable Declaration Example
 
 *(See Section 4.1 for full details)*
-Variables are currently declared using the C-style syntax.
+Variables are declared using the C-style syntax.
 
 ```baa
 // [Implemented] Declare an integer named 'counter'
@@ -61,6 +60,9 @@ Variables are currently declared using the C-style syntax.
 
 // [Implemented] Declare and initialize a float named 'price'
 عدد_حقيقي price = 10.5.
+
+// [Partial] Declare a constant boolean
+ثابت منطقي FLAG = صحيح.
 ```
 
 ### 1.5 Control Flow Example
@@ -114,7 +116,6 @@ Baa supports standard C/C++ style comments:
   هذا تعليق
   متعدد الأسطر.
 */
-// # نمط التعليق القديم. (تمت إزالته، المعالج المسبق يتعامل مع #)
 ```
 
 ### 2.2 Identifiers
@@ -259,7 +260,7 @@ Variables store values that can potentially change.
 
 *   **Syntax:** `type identifier ('=' initializer_expression)? '.'` - *[Implemented]*
 *   **Initialization:** Optional. If omitted, default value depends on scope (e.g., zero/null for globals/static, potentially uninitialized for locals - *needs clarification*).
-*   **Constants:** Use the `ثابت` keyword before the type to declare a constant whose value cannot be changed after initialization. `ثابت type identifier = initializer_expression '.'` - *[Partial - Keyword parsed, semantic enforcement needed]*.
+*   **Constants:** Use the `ثابت` keyword before the type to declare a constant whose value cannot be changed after initialization. Constants *must* be initialized. `ثابت type identifier = initializer_expression '.'` - *[Partial - Keyword parsed, semantic enforcement needed]*.
 
 ```baa
 عدد_صحيح counter.             // Variable, likely default initialized
@@ -269,25 +270,25 @@ Variables store values that can potentially change.
 // FLAG = خطأ.                // Error: Cannot assign to constant
 ```
 
-*   **Planned:** `متغير` keyword for alternative declaration styles (see Section 1.4 example).
+*   **Removed:** The `متغير` keyword is no longer planned for variable declarations.
 
 ### 4.2 Function Declarations
 
 Functions define reusable blocks of code.
 
-*   **Syntax:** `دالة identifier '(' parameter_list? ')' ('->' return_type)? '{' statement* '}'` - *[Implemented]*
+*   **Syntax:** `return_type? identifier '(' parameter_list? ')' '{' statement* '}'` - *[Implementation Pending]*
+*   **Return Type:** Specified *before* the function identifier. If omitted, defaults to `فراغ` (void).
 *   **Parameters (`parameter_list`):** Comma-separated list of `type identifier`. `( )` for no parameters.
-*   **Return Type:** Specified after `->`. If omitted, defaults to `فراغ` (void). Functions returning non-void *must* use `إرجع` with a compatible value on all execution paths. *(Flow analysis check is partial)*.
-*   **Entry Point:** The program must contain a function named `رئيسية` with no parameters and typically returning `عدد_صحيح`. `دالة رئيسية() -> عدد_صحيح { ... إرجع 0. }`
+*   **Entry Point:** The program must contain a function named `رئيسية` with no parameters and typically returning `عدد_صحيح`. `عدد_صحيح رئيسية() { ... إرجع 0. }`
 
 ```baa
 // Function with no parameters, implicit void return
-دالة print_hello() {
+فراغ print_hello() {
     اطبع("مرحبا!").
 }
 
 // Function with parameters and explicit return type
-دالة add(عدد_صحيح a, عدد_صحيح b) -> عدد_صحيح {
+عدد_صحيح أضف(عدد_صحيح a, عدد_صحيح b) {
     إرجع a + b.
 }
 ```
@@ -479,12 +480,12 @@ Baa uses lexical scoping, similar to C. The scope determines the visibility of i
 
 ### 8.1 Basic Program Structure
 
-Every executable program must have a main function (`دالة رئيسية`) which serves as the entry point.
+Every executable program must have a main function (`رئيسية`) which serves as the entry point.
 
 ```baa
 // مثال برنامج بسيط بلغة باء
-دالة رئيسية() -> عدد_صحيح {
-    اطبع("مرحباً بالعالم!\").
+عدد_صحيح رئيسية() {
+    اطبع("مرحباً بالعالم!").
     إرجع 0. // Conventionally return 0 on success
 }
 ```

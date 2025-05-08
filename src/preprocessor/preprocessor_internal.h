@@ -116,6 +116,7 @@ typedef struct
     BaaPreprocessor *pp_state; // Now points to the struct, not the typedef
     const char *abs_path;
     wchar_t **error_message;
+    size_t current_token_start_column; // Column where the current token started
 } PpExprTokenizer;
 
 // --- Function Declarations (Internal Interface) ---

@@ -101,22 +101,64 @@ wchar_t *process_file(BaaPreprocessor *pp_state, const char *file_path, wchar_t 
             break;
         }
 
+        fwprintf(stderr, L"DEBUG: Processing line %zu: [%ls]\n", pp_state->current_line_number, current_line); // DEBUG PRINT
+
         // Reset physical column for the start of the line
         pp_state->current_column_number = 1;
 
-        // Check for directives
-        if (current_line[0] == L'#')
+        // --- Skip Comments FIRST ---
+        wchar_t *effective_line_start = current_line;
+        while (iswspace(*effective_line_start))
+        { // Skip leading whitespace on the line
+            effective_line_start++;
+            pp_state->current_column_number++;
+        }
+
+        if (wcsncmp(effective_line_start, L"//", 2) == 0)
         {
-            // Trim leading whitespace after '#' for easier comparison
-            wchar_t *directive_start = current_line + 1;
-            pp_state->current_column_number = 2; // Start after '#'
-            while (iswspace(*directive_start))
+            fwprintf(stderr, L"DEBUG: Skipping comment line %zu\n", pp_state->current_line_number); // DEBUG PRINT
+            // Single-line comment, skip the rest of the line processing
+            free(current_line); // Free the duplicated line
+            // Advance to next line in the main loop
+            if (line_end != NULL)
             {
-                directive_start++;
-                pp_state->current_column_number++;
+                line_start = line_end + 1;
+                pp_state->current_line_number++;
             }
+            else
+            {
+                break; // End of file
+            }
+            continue; // Go to next iteration of the while loop
+        }
+        // TODO: Add handling for multi-line comments /* */ which might span lines.
+        // This requires more state tracking across loop iterations.
+        // For now, focusing on the single-line comment issue.
+
+        // Check for directives (use effective_line_start which has whitespace skipped)
+        if (effective_line_start[0] == L'#')
+        {
+            fwprintf(stderr, L"DEBUG: Processing directive line %zu: [%ls]\n", pp_state->current_line_number, effective_line_start); // DEBUG PRINT
+            // Trim leading whitespace after '#' is already handled by effective_line_start logic
+            // Adjust directive_start based on effective_line_start
+            wchar_t *directive_start = effective_line_start + 1;
+            // pp_state->current_column_number is already past leading whitespace + '#'
 
             // Define directive keywords and lengths
+            // REMOVED Redundant definition: wchar_t *directive_start = current_line + 1;
+            // Reset column tracking based on the actual start of the directive keyword
+            pp_state->current_column_number = (directive_start - current_line) + 1;
+
+            // No need to skip whitespace again, effective_line_start already handled it.
+            // while (iswspace(*directive_start)) { ... } // REMOVED
+
+            // Define directive keywords and lengths
+            // REMOVED Stray lines:
+            //     directive_start++;
+            //     pp_state->current_column_number++;
+            // } // REMOVED Stray closing brace
+
+            // Define directive keywords and lengths (This block should be inside the '#' check)
             const wchar_t *include_directive = L"تضمين";
             size_t include_directive_len = wcslen(include_directive);
             const wchar_t *define_directive = L"تعريف";
@@ -148,7 +190,31 @@ wchar_t *process_file(BaaPreprocessor *pp_state, const char *file_path, wchar_t 
                 while (iswspace(*expr_start))
                     expr_start++;
 
-                if (*expr_start == L'\0')
+                // Find end of expression (before potential comment)
+                wchar_t *expr_end = expr_start;
+                wchar_t *comment_start = NULL;
+                while (*expr_end != L'\0')
+                {
+                    if (wcsncmp(expr_end, L"//", 2) == 0)
+                    {
+                        comment_start = expr_end;
+                        break;
+                    }
+                    expr_end++;
+                }
+                // Trim trailing whitespace from expression before comment
+                if (comment_start)
+                {
+                    expr_end = comment_start; // Point to start of comment
+                }
+                while (expr_end > expr_start && iswspace(*(expr_end - 1)))
+                {
+                    expr_end--;
+                }
+                size_t expr_len = expr_end - expr_start;
+                wchar_t *expression_only = wcsndup_internal(expr_start, expr_len); // Duplicate only the expression part
+
+                if (!expression_only || expr_len == 0) // Check if expression is empty after stripping comment/whitespace
                 {
                     *error_message = format_preprocessor_error_at_location(&directive_loc, L"تنسيق #إذا غير صالح: التعبير مفقود.");
                     success = false;
@@ -157,9 +223,9 @@ wchar_t *process_file(BaaPreprocessor *pp_state, const char *file_path, wchar_t 
                 {
                     bool expr_value = false;
                     // Pass directive_loc for potential errors during evaluation
-                    if (!evaluate_preprocessor_expression(pp_state, expr_start, &expr_value, error_message, abs_path))
+                    if (!evaluate_preprocessor_expression(pp_state, expression_only, &expr_value, error_message, abs_path)) // Use expression_only
                     {
-                        if (!*error_message)
+                        if (!*error_message) // Check if evaluator set a specific error
                             *error_message = format_preprocessor_error_at_location(&directive_loc, L"خطأ في تقييم تعبير #إذا.");
                         success = false;
                     }
@@ -171,6 +237,7 @@ wchar_t *process_file(BaaPreprocessor *pp_state, const char *file_path, wchar_t 
                             success = false;
                         }
                     }
+                    free(expression_only); // Free the duplicated expression string
                 }
             }
             else if (wcsncmp(directive_start, ifdef_directive, ifdef_directive_len) == 0 &&
@@ -710,6 +777,7 @@ wchar_t *process_file(BaaPreprocessor *pp_state, const char *file_path, wchar_t 
         }
         else if (!pp_state->skipping_lines)
         {
+            fwprintf(stderr, L"DEBUG: Processing code line %zu: [%ls]\n", pp_state->current_line_number, current_line); // DEBUG PRINT
             // Not a directive AND not skipping: process line for macro substitution
             DynamicWcharBuffer substituted_line_buffer;
             if (!init_dynamic_buffer(&substituted_line_buffer, line_len + 128))
@@ -745,10 +813,11 @@ wchar_t *process_file(BaaPreprocessor *pp_state, const char *file_path, wchar_t 
                         }
 
                         // Check for predefined dynamic macros first
-                        if (wcscmp(identifier, L"__الملف__") == 0) {
+                        if (wcscmp(identifier, L"__الملف__") == 0)
+                        {
                             wchar_t quoted_file_path[MAX_PATH_LEN + 3]; // For quotes, path, and null
                             PpSourceLocation current_original_loc = get_current_original_location(pp_state);
-                            const char* original_file_path = current_original_loc.file_path ? current_original_loc.file_path : "unknown_file";
+                            const char *original_file_path = current_original_loc.file_path ? current_original_loc.file_path : "unknown_file";
 
                             // Convert char* path to wchar_t* for swprintf
                             wchar_t w_current_physical_path[MAX_PATH_LEN];
@@ -757,172 +826,184 @@ wchar_t *process_file(BaaPreprocessor *pp_state, const char *file_path, wchar_t 
                             // Escape backslashes in the path for the string literal
                             wchar_t escaped_path[MAX_PATH_LEN * 2]; // Worst case: all backslashes
                             wchar_t *ep = escaped_path;
-                            for (const wchar_t *p = w_current_physical_path; *p; ++p) {
-                                if (*p == L'\\') {
+                            for (const wchar_t *p = w_current_physical_path; *p; ++p)
+                            {
+                                if (*p == L'\\')
+                                {
                                     *ep++ = L'\\';
                                 }
                                 *ep++ = *p;
                             }
                             *ep = L'\0';
 
-                            swprintf(quoted_file_path, sizeof(quoted_file_path)/sizeof(wchar_t), L"\"%ls\"", escaped_path);
-                            if (!append_to_dynamic_buffer(&substituted_line_buffer, quoted_file_path)) {
+                            swprintf(quoted_file_path, sizeof(quoted_file_path) / sizeof(wchar_t), L"\"%ls\"", escaped_path);
+                            if (!append_to_dynamic_buffer(&substituted_line_buffer, quoted_file_path))
+                            {
                                 success = false;
                             }
                             free(identifier); // Free the parsed identifier
-                        } else if (wcscmp(identifier, L"__السطر__") == 0) {
+                        }
+                        else if (wcscmp(identifier, L"__السطر__") == 0)
+                        {
                             wchar_t line_str[20]; // Buffer for line number string
                             // Use the current physical line number being processed in the current file buffer
-                            swprintf(line_str, sizeof(line_str)/sizeof(wchar_t), L"\"%zu\"", pp_state->current_line_number);
-                            if (!append_to_dynamic_buffer(&substituted_line_buffer, line_str)) {
+                            swprintf(line_str, sizeof(line_str) / sizeof(wchar_t), L"\"%zu\"", pp_state->current_line_number);
+                            if (!append_to_dynamic_buffer(&substituted_line_buffer, line_str))
+                            {
                                 success = false;
                             }
                             free(identifier); // Free the parsed identifier
-                        } else {
+                        }
+                        else
+                        {
                             // Not a predefined dynamic macro, proceed with normal macro lookup
                             const BaaMacro *macro = find_macro(pp_state, identifier);
                             if (macro && !is_macro_expanding(pp_state, macro))
                             {
                                 // --- Push macro invocation location ---
-                            PpSourceLocation invocation_loc = {.file_path = pp_state->current_file_path, .line = pp_state->current_line_number, .column = id_start_col};
-                            if (!push_location(pp_state, &invocation_loc))
-                            {
-                                *error_message = format_preprocessor_error_at_location(&invocation_loc, L"فشل في دفع موقع استدعاء الماكرو (نفاد الذاكرة؟).");
-                                success = false;
-                                free(identifier);
-                                break;
-                            }
-
-                            // --- Push macro onto expansion stack ---
-                            if (!push_macro_expansion(pp_state, macro))
-                            {
-                                *error_message = format_preprocessor_error_at_location(&invocation_loc, L"فشل في دفع الماكرو '%ls' إلى مكدس التوسيع (نفاد الذاكرة؟).", macro->name);
-                                pop_location(pp_state); // Pop location if expansion push fails
-                                success = false;
-                                free(identifier);
-                                break;
-                            }
-
-                            bool expansion_success = true;
-                            if (macro->is_function_like)
-                            {
-                                const wchar_t *invocation_ptr = line_ptr;
-                                size_t col_before_args = pp_state->current_column_number; // Track column before skipping space
-                                while (iswspace(*invocation_ptr))
+                                PpSourceLocation invocation_loc = {.file_path = pp_state->current_file_path, .line = pp_state->current_line_number, .column = id_start_col};
+                                if (!push_location(pp_state, &invocation_loc))
                                 {
-                                    invocation_ptr++;
-                                    pp_state->current_column_number++;
+                                    *error_message = format_preprocessor_error_at_location(&invocation_loc, L"فشل في دفع موقع استدعاء الماكرو (نفاد الذاكرة؟).");
+                                    success = false;
+                                    free(identifier);
+                                    break;
                                 }
 
-                                if (*invocation_ptr == L'(')
+                                // --- Push macro onto expansion stack ---
+                                if (!push_macro_expansion(pp_state, macro))
                                 {
-                                    invocation_ptr++;
-                                    pp_state->current_column_number++; // Consume '('
-                                    size_t actual_arg_count = 0;
-                                    wchar_t **arguments = parse_macro_arguments(pp_state, &invocation_ptr, macro->param_count, &actual_arg_count, error_message);
-                                    if (!arguments)
+                                    *error_message = format_preprocessor_error_at_location(&invocation_loc, L"فشل في دفع الماكرو '%ls' إلى مكدس التوسيع (نفاد الذاكرة؟).", macro->name);
+                                    pop_location(pp_state); // Pop location if expansion push fails
+                                    success = false;
+                                    free(identifier);
+                                    break;
+                                }
+
+                                bool expansion_success = true;
+                                if (macro->is_function_like)
+                                {
+                                    const wchar_t *invocation_ptr = line_ptr;
+                                    size_t col_before_args = pp_state->current_column_number; // Track column before skipping space
+                                    while (iswspace(*invocation_ptr))
                                     {
-                                        expansion_success = false;
-                                    } // Error set by parser
-                                    else
+                                        invocation_ptr++;
+                                        pp_state->current_column_number++;
+                                    }
+
+                                    if (*invocation_ptr == L'(')
                                     {
-                                        if (actual_arg_count != macro->param_count)
+                                        invocation_ptr++;
+                                        pp_state->current_column_number++; // Consume '('
+                                        size_t actual_arg_count = 0;
+                                        wchar_t **arguments = parse_macro_arguments(pp_state, &invocation_ptr, macro->param_count, &actual_arg_count, error_message);
+                                        if (!arguments)
                                         {
-                                            PpSourceLocation current_loc = get_current_original_location(pp_state);
-                                            *error_message = format_preprocessor_error_at_location(&current_loc, L"عدد وسيطات غير صحيح للماكرو '%ls' (متوقع %zu، تم الحصول على %zu).", macro->name, macro->param_count, actual_arg_count);
                                             expansion_success = false;
-                                        }
+                                        } // Error set by parser
                                         else
                                         {
-                                            DynamicWcharBuffer expansion_result_buffer;
-                                            if (!init_dynamic_buffer(&expansion_result_buffer, 128))
+                                            if (actual_arg_count != macro->param_count)
                                             {
                                                 PpSourceLocation current_loc = get_current_original_location(pp_state);
-                                                *error_message = format_preprocessor_error_at_location(&current_loc, L"فشل في تهيئة المخزن المؤقت لنتيجة توسيع الماكرو '%ls'.", macro->name);
+                                                *error_message = format_preprocessor_error_at_location(&current_loc, L"عدد وسيطات غير صحيح للماكرو '%ls' (متوقع %zu، تم الحصول على %zu).", macro->name, macro->param_count, actual_arg_count);
                                                 expansion_success = false;
                                             }
                                             else
                                             {
-                                                if (!substitute_macro_body(pp_state, &expansion_result_buffer, macro, arguments, actual_arg_count, error_message))
+                                                DynamicWcharBuffer expansion_result_buffer;
+                                                if (!init_dynamic_buffer(&expansion_result_buffer, 128))
                                                 {
+                                                    PpSourceLocation current_loc = get_current_original_location(pp_state);
+                                                    *error_message = format_preprocessor_error_at_location(&current_loc, L"فشل في تهيئة المخزن المؤقت لنتيجة توسيع الماكرو '%ls'.", macro->name);
                                                     expansion_success = false;
-                                                } // Error set by substitute
+                                                }
                                                 else
                                                 {
-                                                    // TODO: Rescan expansion_result_buffer
-                                                    if (!append_to_dynamic_buffer(&substituted_line_buffer, expansion_result_buffer.buffer))
+                                                    if (!substitute_macro_body(pp_state, &expansion_result_buffer, macro, arguments, actual_arg_count, error_message))
                                                     {
                                                         expansion_success = false;
+                                                    } // Error set by substitute
+                                                    else
+                                                    {
+                                                        // TODO: Rescan expansion_result_buffer
+                                                        if (!append_to_dynamic_buffer(&substituted_line_buffer, expansion_result_buffer.buffer))
+                                                        {
+                                                            expansion_success = false;
+                                                        }
                                                     }
+                                                    free_dynamic_buffer(&expansion_result_buffer);
                                                 }
-                                                free_dynamic_buffer(&expansion_result_buffer);
                                             }
+                                            for (size_t i = 0; i < actual_arg_count; ++i)
+                                                free(arguments[i]);
+                                            free(arguments);
                                         }
-                                        for (size_t i = 0; i < actual_arg_count; ++i)
-                                            free(arguments[i]);
-                                        free(arguments);
+                                        line_ptr = invocation_ptr; // Update main pointer
                                     }
-                                    line_ptr = invocation_ptr; // Update main pointer
-                                }
-                                else
-                                {
-                                    // Not followed by '(', treat as normal identifier
-                                    pp_state->current_column_number = col_before_args; // Reset column if no args parsed
-                                    if (!append_dynamic_buffer_n(&substituted_line_buffer, id_start, id_len))
-                                        expansion_success = false;
-                                    // Physical column already updated by initial scan
-                                }
-                            }
-                            else
-                            { // Object-like macro
-                                // This is part of the original 'if (macro && !is_macro_expanding(pp_state, macro))' block
-                                DynamicWcharBuffer expansion_result_buffer;
-                                if (!init_dynamic_buffer(&expansion_result_buffer, 128))
-                                {
-                                    PpSourceLocation current_loc = get_current_original_location(pp_state);
-                                    *error_message = format_preprocessor_error_at_location(&current_loc, L"فشل في تهيئة المخزن المؤقت لنتيجة توسيع الماكرو '%ls'.", macro->name);
-                                    expansion_success = false;
-                                }
-                                else
-                                {
-                                    if (!substitute_macro_body(pp_state, &expansion_result_buffer, macro, NULL, 0, error_message))
-                                    {
-                                        expansion_success = false;
-                                    } // Error set by substitute
                                     else
                                     {
-                                        // TODO: Rescan expansion_result_buffer
-                                        if (!append_to_dynamic_buffer(&substituted_line_buffer, expansion_result_buffer.buffer))
+                                        // Not followed by '(', treat as normal identifier
+                                        pp_state->current_column_number = col_before_args; // Reset column if no args parsed
+                                        if (!append_dynamic_buffer_n(&substituted_line_buffer, id_start, id_len))
+                                            expansion_success = false;
+                                        // Physical column already updated by initial scan
+                                    }
+                                }
+                                else
+                                { // Object-like macro
+                                    // This is part of the original 'if (macro && !is_macro_expanding(pp_state, macro))' block
+                                    DynamicWcharBuffer expansion_result_buffer;
+                                    if (!init_dynamic_buffer(&expansion_result_buffer, 128))
+                                    {
+                                        PpSourceLocation current_loc = get_current_original_location(pp_state);
+                                        *error_message = format_preprocessor_error_at_location(&current_loc, L"فشل في تهيئة المخزن المؤقت لنتيجة توسيع الماكرو '%ls'.", macro->name);
+                                        expansion_success = false;
+                                    }
+                                    else
+                                    {
+                                        if (!substitute_macro_body(pp_state, &expansion_result_buffer, macro, NULL, 0, error_message))
                                         {
                                             expansion_success = false;
+                                        } // Error set by substitute
+                                        else
+                                        {
+                                            // TODO: Rescan expansion_result_buffer
+                                            if (!append_to_dynamic_buffer(&substituted_line_buffer, expansion_result_buffer.buffer))
+                                            {
+                                                expansion_success = false;
+                                            }
                                         }
+                                        free_dynamic_buffer(&expansion_result_buffer);
                                     }
-                                    free_dynamic_buffer(&expansion_result_buffer);
                                 }
-                            }
 
-                            // --- Pop macro from expansion stack ---
-                            pop_macro_expansion(pp_state);
-                            // --- Pop location stack ---
-                            pop_location(pp_state);
+                                // --- Pop macro from expansion stack ---
+                                pop_macro_expansion(pp_state);
+                                // --- Pop location stack ---
+                                pop_location(pp_state);
 
-                            if (!expansion_success)
-                            {
-                                success = false;
+                                if (!expansion_success)
+                                {
+                                    success = false;
+                                }
+                                // End of 'if (macro && !is_macro_expanding(pp_state, macro))'
                             }
-                           // End of 'if (macro && !is_macro_expanding(pp_state, macro))'
-                           } else if (macro) { // This 'else if' pairs with 'if (macro && !is_macro_expanding)'
+                            else if (macro)
+                            { // This 'else if' pairs with 'if (macro && !is_macro_expanding)'
                                 // Recursive expansion
                                 PpSourceLocation current_loc = get_current_original_location(pp_state);
                                 *error_message = format_preprocessor_error_at_location(&current_loc, L"تم اكتشاف استدعاء ذاتي للماكرو '%ls'.", macro->name);
                                 success = false;
-                           } else { // This 'else' pairs with 'if (macro && !is_macro_expanding)'
+                            }
+                            else
+                            { // This 'else' pairs with 'if (macro && !is_macro_expanding)'
                                 // Not a macro (and not __الملف__ or __السطر__)
                                 if (!append_dynamic_buffer_n(&substituted_line_buffer, id_start, id_len))
                                     success = false;
                                 // Physical column already updated by initial scan
-                           }
-                           free(identifier); // Free the parsed identifier here, after all checks
+                            }
+                            free(identifier); // Free the parsed identifier here, after all checks
                         } // End of 'else' for predefined dynamic macros check
                     }
                     else
@@ -994,7 +1075,6 @@ wchar_t *process_file(BaaPreprocessor *pp_state, const char *file_path, wchar_t 
     return output_buffer.buffer;
 }
 
-
 // Processes a string directly, handling directives and macros.
 // Returns a dynamically allocated string with processed content (caller frees), or NULL on error.
 // NOTE: This function is very similar to process_file, but operates on an existing string.
@@ -1004,7 +1084,7 @@ wchar_t *process_file(BaaPreprocessor *pp_state, const char *file_path, wchar_t 
 // but the primary source string cannot include files itself.
 wchar_t *process_string(BaaPreprocessor *pp_state, const wchar_t *source_string, wchar_t **error_message)
 {
-     *error_message = NULL;
+    *error_message = NULL;
 
     // Store previous context for restoration (though less critical for string input)
     const char *prev_file_path = pp_state->current_file_path;
@@ -1013,8 +1093,8 @@ wchar_t *process_string(BaaPreprocessor *pp_state, const wchar_t *source_string,
     // Set current context for this string (using the name provided in BaaPpSource)
     // The file_path field in the location stack will hold the source_name (e.g., "<string>")
     pp_state->current_file_path = get_current_original_location(pp_state).file_path;
-    pp_state->current_line_number = 1;      // Start at line 1
-    pp_state->current_column_number = 1;    // Start at column 1
+    pp_state->current_line_number = 1;   // Start at line 1
+    pp_state->current_column_number = 1; // Start at column 1
 
     // No file stack push/pop needed for string input.
     // No file reading needed.
@@ -1032,7 +1112,7 @@ wchar_t *process_string(BaaPreprocessor *pp_state, const wchar_t *source_string,
     }
 
     // 3. Process Lines and Directives (Logic largely copied from process_file)
-    wchar_t *line_start = (wchar_t*)source_string; // Cast needed as source_string is const
+    wchar_t *line_start = (wchar_t *)source_string; // Cast needed as source_string is const
     wchar_t *line_end;
     bool success = true;
 
@@ -1064,17 +1144,46 @@ wchar_t *process_string(BaaPreprocessor *pp_state, const wchar_t *source_string,
 
         pp_state->current_column_number = 1;
 
-        if (current_line[0] == L'#')
-        {
-            wchar_t *directive_start = current_line + 1;
-            pp_state->current_column_number = 2;
-            while (iswspace(*directive_start))
-            {
-                directive_start++;
-                pp_state->current_column_number++;
-            }
+        // --- Skip Comments FIRST ---
+        wchar_t *effective_line_start = current_line;
+        while (iswspace(*effective_line_start))
+        { // Skip leading whitespace
+            effective_line_start++;
+            pp_state->current_column_number++;
+        }
 
-            const wchar_t *include_directive = L"تضمين";
+        if (wcsncmp(effective_line_start, L"//", 2) == 0)
+        {
+            // Single-line comment, skip line processing
+            free(current_line);
+            if (line_end != NULL)
+            {
+                line_start = line_end + 1;
+                pp_state->current_line_number++;
+            }
+            else
+            {
+                break; // End of string
+            }
+            continue; // Next line
+        }
+        // TODO: Add multi-line comment handling for strings too
+
+        // Check for directives (use effective_line_start)
+        if (effective_line_start[0] == L'#')
+        {
+            wchar_t *directive_start = effective_line_start + 1;
+            // Reset column tracking based on the actual start of the directive keyword
+            pp_state->current_column_number = (directive_start - current_line) + 1;
+
+            // No need to skip whitespace again
+            // while (iswspace(*directive_start)) { ... } // REMOVED
+            // REMOVED Stray lines:
+            //     directive_start++;
+            //     pp_state->current_column_number++;
+            // } // REMOVED Stray closing brace
+
+            const wchar_t *include_directive = L"تضمين"; // This block should be inside the '#' check
             size_t include_directive_len = wcslen(include_directive);
             // ... (rest of directive definitions copied from process_file) ...
             const wchar_t *define_directive = L"تعريف";
@@ -1094,28 +1203,38 @@ wchar_t *process_string(BaaPreprocessor *pp_state, const wchar_t *source_string,
             const wchar_t *if_directive = L"إذا";
             size_t if_directive_len = wcslen(if_directive);
 
-
             bool is_conditional_directive = false;
             PpSourceLocation directive_loc = get_current_original_location(pp_state);
 
             // --- Process Conditional Directives FIRST --- (Copied from process_file)
-             if (wcsncmp(directive_start, if_directive, if_directive_len) == 0 &&
+            if (wcsncmp(directive_start, if_directive, if_directive_len) == 0 &&
                 (directive_start[if_directive_len] == L'\0' || iswspace(directive_start[if_directive_len])))
             {
                 is_conditional_directive = true;
                 wchar_t *expr_start = directive_start + if_directive_len;
-                while (iswspace(*expr_start)) expr_start++;
-                if (*expr_start == L'\0') {
-                    *error_message = format_preprocessor_error_at_location(&directive_loc, L"تنسيق #إذا غير صالح: التعبير مفقود."); success = false;
-                } else {
+                while (iswspace(*expr_start))
+                    expr_start++;
+                if (*expr_start == L'\0')
+                {
+                    *error_message = format_preprocessor_error_at_location(&directive_loc, L"تنسيق #إذا غير صالح: التعبير مفقود.");
+                    success = false;
+                }
+                else
+                {
                     bool expr_value = false;
                     // NOTE: Passing NULL for abs_path as it's not relevant for string input evaluation context
-                    if (!evaluate_preprocessor_expression(pp_state, expr_start, &expr_value, error_message, NULL)) {
-                        if (!*error_message) *error_message = format_preprocessor_error_at_location(&directive_loc, L"خطأ في تقييم تعبير #إذا.");
+                    if (!evaluate_preprocessor_expression(pp_state, expr_start, &expr_value, error_message, NULL))
+                    {
+                        if (!*error_message)
+                            *error_message = format_preprocessor_error_at_location(&directive_loc, L"خطأ في تقييم تعبير #إذا.");
                         success = false;
-                    } else {
-                        if (!push_conditional(pp_state, expr_value)) {
-                            *error_message = format_preprocessor_error_at_location(&directive_loc, L"فشل في دفع الحالة الشرطية لـ #إذا (نفاد الذاكرة؟)."); success = false;
+                    }
+                    else
+                    {
+                        if (!push_conditional(pp_state, expr_value))
+                        {
+                            *error_message = format_preprocessor_error_at_location(&directive_loc, L"فشل في دفع الحالة الشرطية لـ #إذا (نفاد الذاكرة؟).");
+                            success = false;
                         }
                     }
                 }
@@ -1123,109 +1242,161 @@ wchar_t *process_string(BaaPreprocessor *pp_state, const wchar_t *source_string,
             else if (wcsncmp(directive_start, ifdef_directive, ifdef_directive_len) == 0 &&
                      (directive_start[ifdef_directive_len] == L'\0' || iswspace(directive_start[ifdef_directive_len])))
             {
-                 is_conditional_directive = true;
-                 wchar_t *name_start = directive_start + ifdef_directive_len;
-                 while (iswspace(*name_start)) name_start++;
-                 wchar_t *name_end = name_start;
-                 while (*name_end != L'\0' && !iswspace(*name_end)) name_end++;
-                 if (name_start == name_end) {
-                     *error_message = format_preprocessor_error_at_location(&directive_loc, L"تنسيق #إذا_عرف غير صالح: اسم الماكرو مفقود."); success = false;
-                 } else {
-                     size_t name_len = name_end - name_start;
-                     wchar_t *macro_name = wcsndup_internal(name_start, name_len);
-                     if (!macro_name) {
-                         *error_message = format_preprocessor_error_at_location(&directive_loc, L"فشل في تخصيص ذاكرة لاسم الماكرو في #إذا_عرف."); success = false;
-                     } else {
-                         bool is_defined = (find_macro(pp_state, macro_name) != NULL);
-                         if (!push_conditional(pp_state, is_defined)) {
-                             *error_message = format_preprocessor_error_at_location(&directive_loc, L"فشل في دفع الحالة الشرطية لـ #إذا_عرف (نفاد الذاكرة؟)."); success = false;
-                         }
-                         free(macro_name);
-                     }
-                 }
+                is_conditional_directive = true;
+                wchar_t *name_start = directive_start + ifdef_directive_len;
+                while (iswspace(*name_start))
+                    name_start++;
+                wchar_t *name_end = name_start;
+                while (*name_end != L'\0' && !iswspace(*name_end))
+                    name_end++;
+                if (name_start == name_end)
+                {
+                    *error_message = format_preprocessor_error_at_location(&directive_loc, L"تنسيق #إذا_عرف غير صالح: اسم الماكرو مفقود.");
+                    success = false;
+                }
+                else
+                {
+                    size_t name_len = name_end - name_start;
+                    wchar_t *macro_name = wcsndup_internal(name_start, name_len);
+                    if (!macro_name)
+                    {
+                        *error_message = format_preprocessor_error_at_location(&directive_loc, L"فشل في تخصيص ذاكرة لاسم الماكرو في #إذا_عرف.");
+                        success = false;
+                    }
+                    else
+                    {
+                        bool is_defined = (find_macro(pp_state, macro_name) != NULL);
+                        if (!push_conditional(pp_state, is_defined))
+                        {
+                            *error_message = format_preprocessor_error_at_location(&directive_loc, L"فشل في دفع الحالة الشرطية لـ #إذا_عرف (نفاد الذاكرة؟).");
+                            success = false;
+                        }
+                        free(macro_name);
+                    }
+                }
             }
-             else if (wcsncmp(directive_start, ifndef_directive, ifndef_directive_len) == 0 &&
+            else if (wcsncmp(directive_start, ifndef_directive, ifndef_directive_len) == 0 &&
                      (directive_start[ifndef_directive_len] == L'\0' || iswspace(directive_start[ifndef_directive_len])))
             {
-                 is_conditional_directive = true;
-                 wchar_t *name_start = directive_start + ifndef_directive_len;
-                 while (iswspace(*name_start)) name_start++;
-                 wchar_t *name_end = name_start;
-                 while (*name_end != L'\0' && !iswspace(*name_end)) name_end++;
-                 if (name_start == name_end) {
-                     *error_message = format_preprocessor_error_at_location(&directive_loc, L"تنسيق #إذا_لم_يعرف غير صالح: اسم الماكرو مفقود."); success = false;
-                 } else {
-                     size_t name_len = name_end - name_start;
-                     wchar_t *macro_name = wcsndup_internal(name_start, name_len);
-                     if (!macro_name) {
-                         *error_message = format_preprocessor_error_at_location(&directive_loc, L"فشل في تخصيص ذاكرة لاسم الماكرو في #إذا_لم_يعرف."); success = false;
-                     } else {
-                         bool is_defined = (find_macro(pp_state, macro_name) != NULL);
-                         if (!push_conditional(pp_state, !is_defined)) { // Note the negation
-                             *error_message = format_preprocessor_error_at_location(&directive_loc, L"فشل في دفع الحالة الشرطية لـ #إذا_لم_يعرف (نفاد الذاكرة؟)."); success = false;
-                         }
-                         free(macro_name);
-                     }
-                 }
+                is_conditional_directive = true;
+                wchar_t *name_start = directive_start + ifndef_directive_len;
+                while (iswspace(*name_start))
+                    name_start++;
+                wchar_t *name_end = name_start;
+                while (*name_end != L'\0' && !iswspace(*name_end))
+                    name_end++;
+                if (name_start == name_end)
+                {
+                    *error_message = format_preprocessor_error_at_location(&directive_loc, L"تنسيق #إذا_لم_يعرف غير صالح: اسم الماكرو مفقود.");
+                    success = false;
+                }
+                else
+                {
+                    size_t name_len = name_end - name_start;
+                    wchar_t *macro_name = wcsndup_internal(name_start, name_len);
+                    if (!macro_name)
+                    {
+                        *error_message = format_preprocessor_error_at_location(&directive_loc, L"فشل في تخصيص ذاكرة لاسم الماكرو في #إذا_لم_يعرف.");
+                        success = false;
+                    }
+                    else
+                    {
+                        bool is_defined = (find_macro(pp_state, macro_name) != NULL);
+                        if (!push_conditional(pp_state, !is_defined))
+                        { // Note the negation
+                            *error_message = format_preprocessor_error_at_location(&directive_loc, L"فشل في دفع الحالة الشرطية لـ #إذا_لم_يعرف (نفاد الذاكرة؟).");
+                            success = false;
+                        }
+                        free(macro_name);
+                    }
+                }
             }
             else if (wcsncmp(directive_start, endif_directive, endif_directive_len) == 0 &&
                      (directive_start[endif_directive_len] == L'\0' || iswspace(directive_start[endif_directive_len])))
             {
-                 is_conditional_directive = true;
-                 if (!pop_conditional(pp_state)) {
-                     *error_message = format_preprocessor_error_at_location(&directive_loc, L"#نهاية_إذا بدون #إذا/#إذا_عرف/#إذا_لم_يعرف مطابق."); success = false;
-                 }
+                is_conditional_directive = true;
+                if (!pop_conditional(pp_state))
+                {
+                    *error_message = format_preprocessor_error_at_location(&directive_loc, L"#نهاية_إذا بدون #إذا/#إذا_عرف/#إذا_لم_يعرف مطابق.");
+                    success = false;
+                }
             }
             else if (wcsncmp(directive_start, else_directive, else_directive_len) == 0 &&
                      (directive_start[else_directive_len] == L'\0' || iswspace(directive_start[else_directive_len])))
             {
-                 is_conditional_directive = true;
-                 if (pp_state->conditional_stack_count == 0) {
-                     *error_message = format_preprocessor_error_at_location(&directive_loc, L"#إلا بدون #إذا/#إذا_عرف/#إذا_لم_يعرف مطابق."); success = false;
-                 } else {
-                     size_t top_index = pp_state->conditional_stack_count - 1;
-                     if (pp_state->conditional_branch_taken_stack[top_index]) {
-                         pp_state->conditional_stack[top_index] = false;
-                     } else {
-                         pp_state->conditional_stack[top_index] = true;
-                         pp_state->conditional_branch_taken_stack[top_index] = true;
-                     }
-                     update_skipping_state(pp_state);
-                 }
+                is_conditional_directive = true;
+                if (pp_state->conditional_stack_count == 0)
+                {
+                    *error_message = format_preprocessor_error_at_location(&directive_loc, L"#إلا بدون #إذا/#إذا_عرف/#إذا_لم_يعرف مطابق.");
+                    success = false;
+                }
+                else
+                {
+                    size_t top_index = pp_state->conditional_stack_count - 1;
+                    if (pp_state->conditional_branch_taken_stack[top_index])
+                    {
+                        pp_state->conditional_stack[top_index] = false;
+                    }
+                    else
+                    {
+                        pp_state->conditional_stack[top_index] = true;
+                        pp_state->conditional_branch_taken_stack[top_index] = true;
+                    }
+                    update_skipping_state(pp_state);
+                }
             }
             else if (wcsncmp(directive_start, elif_directive, elif_directive_len) == 0 &&
                      (directive_start[elif_directive_len] == L'\0' || iswspace(directive_start[elif_directive_len])))
             {
-                 is_conditional_directive = true;
-                 if (pp_state->conditional_stack_count == 0) {
-                     *error_message = format_preprocessor_error_at_location(&directive_loc, L"#وإلا_إذا بدون #إذا/#إذا_عرف/#إذا_لم_يعرف مطابق."); success = false;
-                 } else {
-                     size_t top_index = pp_state->conditional_stack_count - 1;
-                     if (pp_state->conditional_branch_taken_stack[top_index]) {
-                         pp_state->conditional_stack[top_index] = false;
-                     } else {
-                         wchar_t *expr_start = directive_start + elif_directive_len;
-                         while (iswspace(*expr_start)) expr_start++;
-                         if (*expr_start == L'\0') {
-                             *error_message = format_preprocessor_error_at_location(&directive_loc, L"تنسيق #وإلا_إذا غير صالح: التعبير مفقود."); success = false;
-                         } else {
-                             bool condition_met = false;
-                             // NOTE: Passing NULL for abs_path
-                             if (!evaluate_preprocessor_expression(pp_state, expr_start, &condition_met, error_message, NULL)) {
-                                 if (!*error_message) *error_message = format_preprocessor_error_at_location(&directive_loc, L"خطأ في تقييم تعبير #وإلا_إذا.");
-                                 success = false;
-                             } else {
-                                 if (condition_met) {
-                                     pp_state->conditional_stack[top_index] = true;
-                                     pp_state->conditional_branch_taken_stack[top_index] = true;
-                                 } else {
-                                     pp_state->conditional_stack[top_index] = false;
-                                 }
-                             }
-                         }
-                     }
-                     update_skipping_state(pp_state);
-                 }
+                is_conditional_directive = true;
+                if (pp_state->conditional_stack_count == 0)
+                {
+                    *error_message = format_preprocessor_error_at_location(&directive_loc, L"#وإلا_إذا بدون #إذا/#إذا_عرف/#إذا_لم_يعرف مطابق.");
+                    success = false;
+                }
+                else
+                {
+                    size_t top_index = pp_state->conditional_stack_count - 1;
+                    if (pp_state->conditional_branch_taken_stack[top_index])
+                    {
+                        pp_state->conditional_stack[top_index] = false;
+                    }
+                    else
+                    {
+                        wchar_t *expr_start = directive_start + elif_directive_len;
+                        while (iswspace(*expr_start))
+                            expr_start++;
+                        if (*expr_start == L'\0')
+                        {
+                            *error_message = format_preprocessor_error_at_location(&directive_loc, L"تنسيق #وإلا_إذا غير صالح: التعبير مفقود.");
+                            success = false;
+                        }
+                        else
+                        {
+                            bool condition_met = false;
+                            // NOTE: Passing NULL for abs_path
+                            if (!evaluate_preprocessor_expression(pp_state, expr_start, &condition_met, error_message, NULL))
+                            {
+                                if (!*error_message)
+                                    *error_message = format_preprocessor_error_at_location(&directive_loc, L"خطأ في تقييم تعبير #وإلا_إذا.");
+                                success = false;
+                            }
+                            else
+                            {
+                                if (condition_met)
+                                {
+                                    pp_state->conditional_stack[top_index] = true;
+                                    pp_state->conditional_branch_taken_stack[top_index] = true;
+                                }
+                                else
+                                {
+                                    pp_state->conditional_stack[top_index] = false;
+                                }
+                            }
+                        }
+                    }
+                    update_skipping_state(pp_state);
+                }
             }
             // --- End Conditional Directives ---
 
@@ -1245,47 +1416,134 @@ wchar_t *process_string(BaaPreprocessor *pp_state, const wchar_t *source_string,
                     // --- #define logic (copied from process_file) ---
                     wchar_t *name_start = directive_start + define_directive_len;
                     pp_state->current_column_number += define_directive_len;
-                    while (iswspace(*name_start)) { name_start++; pp_state->current_column_number++; }
+                    while (iswspace(*name_start))
+                    {
+                        name_start++;
+                        pp_state->current_column_number++;
+                    }
                     wchar_t *name_end = name_start;
-                    while (*name_end != L'\0' && !iswspace(*name_end) && *name_end != L'(') name_end++;
-                    if (name_start == name_end) {
-                        *error_message = format_preprocessor_error_at_location(&directive_loc, L"تنسيق #تعريف غير صالح: اسم الماكرو مفقود."); success = false;
-                    } else {
+                    while (*name_end != L'\0' && !iswspace(*name_end) && *name_end != L'(')
+                        name_end++;
+                    if (name_start == name_end)
+                    {
+                        *error_message = format_preprocessor_error_at_location(&directive_loc, L"تنسيق #تعريف غير صالح: اسم الماكرو مفقود.");
+                        success = false;
+                    }
+                    else
+                    {
                         size_t name_len = name_end - name_start;
                         wchar_t *macro_name = wcsndup_internal(name_start, name_len);
-                        if (!macro_name) {
-                            *error_message = format_preprocessor_error_at_location(&directive_loc, L"فشل في تخصيص ذاكرة لاسم الماكرو في #تعريف."); success = false;
-                        } else {
-                            bool is_function_like = false; size_t param_count = 0; wchar_t **params = NULL; wchar_t *body_start = name_end;
-                            if (*name_end == L'(') {
-                                is_function_like = true; wchar_t *param_ptr = name_end + 1; size_t params_capacity = 0;
-                                while (success) {
-                                    while (iswspace(*param_ptr)) param_ptr++;
-                                    if (*param_ptr == L')') { param_ptr++; break; }
-                                    if (param_count > 0) {
-                                        if (*param_ptr == L',') { param_ptr++; while (iswspace(*param_ptr)) param_ptr++; }
-                                        else { *error_message = format_preprocessor_error_at_location(&directive_loc, L"تنسيق #تعريف غير صالح: متوقع ',' أو ')' بين معاملات الماكرو الوظيفي."); success = false; break; }
+                        if (!macro_name)
+                        {
+                            *error_message = format_preprocessor_error_at_location(&directive_loc, L"فشل في تخصيص ذاكرة لاسم الماكرو في #تعريف.");
+                            success = false;
+                        }
+                        else
+                        {
+                            bool is_function_like = false;
+                            size_t param_count = 0;
+                            wchar_t **params = NULL;
+                            wchar_t *body_start = name_end;
+                            if (*name_end == L'(')
+                            {
+                                is_function_like = true;
+                                wchar_t *param_ptr = name_end + 1;
+                                size_t params_capacity = 0;
+                                while (success)
+                                {
+                                    while (iswspace(*param_ptr))
+                                        param_ptr++;
+                                    if (*param_ptr == L')')
+                                    {
+                                        param_ptr++;
+                                        break;
                                     }
-                                    if (!iswalpha(*param_ptr) && *param_ptr != L'_') { *error_message = format_preprocessor_error_at_location(&directive_loc, L"تنسيق #تعريف غير صالح: متوقع اسم معامل أو ')' بعد '('."); success = false; break; }
-                                    wchar_t *param_name_start = param_ptr; while (iswalnum(*param_ptr) || *param_ptr == L'_') param_ptr++; wchar_t *param_name_end = param_ptr; size_t param_name_len = param_name_end - param_name_start;
-                                    if (param_name_len == 0) { *error_message = format_preprocessor_error_at_location(&directive_loc, L"تنسيق #تعريف غير صالح: اسم معامل فارغ."); success = false; break; }
+                                    if (param_count > 0)
+                                    {
+                                        if (*param_ptr == L',')
+                                        {
+                                            param_ptr++;
+                                            while (iswspace(*param_ptr))
+                                                param_ptr++;
+                                        }
+                                        else
+                                        {
+                                            *error_message = format_preprocessor_error_at_location(&directive_loc, L"تنسيق #تعريف غير صالح: متوقع ',' أو ')' بين معاملات الماكرو الوظيفي.");
+                                            success = false;
+                                            break;
+                                        }
+                                    }
+                                    if (!iswalpha(*param_ptr) && *param_ptr != L'_')
+                                    {
+                                        *error_message = format_preprocessor_error_at_location(&directive_loc, L"تنسيق #تعريف غير صالح: متوقع اسم معامل أو ')' بعد '('.");
+                                        success = false;
+                                        break;
+                                    }
+                                    wchar_t *param_name_start = param_ptr;
+                                    while (iswalnum(*param_ptr) || *param_ptr == L'_')
+                                        param_ptr++;
+                                    wchar_t *param_name_end = param_ptr;
+                                    size_t param_name_len = param_name_end - param_name_start;
+                                    if (param_name_len == 0)
+                                    {
+                                        *error_message = format_preprocessor_error_at_location(&directive_loc, L"تنسيق #تعريف غير صالح: اسم معامل فارغ.");
+                                        success = false;
+                                        break;
+                                    }
                                     wchar_t *param_name = wcsndup_internal(param_name_start, param_name_len);
-                                    if (!param_name) { *error_message = format_preprocessor_error_at_location(&directive_loc, L"فشل في تخصيص ذاكرة لاسم المعامل في #تعريف."); success = false; break; }
-                                    if (param_count >= params_capacity) {
-                                        size_t new_capacity = (params_capacity == 0) ? 4 : params_capacity * 2; wchar_t **new_params = realloc(params, new_capacity * sizeof(wchar_t *));
-                                        if (!new_params) { free(param_name); *error_message = format_preprocessor_error_at_location(&directive_loc, L"فشل في إعادة تخصيص الذاكرة لمعاملات الماكرو في #تعريف."); success = false; break; }
-                                        params = new_params; params_capacity = new_capacity;
+                                    if (!param_name)
+                                    {
+                                        *error_message = format_preprocessor_error_at_location(&directive_loc, L"فشل في تخصيص ذاكرة لاسم المعامل في #تعريف.");
+                                        success = false;
+                                        break;
+                                    }
+                                    if (param_count >= params_capacity)
+                                    {
+                                        size_t new_capacity = (params_capacity == 0) ? 4 : params_capacity * 2;
+                                        wchar_t **new_params = realloc(params, new_capacity * sizeof(wchar_t *));
+                                        if (!new_params)
+                                        {
+                                            free(param_name);
+                                            *error_message = format_preprocessor_error_at_location(&directive_loc, L"فشل في إعادة تخصيص الذاكرة لمعاملات الماكرو في #تعريف.");
+                                            success = false;
+                                            break;
+                                        }
+                                        params = new_params;
+                                        params_capacity = new_capacity;
                                     }
                                     params[param_count++] = param_name;
                                 }
-                                if (success) { body_start = param_ptr; }
-                                else { if (params) { for (size_t i = 0; i < param_count; ++i) free(params[i]); free(params); params = NULL; param_count = 0; } }
+                                if (success)
+                                {
+                                    body_start = param_ptr;
+                                }
+                                else
+                                {
+                                    if (params)
+                                    {
+                                        for (size_t i = 0; i < param_count; ++i)
+                                            free(params[i]);
+                                        free(params);
+                                        params = NULL;
+                                        param_count = 0;
+                                    }
+                                }
                             }
-                            if (success) {
-                                while (iswspace(*body_start)) body_start++;
-                                if (!add_macro(pp_state, macro_name, body_start, is_function_like, param_count, params)) {
-                                    *error_message = format_preprocessor_error_at_location(&directive_loc, L"فشل في إضافة تعريف الماكرو '%ls' (نفاد الذاكرة؟).", macro_name); success = false;
-                                    if (params) { for (size_t i = 0; i < param_count; ++i) free(params[i]); free(params); params = NULL; }
+                            if (success)
+                            {
+                                while (iswspace(*body_start))
+                                    body_start++;
+                                if (!add_macro(pp_state, macro_name, body_start, is_function_like, param_count, params))
+                                {
+                                    *error_message = format_preprocessor_error_at_location(&directive_loc, L"فشل في إضافة تعريف الماكرو '%ls' (نفاد الذاكرة؟).", macro_name);
+                                    success = false;
+                                    if (params)
+                                    {
+                                        for (size_t i = 0; i < param_count; ++i)
+                                            free(params[i]);
+                                        free(params);
+                                        params = NULL;
+                                    }
                                 }
                             }
                             free(macro_name);
@@ -1297,16 +1555,36 @@ wchar_t *process_string(BaaPreprocessor *pp_state, const wchar_t *source_string,
                          (directive_start[undef_directive_len] == L'\0' || iswspace(directive_start[undef_directive_len])))
                 {
                     // --- #undef logic (copied from process_file) ---
-                     wchar_t *name_start = directive_start + undef_directive_len; pp_state->current_column_number += undef_directive_len;
-                     while (iswspace(*name_start)) { name_start++; pp_state->current_column_number++; }
-                     wchar_t *name_end = name_start; while (*name_end != L'\0' && !iswspace(*name_end)) name_end++;
-                     if (name_start == name_end) {
-                         *error_message = format_preprocessor_error_at_location(&directive_loc, L"تنسيق #الغاء_تعريف غير صالح: اسم الماكرو مفقود."); success = false;
-                     } else {
-                         size_t name_len = name_end - name_start; wchar_t *macro_name = wcsndup_internal(name_start, name_len);
-                         if (!macro_name) { *error_message = format_preprocessor_error_at_location(&directive_loc, L"فشل في تخصيص ذاكرة لاسم الماكرو في #الغاء_تعريف."); success = false; }
-                         else { undefine_macro(pp_state, macro_name); free(macro_name); }
-                     }
+                    wchar_t *name_start = directive_start + undef_directive_len;
+                    pp_state->current_column_number += undef_directive_len;
+                    while (iswspace(*name_start))
+                    {
+                        name_start++;
+                        pp_state->current_column_number++;
+                    }
+                    wchar_t *name_end = name_start;
+                    while (*name_end != L'\0' && !iswspace(*name_end))
+                        name_end++;
+                    if (name_start == name_end)
+                    {
+                        *error_message = format_preprocessor_error_at_location(&directive_loc, L"تنسيق #الغاء_تعريف غير صالح: اسم الماكرو مفقود.");
+                        success = false;
+                    }
+                    else
+                    {
+                        size_t name_len = name_end - name_start;
+                        wchar_t *macro_name = wcsndup_internal(name_start, name_len);
+                        if (!macro_name)
+                        {
+                            *error_message = format_preprocessor_error_at_location(&directive_loc, L"فشل في تخصيص ذاكرة لاسم الماكرو في #الغاء_تعريف.");
+                            success = false;
+                        }
+                        else
+                        {
+                            undefine_macro(pp_state, macro_name);
+                            free(macro_name);
+                        }
+                    }
                     // --- End #undef logic ---
                 }
                 else
@@ -1320,93 +1598,248 @@ wchar_t *process_string(BaaPreprocessor *pp_state, const wchar_t *source_string,
         {
             // --- Macro substitution logic (copied from process_file) ---
             DynamicWcharBuffer substituted_line_buffer;
-            if (!init_dynamic_buffer(&substituted_line_buffer, line_len + 128)) {
+            if (!init_dynamic_buffer(&substituted_line_buffer, line_len + 128))
+            {
                 PpSourceLocation error_loc = get_current_original_location(pp_state);
-                *error_message = format_preprocessor_error_at_location(&error_loc, L"فشل في تخصيص الذاكرة لمخزن السطر المؤقت للاستبدال."); success = false;
-            } else {
+                *error_message = format_preprocessor_error_at_location(&error_loc, L"فشل في تخصيص الذاكرة لمخزن السطر المؤقت للاستبدال.");
+                success = false;
+            }
+            else
+            {
                 const wchar_t *line_ptr = current_line;
-                while (*line_ptr != L'\0' && success) {
+                while (*line_ptr != L'\0' && success)
+                {
                     size_t current_char_col = pp_state->current_column_number;
-                    if (iswalpha(*line_ptr) || *line_ptr == L'_') {
-                        const wchar_t *id_start = line_ptr; size_t id_start_col = current_char_col;
-                        while (iswalnum(*line_ptr) || *line_ptr == L'_') { line_ptr++; pp_state->current_column_number++; }
-                        size_t id_len = line_ptr - id_start; wchar_t *identifier = wcsndup_internal(id_start, id_len);
-                        if (!identifier) { PpSourceLocation error_loc = get_current_original_location(pp_state); *error_message = format_preprocessor_error_at_location(&error_loc, L"فشل في تخصيص ذاكرة للمعرف للاستبدال."); success = false; break; }
-                        if (wcscmp(identifier, L"__الملف__") == 0) {
-                            wchar_t quoted_file_path[MAX_PATH_LEN + 3]; PpSourceLocation current_original_loc = get_current_original_location(pp_state); const char* original_file_path = current_original_loc.file_path ? current_original_loc.file_path : "unknown_file";
-                            wchar_t w_current_physical_path[MAX_PATH_LEN]; mbstowcs(w_current_physical_path, original_file_path, MAX_PATH_LEN);
-                            wchar_t escaped_path[MAX_PATH_LEN * 2]; wchar_t *ep = escaped_path; for (const wchar_t *p = w_current_physical_path; *p; ++p) { if (*p == L'\\') { *ep++ = L'\\'; } *ep++ = *p; } *ep = L'\0';
-                            swprintf(quoted_file_path, sizeof(quoted_file_path)/sizeof(wchar_t), L"\"%ls\"", escaped_path);
-                            if (!append_to_dynamic_buffer(&substituted_line_buffer, quoted_file_path)) { success = false; } free(identifier);
-                        } else if (wcscmp(identifier, L"__السطر__") == 0) {
-                            wchar_t line_str[20]; swprintf(line_str, sizeof(line_str)/sizeof(wchar_t), L"\"%zu\"", pp_state->current_line_number);
-                            if (!append_to_dynamic_buffer(&substituted_line_buffer, line_str)) { success = false; } free(identifier);
-                        } else {
+                    if (iswalpha(*line_ptr) || *line_ptr == L'_')
+                    {
+                        const wchar_t *id_start = line_ptr;
+                        size_t id_start_col = current_char_col;
+                        while (iswalnum(*line_ptr) || *line_ptr == L'_')
+                        {
+                            line_ptr++;
+                            pp_state->current_column_number++;
+                        }
+                        size_t id_len = line_ptr - id_start;
+                        wchar_t *identifier = wcsndup_internal(id_start, id_len);
+                        if (!identifier)
+                        {
+                            PpSourceLocation error_loc = get_current_original_location(pp_state);
+                            *error_message = format_preprocessor_error_at_location(&error_loc, L"فشل في تخصيص ذاكرة للمعرف للاستبدال.");
+                            success = false;
+                            break;
+                        }
+                        if (wcscmp(identifier, L"__الملف__") == 0)
+                        {
+                            wchar_t quoted_file_path[MAX_PATH_LEN + 3];
+                            PpSourceLocation current_original_loc = get_current_original_location(pp_state);
+                            const char *original_file_path = current_original_loc.file_path ? current_original_loc.file_path : "unknown_file";
+                            wchar_t w_current_physical_path[MAX_PATH_LEN];
+                            mbstowcs(w_current_physical_path, original_file_path, MAX_PATH_LEN);
+                            wchar_t escaped_path[MAX_PATH_LEN * 2];
+                            wchar_t *ep = escaped_path;
+                            for (const wchar_t *p = w_current_physical_path; *p; ++p)
+                            {
+                                if (*p == L'\\')
+                                {
+                                    *ep++ = L'\\';
+                                }
+                                *ep++ = *p;
+                            }
+                            *ep = L'\0';
+                            swprintf(quoted_file_path, sizeof(quoted_file_path) / sizeof(wchar_t), L"\"%ls\"", escaped_path);
+                            if (!append_to_dynamic_buffer(&substituted_line_buffer, quoted_file_path))
+                            {
+                                success = false;
+                            }
+                            free(identifier);
+                        }
+                        else if (wcscmp(identifier, L"__السطر__") == 0)
+                        {
+                            wchar_t line_str[20];
+                            swprintf(line_str, sizeof(line_str) / sizeof(wchar_t), L"\"%zu\"", pp_state->current_line_number);
+                            if (!append_to_dynamic_buffer(&substituted_line_buffer, line_str))
+                            {
+                                success = false;
+                            }
+                            free(identifier);
+                        }
+                        else
+                        {
                             const BaaMacro *macro = find_macro(pp_state, identifier);
-                            if (macro && !is_macro_expanding(pp_state, macro)) {
+                            if (macro && !is_macro_expanding(pp_state, macro))
+                            {
                                 PpSourceLocation invocation_loc = {.file_path = pp_state->current_file_path, .line = pp_state->current_line_number, .column = id_start_col};
-                                if (!push_location(pp_state, &invocation_loc)) { *error_message = format_preprocessor_error_at_location(&invocation_loc, L"فشل في دفع موقع استدعاء الماكرو (نفاد الذاكرة؟)."); success = false; free(identifier); break; }
-                                if (!push_macro_expansion(pp_state, macro)) { *error_message = format_preprocessor_error_at_location(&invocation_loc, L"فشل في دفع الماكرو '%ls' إلى مكدس التوسيع (نفاد الذاكرة؟).", macro->name); pop_location(pp_state); success = false; free(identifier); break; }
+                                if (!push_location(pp_state, &invocation_loc))
+                                {
+                                    *error_message = format_preprocessor_error_at_location(&invocation_loc, L"فشل في دفع موقع استدعاء الماكرو (نفاد الذاكرة؟).");
+                                    success = false;
+                                    free(identifier);
+                                    break;
+                                }
+                                if (!push_macro_expansion(pp_state, macro))
+                                {
+                                    *error_message = format_preprocessor_error_at_location(&invocation_loc, L"فشل في دفع الماكرو '%ls' إلى مكدس التوسيع (نفاد الذاكرة؟).", macro->name);
+                                    pop_location(pp_state);
+                                    success = false;
+                                    free(identifier);
+                                    break;
+                                }
                                 bool expansion_success = true;
-                                if (macro->is_function_like) {
-                                    const wchar_t *invocation_ptr = line_ptr; size_t col_before_args = pp_state->current_column_number; while (iswspace(*invocation_ptr)) { invocation_ptr++; pp_state->current_column_number++; }
-                                    if (*invocation_ptr == L'(') {
-                                        invocation_ptr++; pp_state->current_column_number++; size_t actual_arg_count = 0; wchar_t **arguments = parse_macro_arguments(pp_state, &invocation_ptr, macro->param_count, &actual_arg_count, error_message);
-                                        if (!arguments) { expansion_success = false; }
-                                        else {
-                                            if (actual_arg_count != macro->param_count) { PpSourceLocation current_loc = get_current_original_location(pp_state); *error_message = format_preprocessor_error_at_location(&current_loc, L"عدد وسيطات غير صحيح للماكرو '%ls' (متوقع %zu، تم الحصول على %zu).", macro->name, macro->param_count, actual_arg_count); expansion_success = false; }
-                                            else {
+                                if (macro->is_function_like)
+                                {
+                                    const wchar_t *invocation_ptr = line_ptr;
+                                    size_t col_before_args = pp_state->current_column_number;
+                                    while (iswspace(*invocation_ptr))
+                                    {
+                                        invocation_ptr++;
+                                        pp_state->current_column_number++;
+                                    }
+                                    if (*invocation_ptr == L'(')
+                                    {
+                                        invocation_ptr++;
+                                        pp_state->current_column_number++;
+                                        size_t actual_arg_count = 0;
+                                        wchar_t **arguments = parse_macro_arguments(pp_state, &invocation_ptr, macro->param_count, &actual_arg_count, error_message);
+                                        if (!arguments)
+                                        {
+                                            expansion_success = false;
+                                        }
+                                        else
+                                        {
+                                            if (actual_arg_count != macro->param_count)
+                                            {
+                                                PpSourceLocation current_loc = get_current_original_location(pp_state);
+                                                *error_message = format_preprocessor_error_at_location(&current_loc, L"عدد وسيطات غير صحيح للماكرو '%ls' (متوقع %zu، تم الحصول على %zu).", macro->name, macro->param_count, actual_arg_count);
+                                                expansion_success = false;
+                                            }
+                                            else
+                                            {
                                                 DynamicWcharBuffer expansion_result_buffer;
-                                                if (!init_dynamic_buffer(&expansion_result_buffer, 128)) { PpSourceLocation current_loc = get_current_original_location(pp_state); *error_message = format_preprocessor_error_at_location(&current_loc, L"فشل في تهيئة المخزن المؤقت لنتيجة توسيع الماكرو '%ls'.", macro->name); expansion_success = false; }
-                                                else {
-                                                    if (!substitute_macro_body(pp_state, &expansion_result_buffer, macro, arguments, actual_arg_count, error_message)) { expansion_success = false; }
-                                                    else { if (!append_to_dynamic_buffer(&substituted_line_buffer, expansion_result_buffer.buffer)) { expansion_success = false; } }
+                                                if (!init_dynamic_buffer(&expansion_result_buffer, 128))
+                                                {
+                                                    PpSourceLocation current_loc = get_current_original_location(pp_state);
+                                                    *error_message = format_preprocessor_error_at_location(&current_loc, L"فشل في تهيئة المخزن المؤقت لنتيجة توسيع الماكرو '%ls'.", macro->name);
+                                                    expansion_success = false;
+                                                }
+                                                else
+                                                {
+                                                    if (!substitute_macro_body(pp_state, &expansion_result_buffer, macro, arguments, actual_arg_count, error_message))
+                                                    {
+                                                        expansion_success = false;
+                                                    }
+                                                    else
+                                                    {
+                                                        if (!append_to_dynamic_buffer(&substituted_line_buffer, expansion_result_buffer.buffer))
+                                                        {
+                                                            expansion_success = false;
+                                                        }
+                                                    }
                                                     free_dynamic_buffer(&expansion_result_buffer);
                                                 }
                                             }
-                                            for (size_t i = 0; i < actual_arg_count; ++i) free(arguments[i]); free(arguments);
+                                            for (size_t i = 0; i < actual_arg_count; ++i)
+                                                free(arguments[i]);
+                                            free(arguments);
                                         }
                                         line_ptr = invocation_ptr;
-                                    } else { pp_state->current_column_number = col_before_args; if (!append_dynamic_buffer_n(&substituted_line_buffer, id_start, id_len)) expansion_success = false; }
-                                } else {
+                                    }
+                                    else
+                                    {
+                                        pp_state->current_column_number = col_before_args;
+                                        if (!append_dynamic_buffer_n(&substituted_line_buffer, id_start, id_len))
+                                            expansion_success = false;
+                                    }
+                                }
+                                else
+                                {
                                     DynamicWcharBuffer expansion_result_buffer;
-                                    if (!init_dynamic_buffer(&expansion_result_buffer, 128)) { PpSourceLocation current_loc = get_current_original_location(pp_state); *error_message = format_preprocessor_error_at_location(&current_loc, L"فشل في تهيئة المخزن المؤقت لنتيجة توسيع الماكرو '%ls'.", macro->name); expansion_success = false; }
-                                    else {
-                                        if (!substitute_macro_body(pp_state, &expansion_result_buffer, macro, NULL, 0, error_message)) { expansion_success = false; }
-                                        else { if (!append_to_dynamic_buffer(&substituted_line_buffer, expansion_result_buffer.buffer)) { expansion_success = false; } }
+                                    if (!init_dynamic_buffer(&expansion_result_buffer, 128))
+                                    {
+                                        PpSourceLocation current_loc = get_current_original_location(pp_state);
+                                        *error_message = format_preprocessor_error_at_location(&current_loc, L"فشل في تهيئة المخزن المؤقت لنتيجة توسيع الماكرو '%ls'.", macro->name);
+                                        expansion_success = false;
+                                    }
+                                    else
+                                    {
+                                        if (!substitute_macro_body(pp_state, &expansion_result_buffer, macro, NULL, 0, error_message))
+                                        {
+                                            expansion_success = false;
+                                        }
+                                        else
+                                        {
+                                            if (!append_to_dynamic_buffer(&substituted_line_buffer, expansion_result_buffer.buffer))
+                                            {
+                                                expansion_success = false;
+                                            }
+                                        }
                                         free_dynamic_buffer(&expansion_result_buffer);
                                     }
                                 }
-                                pop_macro_expansion(pp_state); pop_location(pp_state);
-                                if (!expansion_success) { success = false; }
-                            } else if (macro) { PpSourceLocation current_loc = get_current_original_location(pp_state); *error_message = format_preprocessor_error_at_location(&current_loc, L"تم اكتشاف استدعاء ذاتي للماكرو '%ls'.", macro->name); success = false; }
-                            else { if (!append_dynamic_buffer_n(&substituted_line_buffer, id_start, id_len)) success = false; }
+                                pop_macro_expansion(pp_state);
+                                pop_location(pp_state);
+                                if (!expansion_success)
+                                {
+                                    success = false;
+                                }
+                            }
+                            else if (macro)
+                            {
+                                PpSourceLocation current_loc = get_current_original_location(pp_state);
+                                *error_message = format_preprocessor_error_at_location(&current_loc, L"تم اكتشاف استدعاء ذاتي للماكرو '%ls'.", macro->name);
+                                success = false;
+                            }
+                            else
+                            {
+                                if (!append_dynamic_buffer_n(&substituted_line_buffer, id_start, id_len))
+                                    success = false;
+                            }
                             free(identifier);
                         }
-                    } else { if (!append_dynamic_buffer_n(&substituted_line_buffer, line_ptr, 1)) success = false; line_ptr++; pp_state->current_column_number++; }
+                    }
+                    else
+                    {
+                        if (!append_dynamic_buffer_n(&substituted_line_buffer, line_ptr, 1))
+                            success = false;
+                        line_ptr++;
+                        pp_state->current_column_number++;
+                    }
                 }
-                if (success) { if (!append_to_dynamic_buffer(&output_buffer, substituted_line_buffer.buffer)) success = false; }
+                if (success)
+                {
+                    if (!append_to_dynamic_buffer(&output_buffer, substituted_line_buffer.buffer))
+                        success = false;
+                }
                 free_dynamic_buffer(&substituted_line_buffer);
             }
             // --- End Macro substitution logic ---
 
-            if (success && !append_to_dynamic_buffer(&output_buffer, L"\n")) success = false;
-            if (!success && !*error_message) { PpSourceLocation current_loc = get_current_original_location(pp_state); *error_message = format_preprocessor_error_at_location(&current_loc, L"فشل في إلحاق السطر بمخزن الإخراج المؤقت."); }
+            if (success && !append_to_dynamic_buffer(&output_buffer, L"\n"))
+                success = false;
+            if (!success && !*error_message)
+            {
+                PpSourceLocation current_loc = get_current_original_location(pp_state);
+                *error_message = format_preprocessor_error_at_location(&current_loc, L"فشل في إلحاق السطر بمخزن الإخراج المؤقت.");
+            }
         }
 
         free(current_line);
 
-        if (!success) break;
+        if (!success)
+            break;
 
-        if (line_end != NULL) {
+        if (line_end != NULL)
+        {
             line_start = line_end + 1;
             pp_state->current_line_number++;
-        } else {
+        }
+        else
+        {
             break;
         }
     }
 
-    if (!success) {
+    if (!success)
+    {
         free_dynamic_buffer(&output_buffer);
         // Restore context before returning
         pp_state->current_file_path = prev_file_path;

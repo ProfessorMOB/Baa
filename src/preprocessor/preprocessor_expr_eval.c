@@ -6,7 +6,14 @@
 static PpExprToken make_error_token(PpExprTokenizer* tz, const wchar_t* message) {
     if (tz->error_message && !*tz->error_message) { // Set error only once
         if (tz->pp_state) {
-            PpSourceLocation error_loc = get_current_original_location(tz->pp_state);
+            // Get the original location (file, line) from the stack
+            PpSourceLocation original_loc = get_current_original_location(tz->pp_state);
+            // Use the column number captured *before* the token was consumed
+            PpSourceLocation error_loc = {
+                .file_path = original_loc.file_path,
+                .line = original_loc.line,
+                .column = tz->current_token_start_column > 0 ? tz->current_token_start_column : 1 // Use captured column, default to 1
+            };
             // If the message is a format string, we need to handle potential varargs.
             // For simplicity in this refactor, assuming 'message' is a simple string or we pass it as a single arg.
             // A more robust solution might involve changing make_error_token to accept varargs.
@@ -62,6 +69,8 @@ static void skip_whitespace(PpExprTokenizer* tz) {
 static PpExprToken get_next_pp_expr_token(PpExprTokenizer* tz) {
     skip_whitespace(tz);
     tz->start = tz->current;
+    // Store the starting column of the potential token
+    tz->current_token_start_column = tz->pp_state ? tz->pp_state->current_column_number : 0;
 
     if (*tz->current == L'\0') return make_token(PP_EXPR_TOKEN_EOF);
 
