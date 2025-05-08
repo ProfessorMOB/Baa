@@ -51,7 +51,7 @@ This roadmap outlines the planned improvements and current status of the Baa lan
 
 1.  **Robustness & Advanced Features:**
     - [x] Support for UTF-8 input files.
-    - Input source abstraction (file, string, stdin).
+    - [x] Input source abstraction (file, string). (*stdin not yet implemented*)
     - Support for bitwise operators (`&`, `|`, `^`, `~`, `<<`, `>>`) in conditional expressions.
     - [x] Predefined macros (`__الملف__`, `__السطر__`, `__التاريخ__`, `__الوقت__`)
 3.  **Macro Edge Cases:**

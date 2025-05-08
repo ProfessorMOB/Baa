@@ -120,30 +120,64 @@ The preprocessor is typically invoked by the main compiler driver before the lex
 
 ```c
 #include "baa/preprocessor/preprocessor.h"
+#include <wchar.h> // For wchar_t
 
 // ... inside compiler logic ...
 
-const char* main_file = "path/to/your/program.ب";
-const char* std_includes[] = {"/usr/local/include/baa", NULL}; // Example include paths
 wchar_t* error_msg = NULL;
+const char* std_includes[] = {"/usr/local/include/baa", NULL}; // Example include paths
+wchar_t* processed_source = NULL;
 
-// Call the preprocessor
-wchar_t* processed_source = baa_preprocess(main_file, std_includes, &error_msg);
+// --- Example: Preprocessing a File ---
+const char* main_file_path = "path/to/your/program.ب";
+BaaPpSource file_source = {
+    .type = BAA_PP_SOURCE_FILE,
+    .source_name = main_file_path, // Use filename for error messages
+    .data.file_path = main_file_path
+};
+processed_source = baa_preprocess(&file_source, std_includes, &error_msg);
 
 if (!processed_source) {
-    // Handle error
+    // Handle file preprocessing error
     if (error_msg) {
-        fwprintf(stderr, L"Preprocessor Error: %ls\n", error_msg);
+        fwprintf(stderr, L"Preprocessor Error (File: %hs): %ls\n", main_file_path, error_msg);
         free(error_msg);
+        error_msg = NULL; // Reset error message
     }
-    // Abort compilation
+    // Abort or handle error...
 } else {
-    // Pass processed_source to the lexer
+    // Use processed_source from file...
     // baa_init_lexer(..., processed_source, ...);
-
-    // Remember to free the processed source later
-    free(processed_source);
+    free(processed_source); // Free the result when done
+    processed_source = NULL;
 }
+
+
+// --- Example: Preprocessing a String ---
+const wchar_t* source_code_string = L"#تعريف GREETING L\"مرحبا\"\nمتغير تحية = GREETING L\" يا عالم!\";";
+const char* string_source_name = "<input_string>"; // Name for error messages
+BaaPpSource string_source = {
+    .type = BAA_PP_SOURCE_STRING,
+    .source_name = string_source_name,
+    .data.source_string = source_code_string
+};
+// Note: Includes are generally not useful when preprocessing a string directly
+processed_source = baa_preprocess(&string_source, NULL, &error_msg);
+
+if (!processed_source) {
+    // Handle string preprocessing error
+        fwprintf(stderr, L"Preprocessor Error (String: %hs): %ls\n", string_source_name, error_msg);
+        free(error_msg);
+        error_msg = NULL;
+    }
+    // Abort or handle error...
+} else {
+    // Use processed_source from string...
+    // baa_init_lexer(..., processed_source, ...);
+    free(processed_source); // Free the result when done
+    processed_source = NULL;
+}
+
 ```
 
 ## Future Enhancements (تحسينات مستقبلية)

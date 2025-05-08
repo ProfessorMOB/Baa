@@ -4,19 +4,30 @@
 
 // --- Public Preprocessor Function ---
 
-wchar_t *baa_preprocess(const char *main_file_path, const char **include_paths, wchar_t **error_message)
+wchar_t* baa_preprocess(const BaaPpSource* source, const char** include_paths, wchar_t** error_message)
 {
-    if (!main_file_path || !error_message)
-    {
+    if (!source || !source->source_name || !error_message) {
         if (error_message) {
-            // Use the basic error formatter as full state isn't initialized
-            // For this very early error, pp_state is not available.
-            // We'll use a generic location.
             PpSourceLocation early_error_loc = {"(preprocessor_init)", 0, 0};
-            *error_message = format_preprocessor_error_at_location(&early_error_loc, L"وسيطات غير صالحة تم تمريرها إلى المعالج المسبق (main_file_path أو error_message هو NULL).");
+            *error_message = format_preprocessor_error_at_location(&early_error_loc, L"وسيطات غير صالحة تم تمريرها إلى المعالج المسبق (المصدر أو اسم المصدر أو مؤشر رسالة الخطأ هو NULL).");
         }
         return NULL;
     }
+    if (source->type == BAA_PP_SOURCE_FILE && !source->data.file_path) {
+         if (error_message) {
+            PpSourceLocation early_error_loc = {source->source_name, 0, 0};
+            *error_message = format_preprocessor_error_at_location(&early_error_loc, L"وسيطات غير صالحة: نوع المصدر هو ملف ولكن مسار الملف هو NULL.");
+        }
+        return NULL;
+    }
+     if (source->type == BAA_PP_SOURCE_STRING && !source->data.source_string) {
+         if (error_message) {
+            PpSourceLocation early_error_loc = {source->source_name, 0, 0};
+            *error_message = format_preprocessor_error_at_location(&early_error_loc, L"وسيطات غير صالحة: نوع المصدر هو سلسلة ولكن مؤشر السلسلة هو NULL.");
+        }
+        return NULL;
+    }
+
     *error_message = NULL; // Initialize error message to NULL
 
     // --- Initialize Preprocessor State ---
@@ -59,11 +70,10 @@ wchar_t *baa_preprocess(const char *main_file_path, const char **include_paths, 
 
     // --- Push initial location (needed early for potential errors during macro init) ---
     PpSourceLocation initial_loc = {
-        .file_path = main_file_path, // Use the original path provided
-        .line = 0, // Line 0 for "compiler-defined" aspect before file processing
+        .file_path = source->source_name, // Use the provided source name
+        .line = 0, // Line 0 for "compiler-defined" aspect before processing
         .column = 0
     };
-    // Note: actual file processing will push its own line 1 later.
 
     // --- Define __التاريخ__ and __الوقت__ macros ---
     time_t now = time(NULL);
@@ -105,24 +115,45 @@ wchar_t *baa_preprocess(const char *main_file_path, const char **include_paths, 
 
     // --- End Initialize ---
 
-    // --- Push actual starting location for file processing ---
-    // The 'initial_loc' above was for pre-run definitions.
-    // Now, set up the true starting point for the main file.
-    PpSourceLocation file_start_loc = {
-        .file_path = main_file_path,
-        .line = 1,
-        .column = 1
-    };
-    if (!push_location(&pp_state, &file_start_loc)) {
-         *error_message = format_preprocessor_error_at_location(&file_start_loc, L"فشل في دفع الموقع الأولي للملف (نفاد الذاكرة؟).");
-         // No need to free stacks yet as they are likely empty/null
-         return NULL;
+    // --- Process based on source type ---
+    wchar_t *final_output = NULL;
+    if (source->type == BAA_PP_SOURCE_FILE) {
+        // --- Push actual starting location for file processing ---
+        PpSourceLocation file_start_loc = {
+            .file_path = source->data.file_path, // Use the actual file path here
+            .line = 1,
+            .column = 1
+        };
+        if (!push_location(&pp_state, &file_start_loc)) {
+             *error_message = format_preprocessor_error_at_location(&file_start_loc, L"فشل في دفع الموقع الأولي للملف (نفاد الذاكرة؟).");
+             // Cleanup initialized state before returning
+             free_macros(&pp_state);
+             return NULL;
+        }
+        // --- End Push initial location ---
+
+        // Start recursive processing by calling the core function for files
+        final_output = process_file(&pp_state, source->data.file_path, error_message);
+
+    } else if (source->type == BAA_PP_SOURCE_STRING) {
+        // --- Push starting location for string processing ---
+         PpSourceLocation string_start_loc = {
+            .file_path = source->source_name, // Use the provided name (e.g., "<string>")
+            .line = 1,
+            .column = 1
+        };
+         if (!push_location(&pp_state, &string_start_loc)) {
+             *error_message = format_preprocessor_error_at_location(&string_start_loc, L"فشل في دفع الموقع الأولي للسلسلة (نفاد الذاكرة؟).");
+             free_macros(&pp_state);
+             return NULL;
+        }
+        // --- End Push initial location ---
+
+        // Directly process the string content using the new function
+        final_output = process_string(&pp_state, source->data.source_string, error_message);
+        // Pop the location stack after processing the string
+        pop_location(&pp_state);
     }
-    // --- End Push initial location ---
-
-
-    // Start recursive processing by calling the core function
-    wchar_t *final_output = process_file(&pp_state, main_file_path, error_message);
 
     // --- Cleanup ---
     // Free all dynamically allocated resources held by the state struct

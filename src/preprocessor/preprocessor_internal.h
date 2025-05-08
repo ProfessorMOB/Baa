@@ -170,5 +170,6 @@ bool evaluate_preprocessor_expression(BaaPreprocessor *pp_state, const wchar_t *
 
 // From preprocessor_core.c
 wchar_t *process_file(BaaPreprocessor *pp_state, const char *file_path, wchar_t **error_message);
+wchar_t *process_string(BaaPreprocessor *pp_state, const wchar_t *source_string, wchar_t **error_message); // New function for string input
 
 #endif // BAA_PREPROCESSOR_INTERNAL_H

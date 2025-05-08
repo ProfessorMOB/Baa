@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.1.11.0] - 2025-05-08
 
 ### Added
+- **Preprocessor:** Added Input Source Abstraction, allowing `baa_preprocess` to accept input from files (`BAA_PP_SOURCE_FILE`) or directly from wide character strings (`BAA_PP_SOURCE_STRING`) via the new `BaaPpSource` struct.
 - **Preprocessor:** Added support for reading UTF-8 encoded input files (with or without BOM), in addition to UTF-16LE. Encoding is auto-detected.
 - **Lexer:** Added support for multiline string literals (`"""..."""`). (Commit: 9b4b8a0)
 - **Lexer:** Added support for raw string literals (`خ"..."` and `خ"""..."""`), including single-line newline error handling. (Commit: 5caef53)

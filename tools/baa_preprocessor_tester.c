@@ -47,10 +47,16 @@ int main(int argc, char *argv[]) {
     const char *include_paths[] = {NULL}; // No standard include paths for this simple test
 
     // Call the preprocessor
-    wchar_t *processed_output = baa_preprocess(input_file, include_paths, &error_message);
+    BaaPpSource pp_source = {
+        .type = BAA_PP_SOURCE_FILE,
+        .source_name = input_file, // Use input_file path as the name
+        .data.file_path = input_file
+    };
+    wchar_t *processed_output = baa_preprocess(&pp_source, include_paths, &error_message);
 
+    // --- Process Results ---
     if (error_message) {
-        fprintf(stderr, "Preprocessor Error:\n");
+        fprintf(stderr, "Preprocessor Error (from %s):\n", pp_source.source_name); // Show source name
         print_wide_string(stderr, error_message);
         fprintf(stderr, "\n"); // Ensure newline after error
         free(error_message);

@@ -34,7 +34,12 @@ int compile_baa_file(const char* filename) {
 
     // Call Preprocessor
     wchar_t* error_message = NULL;
-    wchar_t* source = baa_preprocess(filename, NULL, &error_message);
+    BaaPpSource pp_source = {
+        .type = BAA_PP_SOURCE_FILE,
+        .source_name = filename, // Use original filename for error reporting context
+        .data.file_path = filename
+    };
+    wchar_t* source = baa_preprocess(&pp_source, NULL, &error_message);
 
     if (!source) {
         if (error_message) {
