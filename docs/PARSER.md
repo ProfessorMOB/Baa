@@ -56,7 +56,7 @@ typedef struct {
   - Array indexing expressions
 
 ### Statement Parser (statement_parser.c)
-- Parses control flow statements (if, while, for, switch, case, break, continue, return, etc.)
+- Parses control flow statements (if (`لو`), while (`طالما`), for (`لكل`), return (`ارجع`)). Support for `switch`, `case`, `break`, and `continue` is planned.
 - Handles blocks and expression statements
 - Implements support for:
   - If-else statements with conditions and multiple branches
@@ -82,7 +82,7 @@ typedef struct {
 The parsing process follows this general flow:
 1. Initialize parser with lexer
 2. Parse program (entry point)
-3. Parse top-level declarations (currently only functions are supported at the top level)
+3. Parse top-level declarations (e.g., functions). Preprocessor directives like `#تضمين` for file inclusion are handled before parsing.
 4. For each function, parse parameters and body
 5. Parse statements and expressions recursively within function bodies or blocks
 6. Construct AST nodes during parsing
@@ -148,7 +148,6 @@ Declarations are recognized and parsed:
 
 - **Variable Declarations**: Type annotation and optional initializer
 - **Function Declarations**: Name, parameters, return type, and body
-- **Import Directives**: Parses `#تضمين` directives for including other source files, supporting both system (`<...>`) and local (`"..."`) paths.
 
 ## Type System Integration
 
@@ -183,7 +182,8 @@ BaaParser* baa_create_parser(const wchar_t* source, size_t source_len);
 // Note: baa_init_parser is typically called internally by baa_create_parser
 
 // Program parsing (Main entry point)
-BaaProgram* baa_parse(const wchar_t* input, const wchar_t* filename);
+// The BaaParser instance (e.g., from baa_create_parser) is passed to this function.
+BaaProgram* baa_parse_program(BaaParser* parser);
 
 // Error handling
 bool baa_parser_had_error(const BaaParser* parser);
