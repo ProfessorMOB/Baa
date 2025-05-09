@@ -218,7 +218,6 @@ wchar_t *process_file(BaaPreprocessor *pp_state, const char *file_path, wchar_t 
                 {
                     *error_message = format_preprocessor_error_at_location(&directive_loc, L"تنسيق #إذا غير صالح: التعبير مفقود.");
                     success = false;
-                }
                 else
                 {
                     bool expr_value = false;
@@ -359,7 +358,8 @@ wchar_t *process_file(BaaPreprocessor *pp_state, const char *file_path, wchar_t 
                 }
                 else
                 {
-                    size_t top_index = pp_state->conditional_stack_count - 1;
+
+                    size_t top_index = pp_state->conditional_stack_count - 1;   size_t top_index = pp_state->conditional_stack_count - 1;
                     if (pp_state->conditional_branch_taken_stack[top_index])
                     {
                         pp_state->conditional_stack[top_index] = false;

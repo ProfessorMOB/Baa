@@ -169,6 +169,12 @@ void free_conditional_stack(BaaPreprocessor *pp);
 // From preprocessor_expr_eval.c
 bool evaluate_preprocessor_expression(BaaPreprocessor *pp_state, const wchar_t *expression, bool *value, wchar_t **error_message, const char *abs_path);
 
+// From preprocessor_directives.c
+bool handle_preprocessor_directive(BaaPreprocessor *pp_state, wchar_t *directive_start, const char *abs_path, DynamicWcharBuffer *output_buffer, wchar_t **error_message, bool *is_conditional_directive);
+
+// From preprocessor_line_processing.c
+bool process_code_line_for_macros(BaaPreprocessor *pp_state, const wchar_t *current_line, size_t line_len, DynamicWcharBuffer *output_buffer, wchar_t **error_message);
+
 // From preprocessor_core.c
 wchar_t *process_file(BaaPreprocessor *pp_state, const char *file_path, wchar_t **error_message);
 wchar_t *process_string(BaaPreprocessor *pp_state, const wchar_t *source_string, wchar_t **error_message); // New function for string input
