@@ -29,6 +29,8 @@ This roadmap outlines the planned improvements and current status of the Baa lan
     - [x] Macro recursion detection
     - [ ] Implement full macro rescanning and robust substitution rules (complex edge cases).
     - [ ] Fully robust argument parsing (complex edge cases with literals/whitespace)
+    - [ ] **C99 Support**: Implement Variadic Macros (`...` and `__VA_ARGS__`).
+    - [ ] **C99 Support**: Implement predefined identifier `__func__` (Baa: `__الدالة__` (?)).
 - **Conditional Compilation:**
     - [ ] `#إذا expression` (if - implement full macro expansion and re-evaluation for identifiers in expressions)
     - [x] `#إذا_عرف MACRO` (ifdef)
@@ -40,8 +42,9 @@ This roadmap outlines the planned improvements and current status of the Baa lan
     - **Other Standard Directives:**
         - [ ] `#error message`
         - [ ] `#warning message` (Consider if distinct from `#error` or if compiler treats them similarly)
-        - [ ] `#line number "filename"`
-        - [ ] `#pragma directive` (Investigate common pragmas like `once`)
+                - [ ] `#line number "filename"`
+                - [ ] **C99 Support**: Implement `_Pragma` operator.
+                - [ ] `#pragma directive` (Investigate C99 standard pragmas like `STDC FP_CONTRACT`, `STDC FENV_ACCESS`, `STDC CX_LIMITED_RANGE`, and common ones like `once`).
 
     ## Testing and Validation
 

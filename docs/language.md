@@ -58,6 +58,13 @@ Baa supports a preprocessor step that handles directives starting with `#` befor
         عدد_صحيح CONCAT(var, Name) = 10. // Declares عدد_صحيح varName = 10.
         ```
 
+  * **Variadic Macros (C99):** Defines macros that can accept a variable number of arguments. - *[Planned]*
+    *   Uses `...` in the parameter list to indicate variable arguments.
+    *   The special identifier `__VA_ARGS__` is used in the macro body to refer to the variable arguments.
+        ```baa
+        // #تعريف DEBUG_PRINT(format, ...) اطبع(format + ": " + __VA_ARGS__). // Example, exact Baa syntax TBD
+        ```
+
 * **`#الغاء_تعريف` (Undefine):** Removes a previously defined macro. - *[Implemented (Assumed, standard counterpart)]*
 
     ```baa
@@ -133,10 +140,12 @@ Baa provides several predefined macros that offer information about the compilat
 * `__السطر__` : Expands to an integer constant representing the current line number in the source file.
 * `__التاريخ__` : Expands to a string literal representing the compilation date (e.g., "May 09 2025").
 * `__الوقت__` : Expands to a string literal representing the compilation time (e.g., "07:40:00").
+* `__الدالة__` (?) : Expands to a string literal representing the name of the current function (similar to C99's `__func__`). - *[Planned]*
 
     ```baa
     اطبع("تم التجميع من الملف: " + __الملف__).
     اطبع("في السطر رقم: " + __السطر__).
+    // اطبع("في الدالة: " + __الدالة__). // Example if implemented
     ```
 
 ### 1.2 Statement Termination
@@ -218,14 +227,15 @@ a += b.   // Add and assign (a becomes 11 + 4 = 15)
 
 ## 2. Lexical Structure
 
-This section describes the low-level building blocks of Baa programs **after** preprocessing. Baa source files are expected to be encoded in **UTF-16LE**.
+This section describes the low-level building blocks of Baa programs **after** preprocessing. The Baa preprocessor accepts source files in UTF-8 (default if no BOM is present) or UTF-16LE. The processed output from the preprocessor, which is then fed to the lexer, is encoded in **UTF-16LE**.
 
 ### 2.1 Comments
 
-Baa supports standard C/C++ style comments:
+Baa supports standard C/C++ style comments, as well as documentation comments:
 
 * **Single-line:** Begins with `//` and continues to the end of the line. The lexer skips these. - *[Implemented]*
 * **Multi-line:** Begins with `/*` and ends with `*/`. These comments can span multiple lines. The lexer skips these. - *[Implemented]*
+* **Documentation Comments:** Begin with `/**` and end with `*/`. These are recognized by the lexer (as `BAA_TOKEN_DOC_COMMENT`) and their content can be extracted for documentation generation tools. - *[Implemented by Lexer]*
 * **Preprocessor Directives:** Lines starting with `#` (e.g., `#تضمين`, `#تعريف`) are handled entirely by the preprocessor before lexical analysis. They are not treated as comments by the lexer. - *[Implemented for various directives]*
 
 ```baa
@@ -234,6 +244,10 @@ Baa supports standard C/C++ style comments:
   هذا تعليق
   متعدد الأسطر.
 */
+/**
+ * هذا تعليق توثيقي.
+ * يمكن أن يمتد عبر عدة أسطر.
+ */
 ```
 
 ### 2.2 Identifiers
@@ -264,8 +278,8 @@ Keywords are reserved words with special meaning in the Baa language and cannot 
 
 *(Based on `lexer.h` and `language.md`)*
 
-* **Declarations:** `ثابت` (`const`), `خارجي` (`extern`) - *[Implemented/Partial]*
-  * *Planned:* `نوع_مستخدم` (`typedef`), `ثابت` (`static` storage), `حجم` (`sizeof`)
+* **Declarations:** `ثابت` (`const`), `مستقر` (`static`), `خارجي` (`extern`), `مضمن` (?) (`inline`), `مقيد` (?) (`restrict`) - *[Implemented/Partial for `ثابت`/`خارجي`, Planned for `مستقر`/`مضمن`/`مقيد`]*
+  * *Planned:* `نوع_مستخدم` (`typedef`), `حجم` (`sizeof`)
 * **Control Flow:** `إذا`, `وإلا`, `طالما`, `إرجع`, `توقف` (`break`), `أكمل` (`continue`) - *[Implemented]*
   * *Partial/Planned:* `لكل` (`for`), `افعل` (`do`), `اختر` (`switch`), `حالة` (`case`)
 * **Types:** `عدد_صحيح`, `عدد_حقيقي`, `حرف`, `منطقي`, `فراغ` - *[Implemented]*
@@ -295,6 +309,8 @@ Literals represent fixed values in the source code.
     * Examples: `1.23e4`, `5E-2`, `42e+0`, `1e10`, `٣٫١٤E-٠٢` - *[Implemented]*
   * **Underscores for Readability:** Single underscores (`_`) can be used as separators in the integer, fractional, and exponent parts of float literals, with the same restrictions as for integers.
     * Examples: `1_234.567_890`, `3.141_592e+1_0` - *[Implemented]*
+  * **Hexadecimal Floating-Point Constants (C99):** Must start with `0x` or `0X`, include a hexadecimal significand, a `p` or `P` exponent indicator, and a binary exponent. - *[Planned]*
+    * Examples: `0x1.ap0`, `0X1.BCDEp-10` (Exact Baa syntax for Arabic digits TBD)
 * **Boolean Literals (`منطقي`):**
   * `صحيح` (true) - *[Implemented]*
   * `خطأ` (false) - *[Implemented]*
@@ -320,6 +336,9 @@ Literals represent fixed values in the source code.
       * `حرف خام_متعدد = خ"""هذا \n نص خام.
               الهروب \t لا يعمل هنا.""".`
     * *[Implemented]*
+* **Compound Literals (C99):** Allow the creation of unnamed objects of a given type using an initializer list. The syntax is `(type_name){initializer_list}`. - *[Planned]*
+  * Example: `دالة_تأخذ_مصفوفة((عدد_صحيح[]){1, 2, 3}).`
+  * Example: `مؤشر_للبنية = &(بنية_مثال){ .عضو1 = 10, .عضو2 = "نص" }.`
 
 ### 2.5 Operators
 
@@ -340,6 +359,7 @@ Baa has a static type system based on C, with Arabic names for built-in types.
 | Arabic Name | English Equiv. | Description            | Size   | Status      |
 | ----------- | -------------- | ---------------------- | ------ | ----------- |
 | `عدد_صحيح`  | `int`          | Signed Integer         | 32-bit | Implemented |
+| `عدد_صحيح_طويل_جدا` (?) | `long long int` | Signed Long Long Integer | 64-bit | Planned     |
 | `عدد_حقيقي` | `float`        | Floating-point         | 32-bit | Implemented |
 | `حرف`       | `char`         | Character / String     | 16-bit | Implemented |
 | `منطقي`     | `bool`         | Boolean (`صحيح`/`خطأ`) | 8-bit? | Implemented |
@@ -353,7 +373,7 @@ Baa has a static type system based on C, with Arabic names for built-in types.
 | ----------- | -------------- | ------------------------------ | ------- | ----------------------------------------- |
 | `مصفوفة`    | array          | Ordered collection of elements | Partial | Basic AST/Type support exists.            |
 | `مؤشر`      | pointer        | Address of a variable          | Planned | Requires memory model & operator support. |
-| `بنية`      | struct         | Collection of named members    | Planned |                                           |
+| `بنية`      | struct         | Collection of named members. Supports C99 flexible array members (e.g., `type last_member[];`) as the last member. - *[Planned for flexible array members]* | Planned |                                           |
 | `اتحاد`     | union          | Shared memory for members      | Planned |                                           |
 
 ### 3.3 Type Compatibility & Conversion
@@ -380,6 +400,7 @@ Variables store values that can potentially change.
 
 * **Syntax:** `type identifier ('=' initializer_expression)? '.'` - *[Implemented]*
 * **Initialization:** Optional. If omitted, default value depends on scope (e.g., zero/null for globals/static, potentially uninitialized for locals - *needs clarification*).
+  * The `initializer_expression` can use C99-style designated initializers for arrays (e.g., `[index] = value`) and structs/unions (e.g., `.member = value`). - *[Planned]*
 * **Constants:** Use the `ثابت` keyword before the type to declare a constant whose value cannot be changed after initialization. Constants *must* be initialized. `ثابت type identifier = initializer_expression '.'` - *[Partial - Keyword parsed, semantic enforcement needed]*.
 
 ```baa
@@ -414,10 +435,20 @@ Functions define reusable blocks of code.
 ```
 
 * **Planned/Partial:** Optional parameters, rest parameters, named arguments (AST support exists, parsing/analysis status unclear).
+* **Inline Functions (C99):** Functions can be prefixed with the `مضمن` (`inline`) keyword. This serves as a hint to the compiler to attempt to reduce function call overhead, typically by integrating the function's code directly at the call site. The exact behavior follows C99 semantics for `inline`. - *[Planned]*
 
 ### 4.3 Other Declarations (Planned)
 
 Support for `typedef` (`نوع_مستخدم`), `struct` (`بنية`), `union` (`اتحاد`), pointers (`مؤشر`), and `enum` is planned for closer C compatibility.
+
+### 4.4 Type Qualifiers (C99)
+
+Type qualifiers modify the properties of types. Baa plans to support C99 qualifiers.
+
+* **`ثابت` (`const`):** Indicates that the object's value cannot be changed after initialization. Constants *must* be initialized.
+  `ثابت type identifier = initializer_expression '.'` - *[Partial - Keyword parsed, semantic enforcement needed]*
+* **`مقيد` (?) (`restrict`):** Can only be applied to pointers to an object type. It indicates that for the lifetime of the pointer, only that pointer itself or values derived directly from it (such as `pointer + 1`) will be used to access the object it points to. This is a hint for compiler optimizations and does not change the program's semantics if correctly used. - *[Planned]*
+* **`متطاير` (?) (`volatile`):** Indicates that an object may be modified by means not under the control of the compiler (e.g., by hardware or another thread). Accesses to volatile objects should not be optimized away. - *[Planned]*
 
 ## 5. Operator Precedence and Associativity
 
@@ -463,6 +494,7 @@ x = y + 1.             // Assignment
 ### 6.2 Block Statements (Compound Statements)
 
 A sequence of zero or more statements enclosed in curly braces `{}`. Defines a block scope.
+In line with C99, declarations can be mixed with statements within a block, but an identifier must be declared before its first use in that scope. - *[Planned]*
 
 ```baa
 {
@@ -514,7 +546,7 @@ Provides initialization, condition, and post-iteration expressions for controlle
 
 * **Syntax:** `لكل '(' init_expr? ';' condition_expr? ';' incr_expr? ')' statement_or_block` - *[Implemented - Note: Uses semicolons ';', not dots '.' as separators inside parentheses]*.
 * **Components:**
-  * `init_expr`: Evaluated once before the loop.
+  * `init_expr`: Evaluated once before the loop. This can be an expression or a C99-style declaration (e.g., `عدد_صحيح i = 0`). If it's a declaration, the scope of the declared variable(s) is limited to the loop. - *[Planned for declaration support]*
   * `condition_expr`: Evaluated before each iteration. Loop continues if true.
   * `incr_expr`: Evaluated after each iteration.
 
