@@ -15,7 +15,7 @@ This document compares C99 features with their B (باء) equivalents and outlin
 | `float`       | `عدد_حقيقي`      | Implemented | 32-bit floating point (`float`). |
 | `void`        | `فراغ`            | Implemented | Type exists. |
 | _Bool/bool    | `منطقي`           | Implemented | Boolean type exists; Baa uses `صحيح`/`خطأ` literals. |
-| `long long int` | `عدد_صحيح_طويل_جدا` (?) | Planned | C99 standard. 64-bit integer. Baa name TBD. |
+| `long long int` | `عدد_صحيح_طويل_جدا` | Planned | C99 standard. 64-bit integer. |
 
 ### Derived Types
 
@@ -41,7 +41,7 @@ This document compares C99 features with their B (باء) equivalents and outlin
 |---------------|--------------------|----------|-------|
 | `const`       | `ثابت`            | Partial  | Keyword `ثابت` exists and is parsed. Semantic enforcement needed. |
 | `volatile`    | `متطاير`          | Planned  | Keyword not observed. |
-| `restrict`    | `مقيد` (?)         | Planned  | C99 keyword for pointer optimization. Baa name TBD. |
+| `restrict`    | `مقيد`            | Planned  | C99 keyword for pointer optimization. |
 
 ### Literals
 
@@ -116,8 +116,13 @@ This document compares C99 features with their B (باء) equivalents and outlin
 | `__DATE__`           | `__التاريخ__`      | Implemented | Expands to preprocessing date. |
 | `__TIME__`           | `__الوقت__`        | Implemented | Expands to preprocessing time. |
 | `__STDC_VERSION__`   | (N/A)              | N/A         | C99: `199901L`. Indicates C standard version. Baa does not define this. |
-| `__func__`           | `__الدالة__` (?)    | Planned     | C99 predefined identifier for current function name. Baa equivalent TBD. |
-| Variadic Macros (`...`, `__VA_ARGS__`) | (TBD)         | Planned     | C99 feature for macros taking variable number of arguments. Baa support TBD. |
+| `__func__`           | `__الدالة__`       | Planned     | C99 predefined identifier for current function name. Baa equivalent `__الدالة__`. |
+| Variadic Macros (`...`, `__VA_ARGS__`) | `وسائط_إضافية`, `__وسائط_متغيرة__` | Planned     | Baa uses `وسائط_إضافية` for `...` and `__وسائط_متغيرة__` for `__VA_ARGS__`. |
+| `#error`             | `#خطأ`             | Planned     | Baa equivalent for `#error message`. |
+| `#warning`           | `#تحذير`           | Planned     | Baa equivalent for `#warning message`. |
+| `#line`              | `#سطر`             | Planned     | Baa equivalent for `#line number "filename"`. |
+| `_Pragma` operator   | `أمر_براغما`       | Planned     | Baa equivalent for `_Pragma("directive")`. |
+| `#pragma`            | `#براغما`           | Planned     | Baa equivalent for `#pragma directive`. |
 
 ### Standard Library
 

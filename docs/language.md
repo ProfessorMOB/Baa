@@ -58,11 +58,13 @@ Baa supports a preprocessor step that handles directives starting with `#` befor
         عدد_صحيح CONCAT(var, Name) = 10. // Declares عدد_صحيح varName = 10.
         ```
 
-  * **Variadic Macros (C99):** Defines macros that can accept a variable number of arguments. - *[Planned]*
-    *   Uses `...` in the parameter list to indicate variable arguments.
-    *   The special identifier `__VA_ARGS__` is used in the macro body to refer to the variable arguments.
+  * **Variadic Macros (C99):** Defines macros that can accept a variable number of arguments. For Baa, this is achieved using `وسائط_إضافية` in the parameter list and `__وسائط_متغيرة__` in the macro body. - *[Planned]*
+    *   `وسائط_إضافية` (wasā'iṭ iḍāfiyyah - additional arguments): Used in the parameter list to indicate variable arguments.
+    *   `__وسائط_متغيرة__` (al-wasā'iṭ al-mutaghayyirah - The Variable Arguments): The special identifier used in the macro body to refer to the arguments matched by `وسائط_إضافية`.
         ```baa
-        // #تعريف DEBUG_PRINT(format, ...) اطبع(format + ": " + __VA_ARGS__). // Example, exact Baa syntax TBD
+        #تعريف DEBUG_PRINT(تنسيق, وسائط_إضافية) اطبع(تنسيق + ": " + __وسائط_متغيرة__).
+        // Example usage:
+        // DEBUG_PRINT("رسالة تصحيح %d", 10).
         ```
 
 * **`#الغاء_تعريف` (Undefine):** Removes a previously defined macro. - *[Implemented (Assumed, standard counterpart)]*
@@ -132,7 +134,36 @@ Directives for compiling parts of the code based on conditions. Expressions in t
     #نهاية_إذا
     ```
 
-#### 1.1.4 Predefined Macros
+#### 1.1.4 Other Standard Directives (Planned)
+
+Baa plans to support other standard C preprocessor directives with Arabic keywords:
+
+* **`#خطأ "رسالة"` (`#error "message"`):** Instructs the preprocessor to report a fatal error. The compilation process stops. - *[Planned]*
+    ```baa
+    #إذا_لم_يعرف REQUIRED_FEATURE
+        #خطأ "الميزة المطلوبة REQUIRED_FEATURE غير معرفة."
+    #نهاية_إذا
+    ```
+* **`#تحذير "رسالة"` (`#warning "message"`):** Instructs the preprocessor to issue a warning message. Compilation typically continues. - *[Planned]*
+    ```baa
+    #تحذير "هذه الميزة مهملة وسيتم إزالتها في الإصدارات القادمة."
+    ```
+* **`#سطر رقم "اسم_الملف"` (`#line number "filename"`):** Changes the preprocessor's internally stored line number and filename. This affects the output of `__السطر__` and `__الملف__`. - *[Planned]*
+    ```baa
+    #سطر ١٠٠ "ملف_مصدر_آخر.ب"
+    // الآن __السطر__ سيكون ١٠٠ و __الملف__ سيكون "ملف_مصدر_آخر.ب"
+    ```
+* **`#براغما توجيه_خاص` (`#pragma directive`):** Used for implementation-defined directives. The specific `توجيه_خاص` (special directive) and its behavior depend on the Baa compiler. - *[Planned]*
+    * Example: `#براغما مرة_واحدة` (could be Baa's equivalent of `#pragma once`).
+* **`أمر_براغما("توجيه_نصي")` (`_Pragma("string_directive")`):** An operator (not a directive starting with `#`) that allows a macro to generate a `#براغما` directive. It takes a string literal which is then treated as the content of a `#براغما` directive. - *[Planned]*
+    ```baa
+    #تعريف DO_PRAGMA(x) أمر_براغما(#x)
+    // DO_PRAGMA(توجيه_خاص للتحسين)
+    // expands to: أمر_براغما("توجيه_خاص للتحسين")
+    // which is then processed as if #براغما توجيه_خاص للتحسين was written.
+    ```
+
+#### 1.1.5 Predefined Macros
 
 Baa provides several predefined macros that offer information about the compilation process. - *[Implemented]*
 
@@ -140,7 +171,7 @@ Baa provides several predefined macros that offer information about the compilat
 * `__السطر__` : Expands to an integer constant representing the current line number in the source file.
 * `__التاريخ__` : Expands to a string literal representing the compilation date (e.g., "May 09 2025").
 * `__الوقت__` : Expands to a string literal representing the compilation time (e.g., "07:40:00").
-* `__الدالة__` (?) : Expands to a string literal representing the name of the current function (similar to C99's `__func__`). - *[Planned]*
+* `__الدالة__` : Expands to a string literal representing the name of the current function (similar to C99's `__func__`). - *[Planned]*
 
     ```baa
     اطبع("تم التجميع من الملف: " + __الملف__).
@@ -278,8 +309,7 @@ Keywords are reserved words with special meaning in the Baa language and cannot 
 
 *(Based on `lexer.h` and `language.md`)*
 
-* **Declarations:** `ثابت` (`const`), `مستقر` (`static`), `خارجي` (`extern`), `مضمن` (?) (`inline`), `مقيد` (?) (`restrict`) - *[Implemented/Partial for `ثابت`/`خارجي`, Planned for `مستقر`/`مضمن`/`مقيد`]*
-  * *Planned:* `نوع_مستخدم` (`typedef`), `حجم` (`sizeof`)
+* **Declarations:** `ثابت` (`const`), `مستقر` (`static`), `خارجي` (`extern`), `مضمن` (`inline`), `مقيد` (`restrict`), `نوع_مستخدم` (`typedef`), `حجم` (`sizeof`) - *[Implemented/Partial for `ثابت`/`خارجي`, Planned for others]*
 * **Control Flow:** `إذا`, `وإلا`, `طالما`, `إرجع`, `توقف` (`break`), `أكمل` (`continue`) - *[Implemented]*
   * *Partial/Planned:* `لكل` (`for`), `افعل` (`do`), `اختر` (`switch`), `حالة` (`case`)
 * **Types:** `عدد_صحيح`, `عدد_حقيقي`, `حرف`, `منطقي`, `فراغ` - *[Implemented]*
@@ -359,7 +389,7 @@ Baa has a static type system based on C, with Arabic names for built-in types.
 | Arabic Name | English Equiv. | Description            | Size   | Status      |
 | ----------- | -------------- | ---------------------- | ------ | ----------- |
 | `عدد_صحيح`  | `int`          | Signed Integer         | 32-bit | Implemented |
-| `عدد_صحيح_طويل_جدا` (?) | `long long int` | Signed Long Long Integer | 64-bit | Planned     |
+| `عدد_صحيح_طويل_جدا` | `long long int` | Signed Long Long Integer | 64-bit | Planned     |
 | `عدد_حقيقي` | `float`        | Floating-point         | 32-bit | Implemented |
 | `حرف`       | `char`         | Character / String     | 16-bit | Implemented |
 | `منطقي`     | `bool`         | Boolean (`صحيح`/`خطأ`) | 8-bit? | Implemented |
@@ -447,8 +477,8 @@ Type qualifiers modify the properties of types. Baa plans to support C99 qualifi
 
 * **`ثابت` (`const`):** Indicates that the object's value cannot be changed after initialization. Constants *must* be initialized.
   `ثابت type identifier = initializer_expression '.'` - *[Partial - Keyword parsed, semantic enforcement needed]*
-* **`مقيد` (?) (`restrict`):** Can only be applied to pointers to an object type. It indicates that for the lifetime of the pointer, only that pointer itself or values derived directly from it (such as `pointer + 1`) will be used to access the object it points to. This is a hint for compiler optimizations and does not change the program's semantics if correctly used. - *[Planned]*
-* **`متطاير` (?) (`volatile`):** Indicates that an object may be modified by means not under the control of the compiler (e.g., by hardware or another thread). Accesses to volatile objects should not be optimized away. - *[Planned]*
+* **`مقيد` (`restrict`):** Can only be applied to pointers to an object type. It indicates that for the lifetime of the pointer, only that pointer itself or values derived directly from it (such as `pointer + 1`) will be used to access the object it points to. This is a hint for compiler optimizations and does not change the program's semantics if correctly used. - *[Planned]*
+* **`متطاير` (`volatile`):** Indicates that an object may be modified by means not under the control of the compiler (e.g., by hardware or another thread). Accesses to volatile objects should not be optimized away. - *[Planned]*
 
 ## 5. Operator Precedence and Associativity
 
