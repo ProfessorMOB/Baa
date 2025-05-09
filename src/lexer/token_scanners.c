@@ -12,37 +12,10 @@
 // BaaToken *scan_multiline_string_literal(BaaLexer *lexer);
 
 
-// Array of keywords and their corresponding token types (copied from lexer.c)
-// This needs to be accessible here if scan_identifier uses it.
-// Alternatively, keyword checking could be a separate utility.
-// For now, duplicate for simplicity of this step.
-static struct
-{
-    const wchar_t *keyword;
-    BaaTokenType token;
-} keywords_for_scanners[] = {
-    {L"دالة", BAA_TOKEN_FUNC},
-    {L"إرجع", BAA_TOKEN_RETURN},
-    {L"إذا", BAA_TOKEN_IF},
-    {L"إلا", BAA_TOKEN_ELSE},
-    {L"طالما", BAA_TOKEN_WHILE},
-    {L"لأجل", BAA_TOKEN_FOR},
-    {L"افعل", BAA_TOKEN_DO},
-    {L"اختر", BAA_TOKEN_SWITCH},
-    {L"حالة", BAA_TOKEN_CASE},
-    {L"توقف", BAA_TOKEN_BREAK},
-    {L"استمر", BAA_TOKEN_CONTINUE},
-    {L"متغير", BAA_TOKEN_VAR},
-    {L"ثابت", BAA_TOKEN_CONST},
-    {L"صحيح", BAA_TOKEN_BOOL_LIT},
-    {L"خطأ", BAA_TOKEN_BOOL_LIT},
-    {L"عدد_صحيح", BAA_TOKEN_TYPE_INT},
-    {L"عدد_حقيقي", BAA_TOKEN_TYPE_FLOAT},
-    {L"حرف", BAA_TOKEN_TYPE_CHAR},
-    {L"فراغ", BAA_TOKEN_TYPE_VOID},
-    {L"منطقي", BAA_TOKEN_TYPE_BOOL}
-};
+// The 'keywords' array is now declared as extern in lexer_internal.h
+// and defined in lexer.c. No local definition needed here.
 
+// NUM_KEYWORDS is now declared as extern const size_t in lexer_internal.h
 
 BaaToken *scan_identifier(BaaLexer *lexer)
 {
@@ -55,12 +28,13 @@ BaaToken *scan_identifier(BaaLexer *lexer)
 
     // Check if identifier is a keyword
     size_t length = lexer->current - lexer->start;
-    for (size_t i = 0; i < sizeof(keywords_for_scanners) / sizeof(keywords_for_scanners[0]); i++)
+    // Use the extern 'keywords' array and NUM_KEYWORDS
+    for (size_t i = 0; i < NUM_KEYWORDS; i++) // Using NUM_KEYWORDS
     {
-        if (wcslen(keywords_for_scanners[i].keyword) == length &&
-            wcsncmp(&lexer->source[lexer->start], keywords_for_scanners[i].keyword, length) == 0)
+        if (wcslen(keywords[i].keyword) == length &&
+            wcsncmp(&lexer->source[lexer->start], keywords[i].keyword, length) == 0)
         {
-            return make_token(lexer, keywords_for_scanners[i].token);
+            return make_token(lexer, keywords[i].token);
         }
     }
 

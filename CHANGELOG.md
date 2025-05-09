@@ -10,6 +10,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Preprocessor:** Implemented support for bitwise operators (`&`, `|`, `^`, `~`, `<<`, `>>`) in conditional compilation expressions (`#إذا`, `#وإلا_إذا`).
 
 ### Changed
+- **Lexer:**
+  - Consolidated the internal `keywords` array definition to `src/lexer/lexer.c`, making it globally accessible via `extern` declaration in `include/baa/lexer/lexer_internal.h`. This removes duplication from `src/lexer/token_scanners.c`.
+  - The size of the keywords array (`NUM_KEYWORDS`) is now also globally available via `extern const size_t`.
+  - Ensured user-facing lexer error messages are in Arabic.
+- **Documentation:**
+  - Updated `docs/lexer.md`: Removed outdated "Implement documentation comments" from "Future Improvements" as it's already implemented.
+  - Updated `docs/preprocessor.md`:
+    - Clarified initial statement on file encoding to reflect auto-detection (UTF-8 default, UTF-16LE).
+    - Updated "Input Abstraction" in "Future Enhancements" to note current file/string support and `stdin` as future.
+  - Updated `docs/PREPROCESSOR_ROADMAP.md`:
+    - Reflected current status of file encoding and input abstraction.
+    - Made "macro rescanning" and `#if` macro evaluation items more explicit.
+    - Added "Other Standard Directives" (`#error`, `#warning`, `#line`, `#pragma`) as future work.
+    - Added "Improve error recovery mechanisms" to implementation priorities.
 - **Preprocessor Refactoring:**
   - Split `src/preprocessor/preprocessor_core.c` into:
     - `src/preprocessor/preprocessor_directives.c`: Handles directive logic (lines starting with `#`).
@@ -20,6 +34,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Testing:** Consolidated individual preprocessor test files from `tests/resources/preprocessor_test_cases/` into a single file `tests/resources/preprocessor_test_cases/consolidated_preprocessor_test.baa`. The original files were removed after successful testing of the consolidated file.
 
 ### Fixed
+- **Build:** Resolved redefinition error for `struct KeywordMapping` by ensuring its definition resides only in `include/baa/lexer/lexer_internal.h`.
 - **Preprocessor:**
   - Corrected handling of comments within `#elif` directive expressions.
   - Added stripping of trailing comments from `#define` macro bodies to prevent them from being part of the macro definition.

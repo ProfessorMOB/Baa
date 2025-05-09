@@ -10,12 +10,12 @@
 #include "baa/lexer/lexer_internal.h"      // For internal helper declarations
 #include "baa/lexer/token_scanners.h" // For scan_* function declarations (public as requested)
 
-// Array of keywords and their corresponding token types (remains static to this file)
-static struct
-{
-    const wchar_t *keyword;
-    BaaTokenType token;
-} keywords[] = {
+// Array of keywords and their corresponding token types
+// struct KeywordMapping is defined in lexer_internal.h
+
+// Define the actual keywords array (no longer static)
+// The type 'struct KeywordMapping' is known via lexer_internal.h
+struct KeywordMapping keywords[] = {
     {L"دالة", BAA_TOKEN_FUNC},
     {L"إرجع", BAA_TOKEN_RETURN},
     {L"إذا", BAA_TOKEN_IF},
@@ -37,6 +37,7 @@ static struct
     {L"فراغ", BAA_TOKEN_TYPE_VOID},       // Type keyword: void
     {L"منطقي", BAA_TOKEN_TYPE_BOOL}       // Type keyword: boolean
 };
+const size_t NUM_KEYWORDS = sizeof(keywords) / sizeof(keywords[0]);
 
 // --- Implementations of core lexer helper functions (no longer static) ---
 bool is_at_end(BaaLexer *lexer)

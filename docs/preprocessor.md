@@ -4,7 +4,7 @@
 
 The Baa preprocessor is a crucial initial stage in the compilation pipeline. It runs **before** the lexer and is responsible for handling preprocessor directives within the Baa source code. Its primary function is to process the source text, resolving includes and expanding macros, to produce a single, unified translation unit (as a wide character string) that is then passed to the lexer.
 
-It operates on files assumed to be encoded in **UTF-16LE**.
+It primarily processes source files, automatically detecting UTF-8 (with or without BOM) and UTF-16LE encodings, defaulting to UTF-8 if no BOM is found. See the "File Encoding Support" section for more details.
 
 ## Features (الميزات)
 
@@ -185,5 +185,5 @@ if (!processed_source) {
 ## Future Enhancements (تحسينات مستقبلية)
 
 - **Rescanning Expanded Macros:** Implement proper rescanning of macro expansion results for further macro substitutions, as required by the C standard.
-- **Input Abstraction:** Abstract the input source to allow preprocessing from strings or standard input, not just files.
+- **Input Abstraction:** The preprocessor currently supports input from files and strings via `BaaPpSource`. Future work could extend this to include standard input (`stdin`).
 - **Error Recovery:** Improve error recovery mechanisms within directives and expressions.

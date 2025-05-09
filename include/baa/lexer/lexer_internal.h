@@ -25,7 +25,13 @@ void synchronize(BaaLexer *lexer);
 void append_char_to_buffer(wchar_t **buffer, size_t *len, size_t *capacity, wchar_t c);
 int scan_hex_escape(BaaLexer *lexer, int length);
 
-// Keyword lookup (if needed by scanners, though currently scan_identifier handles it)
-// extern const struct { const wchar_t *keyword; BaaTokenType token; } keywords[]; // Example if needed
+// Keyword lookup
+// Structure for keyword mapping (defined in lexer.c)
+struct KeywordMapping {
+    const wchar_t *keyword;
+    BaaTokenType token;
+};
+extern struct KeywordMapping keywords[];
+extern const size_t NUM_KEYWORDS; // Defined in lexer.c
 
 #endif // BAA_LEXER_INTERNAL_H

@@ -403,4 +403,3 @@ The lexer uses several internal helper functions:
 - Performance optimizations for large files
 - Advanced error recovery mechanisms
 - Extended Unicode range support
-- Implement documentation comments
