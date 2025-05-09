@@ -8,19 +8,136 @@
 
 ### 1.1 Preprocessor Directives
 
-Baa supports a preprocessor step that handles directives starting with `#` before lexical analysis.
+Baa supports a preprocessor step that handles directives starting with `#` before lexical analysis. These directives allow for file inclusion, macro definitions, and conditional compilation.
 
-* **Include:** `#تضمين` is used to include the content of other files. - *[Implemented]*
+#### 1.1.1 File Inclusion
+
+* **`#تضمين` (Include):** Used to include the content of other files. - *[Implemented]*
   * `#تضمين "مسار/ملف/نسبي.ب"` : Includes a file relative to the current file's path.
   * `#تضمين <مكتبة_قياسية>` : Includes a file found in standard library include paths.
 
-```baa
-#تضمين "my_definitions.b" // Include a local file
-#تضمين <standard_io>      // Include a standard library
-```
+    ```baa
+    #تضمين "my_definitions.b" // Include a local file
+    #تضمين <standard_io>      // Include a standard library
+    ```
 
-* **Macros:** `#تعريف`, `#الغاء_تعريف` - Basic parameterless define/undef implemented. *[Implemented]*
-* **Conditional Compilation:** `#إذا_عرف`, `#إذا_لم_يعرف`, `#إلا`, `#نهاية_إذا` - Basic support implemented. *[Implemented]*
+#### 1.1.2 Macro Definitions
+
+* **`#تعريف` (Define):** Defines a preprocessor macro. - *[Implemented]*
+  * **Object-like macros:** Replaces an identifier with a token sequence.
+
+        ```baa
+        #تعريف PI 3.14159
+        #تعريف GREETING "مرحباً بالعالم"
+        عدد_حقيقي x = PI.
+        اطبع(GREETING).
+        ```
+
+  * **Function-like macros:** Defines macros that take arguments.
+
+        ```baa
+        #تعريف MAX(a, b) ((a) > (b) ? (a) : (b))
+        عدد_صحيح الأكبر = MAX(10, 20). // Expands to ((10) > (20) ? (10) : (20))
+
+        #تعريف ADD(x, y) (x + y)
+        عدد_صحيح المجموع = ADD(5, 3). // Expands to (5 + 3)
+        ```
+
+  * **Stringification Operator (`#`):** Converts a macro parameter into a string literal. - *[Implemented]*
+
+        ```baa
+        #تعريف STRINGIFY(val) #val
+        اطبع(STRINGIFY(مرحبا)). // Expands to اطبع("مرحبا").
+        اطبع(STRINGIFY(123)).   // Expands to اطبع("123").
+        ```
+
+  * **Token Pasting Operator (`##`):** Concatenates two tokens. - *[Implemented]*
+
+        ```baa
+        #تعريف CONCAT(a, b) a##b
+        عدد_صحيح CONCAT(var, Name) = 10. // Declares عدد_صحيح varName = 10.
+        ```
+
+* **`#الغاء_تعريف` (Undefine):** Removes a previously defined macro. - *[Implemented (Assumed, standard counterpart)]*
+
+    ```baa
+    #تعريف TEMP_MACRO 100
+    // TEMP_MACRO is 100
+    #الغاء_تعريف TEMP_MACRO
+    // TEMP_MACRO is no longer defined
+    ```
+
+#### 1.1.3 Conditional Compilation
+
+Directives for compiling parts of the code based on conditions. Expressions in these directives can use arithmetic, bitwise, and logical operators, as well as the `defined()` operator. - *[Implemented]*
+
+* **`#إذا` (If):** Compiles the subsequent code if the expression evaluates to true (non-zero). - *[Implemented]*
+
+    ```baa
+    #تعريف DEBUG_MODE 1
+    #إذا DEBUG_MODE
+        اطبع("وضع التصحيح مفعل.").
+    #نهاية_إذا
+
+    #تعريف VALUE 10
+    #إذا VALUE > 5 && defined(DEBUG_MODE)
+        اطبع("القيمة أكبر من 5 ووضع التصحيح مفعل.").
+    #نهاية_إذا
+    ```
+
+* **`#إذا_عرف` (If defined):** Compiles the subsequent code if the macro is defined. Equivalent to `#إذا defined(MACRO_NAME)`. - *[Implemented]*
+
+    ```baa
+    #تعريف MY_FEATURE
+    #إذا_عرف MY_FEATURE
+        اطبع("ميزة MY_FEATURE مفعلة.").
+    #نهاية_إذا
+    ```
+
+* **`#إذا_لم_يعرف` (If not defined):** Compiles the subsequent code if the macro is not defined. Equivalent to `#إذا !defined(MACRO_NAME)`. - *[Implemented]*
+
+    ```baa
+    #إذا_لم_يعرف PRODUCTION_BUILD
+        اطبع("هذا ليس بناء إنتاجي.").
+    #نهاية_إذا
+    ```
+
+* **`#وإلا_إذا` (Else if):** Compiles the subsequent code if the preceding `#إذا` or `#وإلا_إذا` condition was false, and its own expression evaluates to true. - *[Implemented]*
+
+    ```baa
+    #تعريف LEVEL 2
+    #إذا LEVEL == 1
+        اطبع("المستوى 1.").
+    #وإلا_إذا LEVEL == 2
+        اطبع("المستوى 2.").
+    #إلا
+        اطبع("مستوى آخر.").
+    #نهاية_إذا
+    ```
+
+* **`#إلا` (Else):** Compiles the subsequent code if the preceding `#إذا` or `#وإلا_إذا` condition was false. - *[Implemented]*
+* **`#نهاية_إذا` (End if):** Marks the end of a conditional compilation block. - *[Implemented]*
+* **`defined()` Operator:** Used within conditional expressions to check if a macro is defined. Returns `1` if defined, `0` otherwise. - *[Implemented]*
+
+    ```baa
+    #إذا defined(VERBOSE) || defined(EXTRA_DEBUG)
+        // Code for verbose or extra debug output
+    #نهاية_إذا
+    ```
+
+#### 1.1.4 Predefined Macros
+
+Baa provides several predefined macros that offer information about the compilation process. - *[Implemented]*
+
+* `__الملف__` : Expands to a string literal representing the name of the current source file.
+* `__السطر__` : Expands to an integer constant representing the current line number in the source file.
+* `__التاريخ__` : Expands to a string literal representing the compilation date (e.g., "May 09 2025").
+* `__الوقت__` : Expands to a string literal representing the compilation time (e.g., "07:40:00").
+
+    ```baa
+    اطبع("تم التجميع من الملف: " + __الملف__).
+    اطبع("في السطر رقم: " + __السطر__).
+    ```
 
 ### 1.2 Statement Termination
 
@@ -88,12 +205,15 @@ Control structures use Arabic keywords and dot termination.
 *(See Section 5 for full details)*
 
 ```baa
+عدد_صحيح a = 10.
+عدد_صحيح b = 5.
+
 // Increment and decrement
-متغير++.    // Postfix increment
---متغير.    // Prefix decrement
+a++.      // Postfix increment (a becomes 11)
+--b.      // Prefix decrement (b becomes 4)
 
 // Compound assignment
-متغير += 5.  // Add and assign
+a += b.   // Add and assign (a becomes 11 + 4 = 15)
 ```
 
 ## 2. Lexical Structure
@@ -127,15 +247,15 @@ Identifiers are names used for variables, functions, types, etc.
 
 ```baa
 // أمثلة صحيحة (Valid Examples)
-متغير الإسم_الأول.
-متغير _temporaryValue.
-متغير قيمة_رقمية1.
-متغير القيمة٢.
+حرف الإسم_الأول.         // Example of a string type identifier
+عدد_صحيح _temporaryValue. // Example of an integer type identifier starting with underscore
+عدد_صحيح قيمة_رقمية1.    // Example with Arabic and Western digits
+حرف القيمة٢.             // Example with Arabic-Indic digits
 
 // أمثلة خاطئة (Invalid Examples)
-// متغير 1stValue. // Cannot start with a digit
-// متغير قيمة-خاصة. // Hyphen not allowed
-// متغير إذا. // Keyword cannot be an identifier
+// عدد_صحيح 1stValue. // Cannot start with a digit
+// حرف قيمة-خاصة.     // Hyphen not allowed
+// عدد_صحيح إذا.      // Keyword cannot be an identifier
 ```
 
 ### 2.3 Keywords
@@ -144,10 +264,10 @@ Keywords are reserved words with special meaning in the Baa language and cannot 
 
 *(Based on `lexer.h` and `language.md`)*
 
-* **Declarations:** `دالة`, `ثابت` (`const`), `خارجي` (`extern`) - *[Implemented/Partial]*
-  * *Planned:* `متغير` (`var`), `نوع_مستخدم` (`typedef`), `ثابت` (`static` storage), `حجم` (`sizeof`)
+* **Declarations:** `ثابت` (`const`), `خارجي` (`extern`) - *[Implemented/Partial]*
+  * *Planned:* `نوع_مستخدم` (`typedef`), `ثابت` (`static` storage), `حجم` (`sizeof`)
 * **Control Flow:** `إذا`, `وإلا`, `طالما`, `إرجع`, `توقف` (`break`), `أكمل` (`continue`) - *[Implemented]*
-  * *Partial/Planned:* `من_أجل` (`for`), `افعل` (`do`), `اختر` (`switch`), `حالة` (`case`)
+  * *Partial/Planned:* `لكل` (`for`), `افعل` (`do`), `اختر` (`switch`), `حالة` (`case`)
 * **Types:** `عدد_صحيح`, `عدد_حقيقي`, `حرف`, `منطقي`, `فراغ` - *[Implemented]*
 * **Boolean Literals:** `صحيح`, `خطأ` - *[Implemented]*
 
@@ -185,19 +305,19 @@ Literals represent fixed values in the source code.
     * `'\"'` (double quote) - *[Implemented]*
     * `'\r'` (carriage return), `'\0'` (null char) - *[Implemented]*
     * `'\uXXXX'` (Unicode escape, where XXXX are four hex digits) - *[Implemented]*
-* **String Literals (`نص` - inferred type):** Represent sequences of characters enclosed in double quotes (`"`). Uses UTF-16LE encoding internally.
+* **String Literals:** Represent sequences of characters enclosed in double quotes (`"`). Uses UTF-16LE encoding internally.
   * `"مرحباً"` - *[Implemented]*
   * `"Hello, World!"` - *[Implemented]*
   * Escape Sequences: Similar to characters: `\n`, `\t`, `\"`, `\\`, `\r`, `\0`, `\uXXXX` are implemented. - *[Implemented]*
   * **Multiline Strings:** Sequences of characters enclosed in triple double quotes (`"""`). Newlines within the string are preserved. Escape sequences are processed as in regular strings. - *[Implemented]*
-    * Example: `متغير نص_متعدد = """سطر أول\nسطر ثاني مع \t تاب.""".`
+    * Example: `حرف نص_متعدد = """سطر أول\nسطر ثاني مع \t تاب.""".`
   * **Raw String Literals:** Prefixed with `خ` (Kha), these strings do not process escape sequences. All characters between the delimiters are taken literally.
     * Single-line raw strings: `خ"..."`
     * Multiline raw strings: `خ"""..."""` (newlines are preserved)
     * Examples:
-      * `متغير مسار = خ"C:\Users\MyFolder\file.txt".` (Backslashes are literal)
-      * `متغير تعبير_نمطي = خ"\\d{3}-\\d{2}-\\d{4}".`
-      * `متغير خام_متعدد = خ"""هذا \n نص خام.
+      * `حرف مسار = خ"C:\Users\MyFolder\file.txt".` (Backslashes are literal)
+      * `حرف تعبير_نمطي = خ"\\d{3}-\\d{2}-\\d{4}".`
+      * `حرف خام_متعدد = خ"""هذا \n نص خام.
               الهروب \t لا يعمل هنا.""".`
     * *[Implemented]*
 
@@ -221,7 +341,7 @@ Baa has a static type system based on C, with Arabic names for built-in types.
 | ----------- | -------------- | ---------------------- | ------ | ----------- |
 | `عدد_صحيح`  | `int`          | Signed Integer         | 32-bit | Implemented |
 | `عدد_حقيقي` | `float`        | Floating-point         | 32-bit | Implemented |
-| `حرف`       | `char`         | Character (`wchar_t`)  | 16-bit | Implemented |
+| `حرف`       | `char`         | Character / String     | 16-bit | Implemented |
 | `منطقي`     | `bool`         | Boolean (`صحيح`/`خطأ`) | 8-bit? | Implemented |
 | `فراغ`      | `void`         | Represents no value    | N/A    | Implemented |
 
@@ -392,7 +512,7 @@ Repeats a statement/block as long as a condition is true.
 
 Provides initialization, condition, and post-iteration expressions for controlled looping.
 
-* **Syntax:** `من_أجل '(' init_expr? ';' condition_expr? ';' incr_expr? ')' statement_or_block` - *[Implemented - Note: Uses semicolons ';', not dots '.' as separators inside parentheses]*.
+* **Syntax:** `لكل '(' init_expr? ';' condition_expr? ';' incr_expr? ')' statement_or_block` - *[Implemented - Note: Uses semicolons ';', not dots '.' as separators inside parentheses]*.
 * **Components:**
   * `init_expr`: Evaluated once before the loop.
   * `condition_expr`: Evaluated before each iteration. Loop continues if true.
@@ -400,7 +520,7 @@ Provides initialization, condition, and post-iteration expressions for controlle
 
 ```baa
 // Example - Note the use of semicolons inside the parentheses
-من_أجل (عدد_صحيح i = 0; i < 10; i++) {
+لكل (عدد_صحيح i = 0; i < 10; i++) {
     اطبع(i).
 }
 ```
@@ -409,7 +529,7 @@ Provides initialization, condition, and post-iteration expressions for controlle
 
 Repeats a statement/block, evaluating the condition *after* the first iteration.
 
-* **Syntax:** `افعل statement_or_block طالما '(' expression ')' '.'` - *[Partial - Keyword exists, AST/Parsing status unclear]*.
+* **Syntax:** `افعل statement_or_block طالما '(' expression ')' '.'` - *[Syntax Defined, Implementation Pending]*.
 
 ### 6.5 Jump Statements
 
@@ -474,7 +594,7 @@ Baa uses lexical scoping, similar to C. The scope determines the visibility of i
 ```baa
 عدد_صحيح global_var = 10. // Global scope
 
-دالة test(عدد_صحيح param) { // Function scope starts
+test(عدد_صحيح param) { // Function scope starts
     عدد_صحيح func_var = param + global_var. // Can access global and param
 
     إذا (func_var > 20) { // Block scope starts
