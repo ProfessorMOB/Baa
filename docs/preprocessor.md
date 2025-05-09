@@ -36,7 +36,7 @@ It operates on files assumed to be encoded in **UTF-16LE**.
         - `#إلا` (else): Executes if the preceding `#if`/`#elif` was false and no prior branch in the block was taken.
         - `#نهاية_إذا` (endif): Ends the conditional block.
     - Lines within blocks whose conditions are false are skipped.
-    - **Expression Evaluation:** Supports standard integer arithmetic (`+`, `-`, `*`, `/`, `%`), comparison (`==`, `!=`, `<`, `>`, `<=`, `>=`), logical (`&&`, `||`, `!`), parentheses `()`, and the `defined(MACRO)` operator within `#إذا` and `#وإلا_إذا` directives, respecting operator precedence. Undefined identifiers evaluate to `0`. Defined object-like macros containing simple integer literals are also evaluated correctly. *Note: Bitwise operators are not yet supported.*
+    - **Expression Evaluation:** Supports standard integer arithmetic (`+`, `-`, `*`, `/`, `%`), comparison (`==`, `!=`, `<`, `>`, `<=`, `>=`), logical (`&&`, `||`, `!`), bitwise operators (`&`, `|`, `^`, `~`, `<<`, `>>`), parentheses `()`, and the `defined(MACRO)` operator within `#إذا` and `#وإلا_إذا` directives, respecting operator precedence. Undefined identifiers evaluate to `0`. Defined object-like macros containing simple integer literals are also evaluated correctly.
 
 ### Macro Recursion Detection (كشف استدعاء الماكرو الذاتي)
 - Detects and prevents infinite loops caused by direct or indirect recursive macro expansions using an internal expansion stack.
@@ -185,6 +185,5 @@ if (!processed_source) {
 ## Future Enhancements (تحسينات مستقبلية)
 
 - **Rescanning Expanded Macros:** Implement proper rescanning of macro expansion results for further macro substitutions, as required by the C standard.
-- **Bitwise Operators:** Add support for bitwise operators (`&`, `|`, `^`, `~`, `<<`, `>>`) in conditional expressions (`#إذا`, `#وإلا_إذا`).
 - **Input Abstraction:** Abstract the input source to allow preprocessing from strings or standard input, not just files.
 - **Error Recovery:** Improve error recovery mechanisms within directives and expressions.

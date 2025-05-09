@@ -6,6 +6,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.1.12.0] - 2025-05-09
 
+### Added
+- **Preprocessor:** Implemented support for bitwise operators (`&`, `|`, `^`, `~`, `<<`, `>>`) in conditional compilation expressions (`#إذا`, `#وإلا_إذا`).
+
 ### Changed
 - **Preprocessor Refactoring:**
   - Split `src/preprocessor/preprocessor_core.c` into:
@@ -13,7 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `src/preprocessor/preprocessor_line_processing.c`: Handles macro substitution for non-directive lines.
   - `preprocessor_core.c` now delegates to functions in these new files.
   - Updated `CMakeLists.txt` (root and `src/preprocessor/`) to include the new source files.
-- **Build System:** Updated project version in root `CMakeLists.txt` to 0.1.11.0.
+- **Build System:** Updated project version in root `CMakeLists.txt` to 0.1.12.0.
+- **Testing:** Consolidated individual preprocessor test files from `tests/resources/preprocessor_test_cases/` into a single file `tests/resources/preprocessor_test_cases/consolidated_preprocessor_test.baa`. The original files were removed after successful testing of the consolidated file.
 
 ### Fixed
 - **Preprocessor:**

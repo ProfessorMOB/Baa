@@ -94,21 +94,22 @@ static PpExprToken get_next_pp_expr_token(PpExprTokenizer* tz) {
             return make_error_token(tz, L"المعامل '=' غير صالح في التعبير الشرطي.");
         case L'<':
             if (*(tz->current + 1) == L'=') { tz->current += 2; if (tz->pp_state) tz->pp_state->current_column_number += 2; return make_token(PP_EXPR_TOKEN_LTEQ); }
-            // TODO: Handle << later if needed
+            if (*(tz->current + 1) == L'<') { tz->current += 2; if (tz->pp_state) tz->pp_state->current_column_number += 2; return make_token(PP_EXPR_TOKEN_LSHIFT); }
             tz->current++; if (tz->pp_state) tz->pp_state->current_column_number++; return make_token(PP_EXPR_TOKEN_LT);
         case L'>':
             if (*(tz->current + 1) == L'=') { tz->current += 2; if (tz->pp_state) tz->pp_state->current_column_number += 2; return make_token(PP_EXPR_TOKEN_GTEQ); }
-            // TODO: Handle >> later if needed
+            if (*(tz->current + 1) == L'>') { tz->current += 2; if (tz->pp_state) tz->pp_state->current_column_number += 2; return make_token(PP_EXPR_TOKEN_RSHIFT); }
             tz->current++; if (tz->pp_state) tz->pp_state->current_column_number++; return make_token(PP_EXPR_TOKEN_GT);
         case L'&':
             if (*(tz->current + 1) == L'&') { tz->current += 2; if (tz->pp_state) tz->pp_state->current_column_number += 2; return make_token(PP_EXPR_TOKEN_AMPAMP); }
-            // TODO: Handle single '&' later if needed
-            return make_error_token(tz, L"المعامل '&' غير مدعوم حاليًا في التعبير الشرطي.");
+            tz->current++; if (tz->pp_state) tz->pp_state->current_column_number++; return make_token(PP_EXPR_TOKEN_AMPERSAND);
         case L'|':
             if (*(tz->current + 1) == L'|') { tz->current += 2; if (tz->pp_state) tz->pp_state->current_column_number += 2; return make_token(PP_EXPR_TOKEN_PIPEPIPE); }
-             // TODO: Handle single '|' later if needed
-            return make_error_token(tz, L"المعامل '|' غير مدعوم حاليًا في التعبير الشرطي.");
-        // TODO: Add cases for other operators like ^, ~
+            tz->current++; if (tz->pp_state) tz->pp_state->current_column_number++; return make_token(PP_EXPR_TOKEN_PIPE);
+        case L'^':
+            tz->current++; if (tz->pp_state) tz->pp_state->current_column_number++; return make_token(PP_EXPR_TOKEN_CARET);
+        case L'~':
+            tz->current++; if (tz->pp_state) tz->pp_state->current_column_number++; return make_token(PP_EXPR_TOKEN_TILDE);
     }
 
     // Check for integer literals
@@ -212,10 +213,10 @@ static bool parse_unary_pp_expr(PpExprTokenizer* tz, long* result) {
         if (!parse_unary_pp_expr(tz, result)) return false;
         *result = (*result == 0); // 0 -> 1, non-zero -> 0
         return true;
-    // } else if (op_token.type == PP_EXPR_TOKEN_TILDE) { // TODO: Bitwise NOT
-    //     if (!parse_unary_pp_expr(tz, result)) return false;
-    //     *result = ~(*result);
-    //     return true;
+    } else if (op_token.type == PP_EXPR_TOKEN_TILDE) { // Bitwise NOT
+        if (!parse_unary_pp_expr(tz, result)) return false;
+        *result = ~(*result);
+        return true;
     } else {
         // Not a unary operator we handle, put token back and parse primary
         tz->current = unary_start_pos; // Reset position
@@ -326,16 +327,17 @@ static int get_token_precedence(PpExprTokenType type) {
         // Lower precedence binds looser
         case PP_EXPR_TOKEN_PIPEPIPE: return 10; // ||
         case PP_EXPR_TOKEN_AMPAMP:   return 20; // &&
-        // TODO: Bitwise OR | (30)
-        // TODO: Bitwise XOR ^ (40)
-        // TODO: Bitwise AND & (50)
+        case PP_EXPR_TOKEN_PIPE:     return 30; // | (Bitwise OR)
+        case PP_EXPR_TOKEN_CARET:    return 40; // ^ (Bitwise XOR)
+        case PP_EXPR_TOKEN_AMPERSAND:return 50; // & (Bitwise AND)
         case PP_EXPR_TOKEN_EQEQ:
         case PP_EXPR_TOKEN_BANGEQ:   return 60; // == !=
         case PP_EXPR_TOKEN_LT:
         case PP_EXPR_TOKEN_GT:
         case PP_EXPR_TOKEN_LTEQ:
         case PP_EXPR_TOKEN_GTEQ:     return 70; // < > <= >=
-        // TODO: Bitwise Shift << >> (80)
+        case PP_EXPR_TOKEN_LSHIFT:
+        case PP_EXPR_TOKEN_RSHIFT:   return 80; // << >>
         case PP_EXPR_TOKEN_PLUS:
         case PP_EXPR_TOKEN_MINUS:    return 90; // + -
         case PP_EXPR_TOKEN_STAR:
@@ -405,6 +407,12 @@ static bool parse_binary_expression_rhs(PpExprTokenizer* tz, int min_prec, long*
             case PP_EXPR_TOKEN_GTEQ:     *lhs = (current_lhs >= rhs); break;
             case PP_EXPR_TOKEN_AMPAMP:   *lhs = (current_lhs != 0 && rhs != 0); break; // Use integer logic
             case PP_EXPR_TOKEN_PIPEPIPE: *lhs = (current_lhs != 0 || rhs != 0); break; // Use integer logic
+            // Bitwise operations
+            case PP_EXPR_TOKEN_AMPERSAND: *lhs = current_lhs & rhs; break;
+            case PP_EXPR_TOKEN_PIPE:      *lhs = current_lhs | rhs; break;
+            case PP_EXPR_TOKEN_CARET:     *lhs = current_lhs ^ rhs; break;
+            case PP_EXPR_TOKEN_LSHIFT:    *lhs = current_lhs << rhs; break;
+            case PP_EXPR_TOKEN_RSHIFT:    *lhs = current_lhs >> rhs; break;
             default:
                 // Should not happen if get_token_precedence is correct
                 make_error_token(tz, L"معامل ثنائي غير متوقع أو غير مدعوم.");

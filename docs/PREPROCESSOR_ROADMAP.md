@@ -36,7 +36,7 @@ This roadmap outlines the planned improvements and current status of the Baa lan
     - [x] `#وإلا_إذا expression` (elif - constant expression evaluation)
     - [x] `#إلا` (else)
     - [x] `#نهاية_إذا` (endif)
-    - [ ] Support for bitwise operators (`&`, `|`, `^`, `~`, `<<`, `>>`) in conditional expressions.
+    - [x] Support for bitwise operators (`&`, `|`, `^`, `~`, `<<`, `>>`) in conditional expressions.
 
 ## Testing and Validation
 
@@ -52,7 +52,7 @@ This roadmap outlines the planned improvements and current status of the Baa lan
 1.  **Robustness & Advanced Features:**
     - [x] Support for UTF-8 input files.
     - [x] Input source abstraction (file, string). (*stdin not yet implemented*)
-    - Support for bitwise operators (`&`, `|`, `^`, `~`, `<<`, `>>`) in conditional expressions.
+    - [x] Support for bitwise operators (`&`, `|`, `^`, `~`, `<<`, `>>`) in conditional expressions.
     - [x] Predefined macros (`__الملف__`, `__السطر__`, `__التاريخ__`, `__الوقت__`)
 3.  **Macro Edge Cases:**
     - Address complex edge cases in macro substitution and argument parsing.

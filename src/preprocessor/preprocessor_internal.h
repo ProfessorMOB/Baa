@@ -97,6 +97,14 @@ typedef enum
     PP_EXPR_TOKEN_GTEQ,
     PP_EXPR_TOKEN_AMPAMP,
     PP_EXPR_TOKEN_PIPEPIPE,
+    // Bitwise operators
+    PP_EXPR_TOKEN_AMPERSAND, // &
+    PP_EXPR_TOKEN_PIPE,      // |
+    PP_EXPR_TOKEN_CARET,     // ^
+    PP_EXPR_TOKEN_TILDE,     // ~ (Unary)
+    PP_EXPR_TOKEN_LSHIFT,    // <<
+    PP_EXPR_TOKEN_RSHIFT,    // >>
+    // Logical NOT
     PP_EXPR_TOKEN_BANG,
 } PpExprTokenType;
 
