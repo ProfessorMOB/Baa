@@ -364,6 +364,30 @@ bool handle_preprocessor_directive(BaaPreprocessor *pp_state, wchar_t *directive
                     }
                     if (success) {
                         while (iswspace(*body_start)) body_start++;
+
+                        // Strip trailing comment from macro body
+                        wchar_t *actual_body_end = body_start;
+                        wchar_t *comment_in_body_start = NULL;
+                        while (*actual_body_end != L'\0') {
+                            if (wcsncmp(actual_body_end, L"//", 2) == 0) {
+                                comment_in_body_start = actual_body_end;
+                                break;
+                            }
+                            actual_body_end++;
+                        }
+                        if (comment_in_body_start) {
+                            actual_body_end = comment_in_body_start; // Point to start of comment
+                        }
+                        // Trim trailing whitespace from body before comment
+                        while (actual_body_end > body_start && iswspace(*(actual_body_end - 1))) {
+                            actual_body_end--;
+                        }
+                        // Null-terminate the body before the comment (if any)
+                        // This requires body_start to be a modifiable string, or we need to wcsndup.
+                        // The 'directive_start' (and thus 'body_start') points into 'current_line' from preprocessor_core,
+                        // which is a wcsndup'd copy, so it's modifiable.
+                        *actual_body_end = L'\0';
+
                         if (!add_macro(pp_state, macro_name, body_start, is_function_like, param_count, params)) {
                             *error_message = format_preprocessor_error_at_location(&directive_loc, L"فشل في إضافة تعريف الماكرو '%ls' (نفاد الذاكرة؟).", macro_name); success = false;
                             if (params) { for (size_t i = 0; i < param_count; ++i) free(params[i]); free(params); params = NULL; }

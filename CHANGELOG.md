@@ -4,7 +4,37 @@ All notable changes to the B (باء) compiler project will be documented in thi
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.1.11.0] - 2025-05-08
+## [0.1.12.0] - 2025-05-09
+
+### Changed
+- **Preprocessor Refactoring:**
+  - Split `src/preprocessor/preprocessor_core.c` into:
+    - `src/preprocessor/preprocessor_directives.c`: Handles directive logic (lines starting with `#`).
+    - `src/preprocessor/preprocessor_line_processing.c`: Handles macro substitution for non-directive lines.
+  - `preprocessor_core.c` now delegates to functions in these new files.
+  - Updated `CMakeLists.txt` (root and `src/preprocessor/`) to include the new source files.
+- **Build System:** Updated project version in root `CMakeLists.txt` to 0.1.11.0.
+
+### Fixed
+- **Preprocessor:**
+  - Corrected handling of comments within `#elif` directive expressions.
+  - Added stripping of trailing comments from `#define` macro bodies to prevent them from being part of the macro definition.
+  - Fixed a crash related to `handle_preprocessor_directive` by ensuring a valid pointer was passed for the `is_conditional_directive` output parameter.
+- **Build:**
+  - Resolved various build errors related to the preprocessor refactoring and parser function visibility/definitions.
+  - Addressed "undefined symbol" errors for `handle_preprocessor_directive` and `process_code_line_for_macros` by correctly adding new preprocessor files to executable targets.
+  - Fixed "duplicate symbol" and "undeclared function" errors for `is_type_token` by:
+    - Removing the duplicate definition from `src/parser/parser_helper.c` and its declaration from `include/baa/parser/parser_helper.h`.
+    - Making the existing definition in `src/parser/parser.c` non-static.
+    - Adding the declaration of `is_type_token` to `include/baa/parser/parser.h`.
+    - Ensuring `src/parser/parser.c` includes `baa/parser/tokens.h` for visibility of `TOKEN_*` enum values.
+  - Corrected `is_type_token` implementation in `src/parser/parser.c` to use the correct `BaaTokenType` members (e.g., `BAA_TOKEN_TYPE_INT`) instead of `TokenType` members, resolving enum comparison warnings.
+  - Temporarily stubbed parser functions (`baa_parse_function_rest`, `baa_parse_variable_rest`, `baa_parse_import_directive`) in `src/parser/declaration_parser.c` to resolve "undefined symbol" linker errors and allow the project to build for preprocessor testing. These stubs are temporary, and the underlying parser logic for these declaration types will require further attention.
+
+### Deprecated
+- The `[0.1.11.0] - 2025-05-08` entry below is now superseded by this entry due to further changes and a more accurate date. Consider removing or merging.
+
+## [0.1.11.0] - 2025-05-08 (Superseded)
 
 ### Added
 - **Preprocessor:** Added Input Source Abstraction, allowing `baa_preprocess` to accept input from files (`BAA_PP_SOURCE_FILE`) or directly from wide character strings (`BAA_PP_SOURCE_STRING`) via the new `BaaPpSource` struct.

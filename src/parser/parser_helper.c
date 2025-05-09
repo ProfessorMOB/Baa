@@ -1,4 +1,5 @@
 #include "baa/parser/parser_helper.h"
+#include "baa/parser/tokens.h" // Explicitly include for TokenType
 #include "baa/parser/parser.h" // Include parser.h for BaaParser definition
 #include "baa/lexer/lexer.h"   // Include lexer.h for BaaLexer definition
 #include "baa/utils/utils.h"   // For baa_strdup
@@ -302,3 +303,4 @@ void baa_parser_synchronize(BaaParser *parser) {
         baa_parser_advance_token(parser); // Consume the current token
     }
 }
+

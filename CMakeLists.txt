@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.20)
 project(baa
-    VERSION 0.1.9.8
+    VERSION 0.1.12.0
     DESCRIPTION "لغة باء - The Baa Programming Language"
     LANGUAGES C
 )
@@ -55,6 +55,8 @@ add_executable(baa
     src/preprocessor/preprocessor_conditionals.c
     src/preprocessor/preprocessor_expr_eval.c
     src/preprocessor/preprocessor_core.c
+    src/preprocessor/preprocessor_directives.c
+    src/preprocessor/preprocessor_line_processing.c
 
     # Parser files
     src/parser/parser.c
@@ -140,6 +142,8 @@ add_executable(baa_preprocessor_tester
     src/preprocessor/preprocessor_conditionals.c
     src/preprocessor/preprocessor_expr_eval.c
     src/preprocessor/preprocessor_core.c
+    src/preprocessor/preprocessor_directives.c
+    src/preprocessor/preprocessor_line_processing.c
 
     # Utility files (needed by the preprocessor)
     src/utils/utils.c
@@ -178,6 +182,8 @@ add_executable(baa_parser_tester
     src/preprocessor/preprocessor_conditionals.c
     src/preprocessor/preprocessor_expr_eval.c
     src/preprocessor/preprocessor_core.c
+    src/preprocessor/preprocessor_directives.c
+    src/preprocessor/preprocessor_line_processing.c
     # Lexer
     src/lexer/lexer.c
     src/lexer/number_parser.c

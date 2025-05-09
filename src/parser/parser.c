@@ -1,4 +1,5 @@
 #include "baa/parser/parser.h"
+#include "baa/parser/tokens.h" // For TokenType and token definitions
 #include "baa/utils/utils.h"
 #include "baa/ast/ast.h"
 #include "baa/utils/errors.h"
@@ -131,11 +132,13 @@ void baa_clear_parser_error(BaaParser *parser)
 // Function removed: parse_import_directive (moved to declaration_parser.c)
 
 // Helper function to check if a token type represents a type keyword
-static bool is_type_token(BaaTokenType type) {
+bool is_type_token(BaaTokenType type) { // Removed static
     return type == BAA_TOKEN_TYPE_INT || type == BAA_TOKEN_TYPE_FLOAT ||
-           type == BAA_TOKEN_TYPE_CHAR || type == BAA_TOKEN_TYPE_BOOL ||
-           type == BAA_TOKEN_TYPE_VOID; // Add other type tokens if they exist
-           // || type == BAA_TOKEN_IDENTIFIER; // Potentially allow identifiers for user types
+           type == BAA_TOKEN_TYPE_CHAR || type == BAA_TOKEN_TYPE_VOID ||
+           type == BAA_TOKEN_TYPE_BOOL;
+           // TOKEN_STRUCT and TOKEN_UNION are from a different enum in parser/tokens.h
+           // If these are actual lexer tokens, they should be part of BaaTokenType
+           // or handled differently (e.g. as IDENTIFIERs that the parser resolves to types).
 }
 
 // Main parsing function - parses the entire program from the token stream provided by the parser's lexer.

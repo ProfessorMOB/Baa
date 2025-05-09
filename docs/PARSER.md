@@ -44,6 +44,7 @@ typedef struct {
 - Entry point for parsing a complete program
 - Manages parser state and token advancement
 - Delegates to specialized parsers for expressions, statements, etc.
+- Contains utility functions like `is_type_token` (declared in `parser.h`) for checking if a token represents a type keyword.
 
 ### Expression Parser (expression_parser.c/h)
 - Parses all types of expressions
@@ -68,6 +69,7 @@ typedef struct {
 ### Declaration Parser (declaration_parser.c)
 - Parses variable declarations
 - Parses function declarations with parameters
+- **Note:** Functions like `baa_parse_function_rest`, `baa_parse_variable_rest`, and `baa_parse_import_directive` (which are called by the main parser logic for top-level declarations and by the statement parser for local declarations) are currently stubbed in `declaration_parser.c`. This was done to allow the project to build and test preprocessor changes. The full implementation for parsing these declaration types, reconciling with existing functions like `baa_parse_function_declaration` and `baa_parse_variable_declaration`, requires further work.
 
 ### Type Parser (type_parser.c)
 - Parses type annotations

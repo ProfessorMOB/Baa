@@ -45,6 +45,9 @@ BaaStmt* baa_parse_return_statement(BaaParser* parser);
 BaaType* baa_parse_type(BaaParser* parser);
 BaaType* baa_parse_type_annotation(BaaParser* parser);
 
+// Token utilities
+bool is_type_token(BaaTokenType type); // Checks if a token type is a type keyword
+
 // Error handling and recovery
 void baa_set_parser_error(BaaParser* parser, const wchar_t* message); // Implemented in parser.c
 // Removed synchronize declaration (moved to parser_helper.h)

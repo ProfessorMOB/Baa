@@ -81,9 +81,11 @@ The Baa preprocessor defines the following macros automatically. These names are
 
 The preprocessor implementation has been refactored into several internal source files located in `src/preprocessor/`:
 - `preprocessor.c`: Main entry point (`baa_preprocess`).
-- `preprocessor_core.c`: Core recursive file processing logic (`process_file`).
+- `preprocessor_core.c`: Core recursive file/string processing logic (`process_file`, `process_string`). Delegates line-by-line processing.
+- `preprocessor_directives.c`: Handles all preprocessor directive logic (e.g., `#تعريف`, `#إذا`, `#تضمين`). Called by `preprocessor_core.c` for lines starting with `#`.
+- `preprocessor_line_processing.c`: Handles macro substitution and processing for non-directive code lines. Called by `preprocessor_core.c`.
 - `preprocessor_utils.c`: Utility functions (file I/O, path handling, error formatting, dynamic buffers, file stack).
-- `preprocessor_macros.c`: Macro definition management (`#تعريف`, `#الغاء_تعريف`).
+- `preprocessor_macros.c`: Macro definition management (`add_macro`, `find_macro`, `undefine_macro`).
 - `preprocessor_expansion.c`: Macro expansion logic (substitution, argument parsing, `#`, `##`, recursion stack).
 - `preprocessor_conditionals.c`: Conditional compilation stack management (`#if`, `#ifdef`, etc.).
 - `preprocessor_expr_eval.c`: Conditional expression evaluation logic.

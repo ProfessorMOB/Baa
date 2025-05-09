@@ -9,6 +9,8 @@ add_library(baa_preprocessor STATIC
     preprocessor_conditionals.c
     preprocessor_expr_eval.c
     preprocessor_core.c
+    preprocessor_directives.c
+    preprocessor_line_processing.c
 )
 
 # Ensure the library can find the main include directory

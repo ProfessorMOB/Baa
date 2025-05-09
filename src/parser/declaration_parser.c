@@ -346,3 +346,45 @@ BaaStmt* baa_parse_declaration(BaaParser* parser)
 
 // --- Implementation moved from parser.c ---
 
+// Stubs for functions declared in parser.h but not fully implemented here yet,
+// to allow linking for preprocessor testing.
+
+BaaFunction* baa_parse_function_rest(BaaParser* parser, BaaType* return_type, const wchar_t* name, size_t name_len) {
+    (void)parser; (void)return_type; (void)name; (void)name_len;
+    // TODO: Implement actual function rest parsing or reconcile with baa_parse_function_declaration
+    if (return_type) baa_free_type(return_type); // Consume to avoid leaks if caller expects it
+    fwprintf(stderr, L"STUB: baa_parse_function_rest called for %ls\n", name);
+    return NULL;
+}
+
+BaaStmt* baa_parse_variable_rest(BaaParser* parser, BaaType* type, const wchar_t* name, size_t name_len, bool is_const) {
+    (void)parser; (void)type; (void)name; (void)name_len; (void)is_const;
+    // TODO: Implement actual variable rest parsing or reconcile with baa_parse_variable_declaration
+    if (type) baa_free_type(type); // Consume to avoid leaks
+    fwprintf(stderr, L"STUB: baa_parse_variable_rest called for %ls\n", name);
+    // Expect and consume a dot if present, to allow parser to proceed somewhat
+    if (parser && parser->current_token.type == BAA_TOKEN_DOT) {
+        baa_token_next(parser);
+    } else if (parser) {
+        // If not a dot, it might be an error or an uninitialized variable.
+        // For stubbing, let's not set a hard error, just allow it to pass.
+        // baa_unexpected_token_error(parser, L". (dot expected after variable declaration)");
+    }
+    return NULL; // Or a dummy error statement
+}
+
+BaaStmt* baa_parse_import_directive(BaaParser* parser) {
+    (void)parser;
+    // TODO: Implement import directive parsing
+    fwprintf(stderr, L"STUB: baa_parse_import_directive called\n");
+    // Consume tokens to simulate parsing an import path, e.g., "path/to/file".
+    if (parser && parser->current_token.type == BAA_TOKEN_STRING_LIT) {
+        baa_token_next(parser); // Consume string literal
+        if (parser->current_token.type == BAA_TOKEN_DOT) {
+            baa_token_next(parser); // Consume dot
+        }
+    } else if (parser) {
+         // baa_unexpected_token_error(parser, L"مسار ملف التضمين (سلسلة نصية)");
+    }
+    return NULL;
+}
