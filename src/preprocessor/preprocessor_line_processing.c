@@ -55,8 +55,8 @@ static bool scan_and_substitute_macros_one_pass(
                 expansion_occurred_this_pass = true; predefined_expanded = true;
             } else if (wcscmp(identifier, L"__السطر__") == 0) {
                 wchar_t line_str[20];
-                PpSourceLocation current_invocation_site = get_current_original_location(pp_state);
-                swprintf(line_str, sizeof(line_str)/sizeof(wchar_t), L"%zu", current_invocation_site.line);
+                // __السطر__ should refer to the line number of the current line being processed by process_code_line_for_macros
+                swprintf(line_str, sizeof(line_str)/sizeof(wchar_t), L"%zu", original_line_number_for_errors); // Standard: integer
                 if (!append_to_dynamic_buffer(one_pass_buffer, line_str)) { *overall_success = false; }
                 expansion_occurred_this_pass = true; predefined_expanded = true;
             }
