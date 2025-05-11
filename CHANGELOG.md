@@ -7,8 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.1.13.0] - 2025-05-11
 
 ### Added
+- **Preprocessor:** Implemented `معرف` as the Arabic equivalent for the `defined` operator in conditional expressions. (File affected: `src/preprocessor/preprocessor_expr_eval.c`).
 - **Preprocessor:** Implemented macro expansion rescanning. The preprocessor now correctly rescans the output of a macro expansion for further macro names to be replaced, adhering more closely to C99 standards. This includes handling nested expansions and using the macro expansion stack to prevent direct recursion during the rescan of a macro's own output. (Files affected: `src/preprocessor/preprocessor_line_processing.c`).
 - **Preprocessor:** Corrected `__السطر__` (`__LINE__`) predefined macro to expand to an integer constant as per C standard, instead of a string literal. (File affected: `src/preprocessor/preprocessor_line_processing.c`).
+- **Testing:** Added comprehensive test cases for `معرف` operator, `#الغاء_تعريف` directive, and various complex macro rescanning scenarios to `tests/resources/preprocessor_test_cases/consolidated_preprocessor_test.baa`.
+
+### Changed
+- **Documentation:** Extensive updates across `docs/language.md`, `docs/c_comparison.md`, `docs/arabic_support.md`, `docs/architecture.md`, `README.md`, `docs/PREPROCESSOR_ROADMAP.md`, and `docs/LEXER_ROADMAP.md` to:
+    - Finalize and document Arabic keywords for: `معرف` (for `defined`), `__إصدار_المعيار_باء__` (for Baa version), `__الدالة__` (for `__func__`), variadic macros (`وسائط_إضافية`, `__وسائط_متغيرة__`), other standard directives (`#خطأ`, `#تحذير`, `#سطر`, `أمر_براغما`, `#براغما`), `تعداد` (for `enum`), `لكل` (for C-style `for` loop).
+    - Finalize and document Arabic syntax for: float exponent marker (`أ`), literal suffixes (`غ`, `ط`, `طط`, `ح`), and escape sequences (using `\` + Arabic letter).
+    - Clarify struct/union member access (`::` for direct, `->` for pointer).
+    - Remove `دالة` as a function declaration keyword and update examples to C-style.
+    - Ensure consistency in logical operator representation (symbols `&&, ||, !` used in syntax).
+    - General alignment of C99 features and their Baa equivalents, including keywords like `مستقر`, `خارجي`, `مضمن`, `مقيد`, `متطاير`, `نوع_مستخدم`, `حجم` and type `عدد_صحيح_طويل_جدا`.
+- **Tests:** Updated `tests/resources/preprocessor_test_cases/consolidated_preprocessor_test.baa` to use `معرف` instead of `defined`.
 
 ### Fixed
 - **Preprocessor Build:** Resolved various compiler errors (including "undeclared function" and "lvalue" issues) in `src/preprocessor/preprocessor_line_processing.c` related to the rescanning implementation through code refactoring and build cleaning.
@@ -17,6 +29,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Preprocessor:** Token pasting (`##`) during the rescanning phase (i.e., when `##` appears in the output of a previous expansion, not in an original macro body) is not fully correctly handled. Operands of `##` that are macro names might be expanded prematurely before pasting, or the `##` operator itself might be treated literally. This is a known limitation of the current rescanning implementation.
 
 ## [0.1.12.0] - 2025-05-09
+
+### Major Refactoring
+- **Core Components:** Removed old AST and Parser components to facilitate a fresh start and redesign. (Commit: `454a715`)
 
 ### Added
 - **Preprocessor:** Implemented support for bitwise operators (`&`, `|`, `^`, `~`, `<<`, `>>`) in conditional compilation expressions (`#إذا`, `#وإلا_إذا`).
