@@ -133,12 +133,12 @@ Baa supports Arabic in numeric literals extensively:
   - **Scientific Notation:** Uses `أ` (alif) as the exponent marker (e.g., `1.23أ4` for `1.23e4`).
 - **Underscores with Arabic Numerals (الشرطة السفلية مع الأرقام العربية):** Underscores can be used as separators for readability with Arabic-Indic digits as well.
   - Example: `عدد_صحيح كبير = ١_٠٠٠_٠٠٠.` (one million)
-- **Literal Suffixes (لواحق القيم الحرفية):** Baa uses Arabic suffixes to specify integer and floating-point literal types. - *[Planned]*
-  * `غ` (ghayn): Unsigned (e.g., `123غ` for `123U`).
-  * `ط` (ṭāʾ): Long (e.g., `456ط` for `456L`).
-  * `طط` (ṭāʾ-ṭāʾ): Long Long (e.g., `789طط` for `789LL`).
-  * `ح` (ḥāʾ): Float (e.g., `3.14ح` for `3.14F`).
-  * Combinations are also possible, with a preferred order (e.g., unsignedness then length):
+- **Literal Suffixes (لواحق القيم الحرفية):** Baa uses Arabic suffixes to specify integer and floating-point literal types. The lexer recognizes these suffixes and includes them in the token's lexeme. The interpretation of these suffixes to determine the exact numeric type (e.g., unsigned long long) is handled by later compiler stages.
+  * `غ` (ghayn): Unsigned (e.g., `123غ` for `123U`). - *[Lexer Implemented]*
+  * `ط` (ṭāʾ): Long (e.g., `456ط` for `456L`). - *[Lexer Implemented]*
+  * `طط` (ṭāʾ-ṭāʾ): Long Long (e.g., `789طط` for `789LL`). - *[Lexer Implemented]*
+  * `ح` (ḥāʾ): Float (e.g., `3.14ح` for `3.14F`). - *[Planned]*
+  * **Combinations for Integers:** Integer suffixes `غ`, `ط`, `طط` can be combined, and their order is flexible (e.g., `غط` is equivalent to `طغ`). - *[Lexer Implemented]*
     * `غط` for Unsigned Long (e.g., `100غط`).
     * `غطط` for Unsigned Long Long (e.g., `200غطط`).
 

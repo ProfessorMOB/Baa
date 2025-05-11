@@ -340,6 +340,18 @@ Literals represent fixed values in the source code.
     * Examples: `0b1010`, `0B11001` - *[Implemented]*
   * **Underscores for Readability:** Single underscores (`_`) can be used as separators within the digits of any integer literal type. They cannot be consecutive, at the very beginning of the digit sequence (immediately after a prefix like `0x_`), or at the end of the number.
     * Examples: `1_000_000`, `0xAB_CD`, `0b10_10`, `١_٢٣٤` - *[Implemented]*
+  * **Arabic Suffixes for Type:** Integer literals can have suffixes to indicate their type, similar to C's `U`, `L`, `LL`. The lexer includes these suffixes as part of the `BAA_TOKEN_INT_LIT` lexeme. The interpretation of these suffixes (e.g., to determine `unsigned long long`) is handled by later compiler stages (parser/semantic analysis).
+    * `غ` (Ghain): Indicates an unsigned type (similar to `U` in C).
+    * `ط` (Tah): Indicates a long type (similar to `L` in C).
+    * `طط` (TahTah): Indicates a long long type (similar to `LL` in C).
+    * **Combinations:** These suffixes can be combined, and the order is flexible (e.g., `غط` is equivalent to `طغ`).
+      * `123غ` (unsigned)
+      * `456ط` (long)
+      * `789طط` (long long)
+      * `100غط` or `100طغ` (unsigned long)
+      * `200غطط` or `200ططغ` (unsigned long long)
+    * These suffixes can be used with decimal, hexadecimal, or binary integer literals.
+    * Examples: `123غ`, `0xFFط`, `0b101ططغ` - *[Lexer Implemented]*
 * **Floating-Point Literals (`عدد_حقيقي`):** Represent numbers with a fractional part or in scientific notation. The lexer tokenizes these as `BAA_TOKEN_FLOAT_LIT`.
   * **Decimal Representation:** Consist of an integer part, a decimal point, and a fractional part. Digits can be Western or Arabic-Indic.
     * The decimal point can be a period `.` (U+002E) or an Arabic Decimal Separator `٫` (U+066B).

@@ -143,9 +143,34 @@ set_target_properties(baa_preprocessor_tester PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
 )
 
+# --- Standalone Lexer Tester ---
+add_executable(baa_lexer_tester
+    tools/baa_lexer_tester.c
+
+    # Lexer files (needed by the tester)
+    src/lexer/lexer.c
+    src/lexer/number_parser.c
+    src/lexer/lexer_char_utils.c
+    src/lexer/token_scanners.c
+
+    # Utility files (needed by the lexer and tester)
+    src/utils/utils.c
+    # src/utils/errors.c # If errors.c exists and is needed
+)
+
+# Include directories for the lexer tester
+target_include_directories(baa_lexer_tester
+    PRIVATE
+        ${CMAKE_SOURCE_DIR}/include  # For baa/lexer/lexer.h and baa/utils/*.h
+        ${CMAKE_SOURCE_DIR}/src/lexer # For lexer_internal.h if needed by included lexer files
+)
+
+# Set output directory for the lexer tester executable
+set_target_properties(baa_lexer_tester PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+)
+
 
 # تفعيل الاختبارات (معطل مؤقتاً)
 # enable_testing()
 # add_subdirectory(tests) # Keep this if tests are separate
-
-

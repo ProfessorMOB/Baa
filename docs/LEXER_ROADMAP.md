@@ -19,7 +19,7 @@ This roadmap outlines the planned improvements and current status of the Baa lan
 - [ ] Special tokens (Comment - Defined, but comments currently skipped, not tokenized. See Comment Support section)
 - [x] Literals (Identifier - Basic Arabic/ASCII support)
 - [x] Literals (Int - `BAA_TOKEN_INT_LIT`)
-- [ ] Literals (Int): Add support for Baa Arabic suffixes (`غ` for unsigned, `ط` for long, `طط` for long long, and combinations like `غط`, `غطط`).
+- [x] Literals (Int): Add support for Baa Arabic suffixes (`غ` for unsigned, `ط` for long, `طط` for long long, and combinations like `غط`, `غطط`). (Lexer part done; parser/type system to interpret them)
 - [x] Literals (Float - Defined `BAA_TOKEN_FLOAT_LIT`, identified by lexer syntax checks; value parsing occurs later)
 - [ ] Literals (Float): Add support for Baa Arabic suffix `ح` and Arabic exponent marker `أ` (e.g., `1.23أ4`).
 - [ ] Literals (Float): Add support for C99 hexadecimal float constants (e.g., `0x1.fp+2`), adapting to Baa's `أ` exponent marker if applicable.
