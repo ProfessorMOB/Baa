@@ -28,7 +28,7 @@ This roadmap outlines the planned improvements and current status of the Baa lan
     - [x] Token Pasting (`##`) (concatenation)
     - [x] Macro recursion detection
     - [ ] Fully robust argument parsing (complex edge cases with literals/whitespace)
-    - [ ] **C99 Support**: Implement Variadic Macros (using `وسائط_إضافية` for `...` and `__وسائط_متغيرة__` for `__VA_ARGS__`).
+    - [x] **C99 Support**: Implement Variadic Macros (using `وسائط_إضافية` for `...` and `__وسائط_متغيرة__` for `__VA_ARGS__`).
 - **Conditional Compilation:**
     - [x] `#إذا_عرف MACRO` (ifdef - checks if macro is defined, i.e., `معرف`)
     - [x] `#إذا_لم_يعرف MACRO` (ifndef - checks if macro is not defined, i.e., `!معرف`)

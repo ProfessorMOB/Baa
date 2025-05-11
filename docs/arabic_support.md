@@ -97,8 +97,8 @@ Baa uses Arabic keywords for its preprocessor directives, aligning with C99 func
 |---------------------------|--------------------|-----------------------------------------------------------------------------|
 | `#تضمين`                  | `#include`         | Includes another source file.                                               |
 | `#تعريف`                  | `#define`          | Defines a macro. Supports object-like and function-like macros.             |
-| `وسائط_إضافية` (in def)   | `...` (in def)     | Indicates variadic arguments in a function-like macro definition.           |
-| `__وسائط_متغيرة__` (in body) | `__VA_ARGS__` (in body) | Accesses variadic arguments within a macro expansion.                       |
+| `وسائط_إضافية` (in def)   | `...` (in def)     | Indicates variadic arguments in a function-like macro definition. (Implemented) |
+| `__وسائط_متغيرة__` (in body) | `__VA_ARGS__` (in body) | Accesses variadic arguments within a macro expansion. (Implemented)         |
 | `#الغاء_تعريف`            | `#undef`           | Removes a macro definition.                                                 |
 | `#إذا`                    | `#if`              | Conditional compilation based on an expression. Uses `معرف` for `defined`. |
 | `#إذا_عرف`                | `#ifdef`           | Conditional compilation if a macro is defined. (Uses `معرف`)                |

@@ -99,31 +99,30 @@ static bool scan_and_substitute_macros_one_pass(
                         pp_state->current_column_number = col_at_arg_scan_start;
 
                         size_t actual_arg_count = 0;
-                        wchar_t **arguments = parse_macro_arguments(pp_state, &arg_scan_ptr, macro->param_count, &actual_arg_count, error_message);
+                        // Pass the macro itself to handle variadic argument parsing
+                        wchar_t **arguments = parse_macro_arguments(pp_state, &arg_scan_ptr, macro, &actual_arg_count, error_message);
 
                         ptr_after_invocation_args = arg_scan_ptr;
-                        current_col_in_this_scan_pass = pp_state->current_column_number;
+                        current_col_in_this_scan_pass = pp_state->current_column_number; // This might need adjustment based on how parse_macro_arguments updates column
                         pp_state->current_column_number = original_pp_state_col;
 
-                        if (!arguments) { current_expansion_succeeded = false; }
-                        else {
-                            if (actual_arg_count != macro->param_count) {
-                                PpSourceLocation err_loc_args = get_current_original_location(pp_state);
-                                *error_message = format_preprocessor_error_at_location(&err_loc_args, L"عدد وسيطات غير صحيح للماكرو '%ls' (متوقع %zu، تم الحصول على %zu).", macro->name, macro->param_count, actual_arg_count);
+                        if (!arguments) {
+                            current_expansion_succeeded = false; // Error message already set by parse_macro_arguments
+                        } else {
+                            // parse_macro_arguments now handles count validation for non-variadic
+                            // and ensures actual_arg_count is param_count + 1 for variadic (even if VA_ARGS is empty)
+                            // So, no explicit count check needed here if arguments is not NULL.
+                            if (!substitute_macro_body(pp_state, &single_expansion_result, macro, arguments, actual_arg_count, error_message)) {
                                 current_expansion_succeeded = false;
-                            } else {
-                                if (!substitute_macro_body(pp_state, &single_expansion_result, macro, arguments, actual_arg_count, error_message)) {
-                                    current_expansion_succeeded = false;
-                                }
                             }
                             for (size_t i = 0; i < actual_arg_count; ++i) free(arguments[i]);
                             free(arguments);
                         }
-                    } else {
+                    } else { // Function-like macro name not followed by '(', treat as object-like or plain identifier
                         if (!append_to_dynamic_buffer(one_pass_buffer, identifier)) { *overall_success = false; }
-                        current_expansion_succeeded = false;
+                        current_expansion_succeeded = false; // Not a valid function-like macro expansion
                     }
-                } else {
+                } else { // Object-like macro
                     if (!substitute_macro_body(pp_state, &single_expansion_result, macro, NULL, 0, error_message)) {
                         current_expansion_succeeded = false;
                     }

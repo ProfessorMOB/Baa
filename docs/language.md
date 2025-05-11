@@ -58,17 +58,18 @@ Baa supports a preprocessor step that handles directives starting with `#` befor
         عدد_صحيح CONCAT(var, Name) = 10. // Declares عدد_صحيح varName = 10.
         ```
 
-  * **Variadic Macros (C99):** Defines macros that can accept a variable number of arguments. For Baa, this is achieved using `وسائط_إضافية` in the parameter list and `__وسائط_متغيرة__` in the macro body. - *[Planned]*
-    * `وسائط_إضافية` (wasā'iṭ iḍāfiyyah - additional arguments): Used in the parameter list to indicate variable arguments.
-    * `__وسائط_متغيرة__` (al-wasā'iṭ al-mutaghayyirah - The Variable Arguments): The special identifier used in the macro body to refer to the arguments matched by `وسائط_إضافية`.
+  * **Variadic Macros (C99):** Defines macros that can accept a variable number of arguments. For Baa, this is achieved using `وسائط_إضافية` in the parameter list and `__وسائط_متغيرة__` in the macro body. - *[Implemented]*
+    * `وسائط_إضافية` (wasā'iṭ iḍāfiyyah - additional arguments): Used in the parameter list (must be the last parameter) to indicate variable arguments.
+    * `__وسائط_متغيرة__` (al-wasā'iṭ al-mutaghayyirah - The Variable Arguments): The special identifier used in the macro body to refer to the arguments matched by `وسائط_إضافية`. If no arguments are passed to `وسائط_إضافية`, `__وسائط_متغيرة__` expands to an empty sequence of tokens.
 
         ```baa
-        #تعريف DEBUG_PRINT(تنسيق, وسائط_إضافية) اطبع(تنسيق + ": " + __وسائط_متغيرة__).
+        #تعريف DEBUG_PRINT(تنسيق, وسائط_إضافية) hypothetical_print_func(تنسيق, __وسائط_متغيرة__)
         // Example usage:
-        // DEBUG_PRINT("رسالة تصحيح %d", 10).
+        // DEBUG_PRINT("رسالة تصحيح %d", 10) expands to hypothetical_print_func("رسالة تصحيح %d", 10)
+        // DEBUG_PRINT("رسالة بسيطة") expands to hypothetical_print_func("رسالة بسيطة", )
         ```
 
-* **`#الغاء_تعريف` (Undefine):** Removes a previously defined macro. - *[Implemented (Assumed, standard counterpart)]*
+* **`#الغاء_تعريف` (Undefine):** Removes a previously defined macro. - *[Implemented]*
 
     ```baa
     #تعريف TEMP_MACRO 100

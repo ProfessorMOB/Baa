@@ -99,13 +99,14 @@ wchar_t* baa_preprocess(const BaaPpSource* source, const char** include_paths, w
     // Note: add_macro expects non-quoted body for string literals, it adds quotes if needed.
     // However, the C standard for __DATE__ and __TIME__ is that they expand *to* string literals.
     // So, the values themselves should be the quoted strings.
-    if (!add_macro(&pp_state, L"__التاريخ__", date_str, false, 0, NULL)) {
+    // Add is_variadic = false for these object-like macros
+    if (!add_macro(&pp_state, L"__التاريخ__", date_str, false, false, 0, NULL)) {
         // Error handling if add_macro fails
         *error_message = format_preprocessor_error_at_location(&initial_loc, L"فشل في تعريف الماكرو المدمج __التاريخ__.");
         // Cleanup any partially initialized state if necessary before returning
         return NULL;
     }
-    if (!add_macro(&pp_state, L"__الوقت__", time_str, false, 0, NULL)) {
+    if (!add_macro(&pp_state, L"__الوقت__", time_str, false, false, 0, NULL)) {
         // Error handling if add_macro fails
         *error_message = format_preprocessor_error_at_location(&initial_loc, L"فشل في تعريف الماكرو المدمج __الوقت__.");
         // Cleanup...

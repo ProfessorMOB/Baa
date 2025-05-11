@@ -122,7 +122,7 @@ This document compares C99 features with their B (باء) equivalents and outlin
 | `__TIME__`           | `__الوقت__`        | Implemented | Expands to preprocessing time. |
 | `__STDC_VERSION__`   | `__إصدار_المعيار_باء__` | Planned    | Baa defines its own version macro, e.g., `__إصدار_المعيار_باء__` expanding to Baa version number. |
 | `__func__`           | `__الدالة__`       | Planned     | C99 predefined identifier for current function name. Baa equivalent `__الدالة__`. |
-| Variadic Macros (`...`, `__VA_ARGS__`) | `وسائط_إضافية`, `__وسائط_متغيرة__` | Planned     | Baa uses `وسائط_إضافية` for `...` and `__وسائط_متغيرة__` for `__VA_ARGS__`. |
+| Variadic Macros (`...`, `__VA_ARGS__`) | `وسائط_إضافية`, `__وسائط_متغيرة__` | Implemented | Baa uses `وسائط_إضافية` for `...` and `__وسائط_متغيرة__` for `__VA_ARGS__`. |
 | `#error`             | `#خطأ`             | Planned     | Baa equivalent for `#error message`. |
 | `#warning`           | `#تحذير`           | Planned     | Baa equivalent for `#warning message`. |
 | `#line`              | `#سطر`             | Planned     | Baa equivalent for `#line number "filename"`. |
