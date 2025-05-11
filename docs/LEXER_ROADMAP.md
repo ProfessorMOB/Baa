@@ -19,15 +19,17 @@ This roadmap outlines the planned improvements and current status of the Baa lan
 - [ ] Special tokens (Comment - Defined, but comments currently skipped, not tokenized. See Comment Support section)
 - [x] Literals (Identifier - Basic Arabic/ASCII support)
 - [x] Literals (Int - `BAA_TOKEN_INT_LIT`)
-- [ ] Literals (Int): Add support for C99 `long long` suffixes (e.g., `LL`, `ULL`).
+- [ ] Literals (Int): Add support for Baa Arabic suffixes (`غ` for unsigned, `ط` for long, `طط` for long long, and combinations like `غط`, `غطط`).
 - [x] Literals (Float - Defined `BAA_TOKEN_FLOAT_LIT`, identified by lexer syntax checks; value parsing occurs later)
-- [ ] Literals (Float): Add support for C99 hexadecimal float constants (e.g., `0x1.fp+2`).
-- [x] Literals (Char - Defined `BAA_TOKEN_CHAR_LIT`, scanned with escapes `\n, \t, \\, \', \", \r, \0, \uXXXX`)
-- [x] Literals (String - `BAA_TOKEN_STRING_LIT`, scanned with escapes `\n, \t, \\, \", \r, \0, \uXXXX`)
+- [ ] Literals (Float): Add support for Baa Arabic suffix `ح` and Arabic exponent marker `أ` (e.g., `1.23أ4`).
+- [ ] Literals (Float): Add support for C99 hexadecimal float constants (e.g., `0x1.fp+2`), adapting to Baa's `أ` exponent marker if applicable.
+- [x] Literals (Char - Defined `BAA_TOKEN_CHAR_LIT`, currently scans standard C escapes)
+- [ ] Literals (Char): Implement Baa Arabic escape sequences (e.g., `\س`, `\م`, `\يXXXX`) using `\` as the escape character.
+- [x] Literals (String - `BAA_TOKEN_STRING_LIT`, currently scans standard C escapes)
+- [ ] Literals (String): Implement Baa Arabic escape sequences (e.g., `\س`, `\م`, `\يXXXX`) using `\` as the escape character.
 - [x] Literals (Boolean - Defined `BAA_TOKEN_BOOL_LIT`, keywords `صحيح`/`خطأ` scanned)
-- [ ] **Align Keywords**: Remove `FUNC` (`دالة`) as a keyword (use C-like function syntax). Other keywords (RETURN, IF, ELSE, WHILE, FOR, DO, SWITCH, CASE, BREAK, CONTINUE) are correct. (To align with `docs/language.md`)
-- [ ] **Align Keywords**: Remove `VAR` (`متغير`) as a keyword. `CONST` (`ثابت`) is correct. (To align with `docs/language.md`)
-- [ ] **Add C99 Keywords**: Support `inline` (Baa: `مضمن`?) and `restrict` (Baa: `مقيد`?) (Tokenization and Baa keyword TBD).
+- [x] **Keywords Aligned**: `دالة` (FUNC) and `متغير` (VAR) are not Baa keywords. Baa uses C-style function declarations and type-prefixed variable declarations.
+- [ ] **Add C99 Keywords**: Support `مضمن` (inline) and `مقيد` (restrict) (Tokenization for these Arabic keywords).
 - [x] Types (TYPE_INT, TYPE_FLOAT, TYPE_CHAR, TYPE_VOID, TYPE_BOOL - Defined and added to `lexer.c` keyword list)
 - [x] Operators (+, -, *, /, %, =, ==, !, !=, <, <=, >, >=)
 - [x] Operators (&&, || - Defined and scanning logic added in `lexer.c`)
@@ -41,16 +43,16 @@ This roadmap outlines the planned improvements and current status of the Baa lan
 - [x] Decimal number parsing
 - [x] Number error handling
 - [x] Arabic-Indic digit support
-- [x] Scientific notation support
-- [x] Binary and hexadecimal literals
+- [x] Scientific notation support (using `أ` as exponent marker).
+- [x] Binary (`0b`/`0B`) and hexadecimal (`0x`/`0X`) literals (prefixes unchanged).
 - [x] Underscore in number literals (e.g., 1_000_000)
 
 ## String Handling
 
 - [x] Basic string literal support (double quotes)
 - [x] Character literal support (single quotes)
-- [x] Basic escape sequences in strings/chars (\n, \t, \\, \", \', \r, \0)
-- [x] Unicode escape sequences (\uXXXX)
+- [x] Basic escape sequences in strings/chars (currently standard C; planned to transition to Baa Arabic escapes like `\س`, `\م`).
+- [x] Unicode escape sequences (currently `\uXXXX`; planned Baa equivalent `\يXXXX`).
 - [x] Multiline strings (`"""..."""`)
 - [x] Raw string literals (e.g., `خ"..."`, `خ"""..."""` - no escape processing)
 

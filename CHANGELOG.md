@@ -4,6 +4,15 @@ All notable changes to the B (باء) compiler project will be documented in thi
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.13.0] - 2025-05-11
+
+### Added
+- **Preprocessor:** Implemented macro expansion rescanning. The preprocessor now correctly rescans the output of a macro expansion for further macro names to be replaced, adhering more closely to C99 standards. This includes handling nested expansions and using the macro expansion stack to prevent direct recursion during the rescan of a macro's own output. (Files affected: `src/preprocessor/preprocessor_line_processing.c`).
+- **Preprocessor:** Corrected `__السطر__` (`__LINE__`) predefined macro to expand to an integer constant as per C standard, instead of a string literal. (File affected: `src/preprocessor/preprocessor_line_processing.c`).
+
+### Fixed
+- **Preprocessor Build:** Resolved various compiler errors (including "undeclared function" and "lvalue" issues) in `src/preprocessor/preprocessor_line_processing.c` related to the rescanning implementation through code refactoring and build cleaning.
+
 ## [0.1.12.0] - 2025-05-09
 
 ### Added

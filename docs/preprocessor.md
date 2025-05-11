@@ -20,7 +20,8 @@ It primarily processes source files, automatically detecting UTF-8 (with or with
     - **Function-like Macros:** Defines macros that take arguments.
         - Example: `#تعريف ADD(a, b) a + b`
         - Parses parameter names within the parentheses.
-        - Performs substitution of parameter names in the macro body with the provided arguments during invocation (`ADD(1, 2)` becomes `1 + 2`).
+        - Performs substitution of parameter names in the macro body with the provided arguments during invocation.
+        - **Rescanning:** After parameter substitution and processing of `#` and `##` operators, the resulting token sequence is rescanned for further macro names to be replaced. This process repeats until no more expansions can be performed on the line.
         - Argument parsing correctly handles nested parentheses and basic string/character literals.
         - **Stringification (`#`):** Supports the `#` operator before a parameter name (e.g., `#param`) to convert the corresponding argument into a string literal (quoted and escaped).
         - **Token Pasting (`##`):** Supports the `##` operator for concatenating tokens during macro expansion. It pastes the token preceding `##` with the token following `##`. Handles edge cases like empty arguments.
@@ -60,7 +61,7 @@ It primarily processes source files, automatically detecting UTF-8 (with or with
 The Baa preprocessor defines the following macros automatically. These names are inspired by standard C predefined macros but are in Arabic.
 
 - **`__الملف__` (`__FILE__`):** Expands to a string literal representing the name of the current input file being processed.
-- **`__السطر__` (`__LINE__`):** Expands to a string literal representing the current line number in the input file.
+- **`__السطر__` (`__LINE__`):** Expands to an integer constant representing the current line number in the input file.
 - **`__التاريخ__` (`__DATE__`):** Expands to a string literal representing the date of preprocessing, in the format `"Mmm dd yyyy"` (e.g., `"May 06 2025"`). The month names are in English as per common C standard behavior.
 - **`__الوقت__` (`__TIME__`):** Expands to a string literal representing the time of preprocessing, in the format `"HH:MM:SS"` (e.g., `"19:32:14"`).
 
@@ -184,6 +185,9 @@ if (!processed_source) {
 
 ## Future Enhancements (تحسينات مستقبلية)
 
-- **Rescanning Expanded Macros:** Implement proper rescanning of macro expansion results for further macro substitutions, as required by the C standard.
 - **Input Abstraction:** The preprocessor currently supports input from files and strings via `BaaPpSource`. Future work could extend this to include standard input (`stdin`).
 - **Error Recovery:** Improve error recovery mechanisms within directives and expressions.
+- **Macro Expansion in Conditional Expressions**: Enhance the expression evaluator for `#إذا` and `#وإلا_إذا` to support full macro expansion (including function-like macros and rescanning of results) before evaluation.
+- **Multi-line Comment Handling**: Implement robust handling for multi-line comments (`/* ... */`) across all preprocessor stages.
+- **Macro Redefinition Warnings/Errors**: Implement checks for macro redefinitions.
+- **Implement Remaining C99 Preprocessor Features**: Such as `__func__` (`__الدالة__`), Variadic Macros (`وسائط_إضافية`, `__وسائط_متغيرة__`), `#error` (`#خطأ`), `#warning` (`#تحذير`), `#line` (`#سطر`), `_Pragma` (`أمر_براغما`), and `#pragma` (`#براغما`).

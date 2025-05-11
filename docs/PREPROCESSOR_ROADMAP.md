@@ -30,8 +30,8 @@ This roadmap outlines the planned improvements and current status of the Baa lan
     - [ ] Fully robust argument parsing (complex edge cases with literals/whitespace)
     - [ ] **C99 Support**: Implement Variadic Macros (using `وسائط_إضافية` for `...` and `__وسائط_متغيرة__` for `__VA_ARGS__`).
 - **Conditional Compilation:**
-    - [x] `#إذا_عرف MACRO` (ifdef)
-    - [x] `#إذا_لم_يعرف MACRO` (ifndef)
+    - [x] `#إذا_عرف MACRO` (ifdef - checks if macro is defined, i.e., `معرف`)
+    - [x] `#إذا_لم_يعرف MACRO` (ifndef - checks if macro is not defined, i.e., `!معرف`)
     - [x] `#وإلا_إذا expression` (elif - constant expression evaluation)
     - [x] `#إلا` (else)
     - [x] `#نهاية_إذا` (endif)
@@ -39,12 +39,13 @@ This roadmap outlines the planned improvements and current status of the Baa lan
 
 ## Key Areas for C99 Compliance and Improvement
 
-- [ ] **Macro Expansion Rescanning**: Implement full rescanning of macro expansion results. The output of any macro substitution (from parameter replacement, `#`, or `##` operations) must be rescanned for further macro names to expand. This is critical for C99 compliance.
+- [x] **Macro Expansion Rescanning**: Implement full rescanning of macro expansion results. The output of any macro substitution (from parameter replacement, `#`, or `##` operations) must be rescanned for further macro names to expand. This is critical for C99 compliance.
 - [ ] **Macro Expansion in Conditional Expressions**: Enhance the expression evaluator for `#إذا` and `#وإلا_إذا` to support full macro expansion (including function-like macros and rescanning of results) before evaluation. Currently, only object-like macros expanding directly to integer strings are partially handled.
-- [ ] **`__السطر__` (`__LINE__`) Expansion**: Ensure `__السطر__` (and its C99 equivalent `__LINE__`) expands to an integer constant, not a string literal.
+- [x] **`__السطر__` (`__LINE__`) Expansion**: Ensure `__السطر__` (and its C99 equivalent `__LINE__`) expands to an integer constant, not a string literal. (Corrected during rescanning implementation).
 - [ ] **Multi-line Comment Handling**: Implement robust handling for multi-line comments (`/* ... */`) across all preprocessor stages, ensuring they are correctly stripped and do not interfere with parsing or directive recognition.
 - [ ] **Macro Redefinition Warnings/Errors**: Implement checks for macro redefinitions. Issue warnings or errors for incompatible redefinitions, as per C99 standard behavior.
-- [ ] **Predefined `__func__`**: Implement the C99 `__func__` predefined identifier (and its Baa equivalent, e.g., `__الدالة__`).
+- [ ] **Predefined `__func__`**: Implement the C99 `__func__` predefined identifier (Baa: `__الدالة__`).
+- [ ] **Predefined `__STDC_VERSION__` equivalent**: Implement Baa's version macro `__إصدار_المعيار_باء__`.
 
     - **Other Standard Directives:**
         - [ ] `#خطأ message` (Baa: `#خطأ "رسالة الخطأ"`)
@@ -68,7 +69,8 @@ This roadmap outlines the planned improvements and current status of the Baa lan
     - [x] Support for UTF-8 input files.
     - [x] Input source abstraction (file, string). (*stdin not yet implemented*)
     - [x] Support for bitwise operators (`&`, `|`, `^`, `~`, `<<`, `>>`) in conditional expressions.
-    - [x] Predefined macros (`__الملف__`, `__السطر__`, `__التاريخ__`, `__الوقت__`)
+    - [x] Predefined macros (`__الملف__`, `__السطر__` (as int), `__التاريخ__`, `__الوقت__`)
+        - [ ] Implement remaining predefined macros: `__الدالة__`, `__إصدار_المعيار_باء__`.
         - [ ] Improve error recovery mechanisms (allow continuation after some errors to find more issues).
     3.  **Macro Edge Cases:**
         - Address complex edge cases in macro substitution and argument parsing.

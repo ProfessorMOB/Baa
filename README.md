@@ -10,11 +10,11 @@ The project now supports:
 
 - **Preprocessor Directives:**
   - `#تضمين <...>` and `#تضمين "..."` (Include files)
-  - `#تعريف NAME ...` (Parameterless and function-like macro definition/substitution)
+  - `#تعريف NAME ...` (Parameterless and function-like macro definition/substitution, **including rescanning of expansion results**).
   - `#الغاء_تعريف NAME` (Undefine macro)
   - Conditional compilation (`#إذا_عرف`, `#إذا_لم_يعرف`, `#إذا`, `#وإلا_إذا`, `#إلا`, `#نهاية_إذا`) (using `معرف` for `defined`)
   - Stringification (`#`) and Token Pasting (`##`) operators in macros.
-  - Predefined Arabic macros: `__الملف__` (FILE), `__السطر__` (LINE), `__التاريخ__` (DATE), `__الوقت__` (TIME). (Planned: `__الدالة__` for `__func__`, `__إصدار_المعيار_باء__` for Baa version).
+  - Predefined Arabic macros: `__الملف__` (FILE), `__السطر__` (LINE - expands to integer), `__التاريخ__` (DATE), `__الوقت__` (TIME). (Planned: `__الدالة__` for `__func__`, `__إصدار_المعيار_باء__` for Baa version).
   - Variadic Macros (Planned: `وسائط_إضافية` for `...`, `__وسائط_متغيرة__` for `__VA_ARGS__`).
   - Other Standard Directives (Planned: `#خطأ`, `#تحذير`, `#سطر`, `#براغما`, and `أمر_براغما` operator).
 
@@ -77,7 +77,7 @@ For detailed information about Arabic support, see [Arabic Support Documentation
 
 #### What's Working
 
-- **Preprocessor**: Handles includes (`#تضمين`), object-like and function-like macros (`#تعريف` with parameters, `#`, `##`), undefines (`#الغاء_تعريف`), conditional compilation (including expression evaluation for `#إذا`/`#وإلا_إذا`), predefined Arabic macros (`__الملف__`, `__السطر__`, `__التاريخ__`, `__الوقت__`). Error reporting is unified and provides original source locations (file, line, column).
+- **Preprocessor**: Handles includes (`#تضمين`), object-like and function-like macros (`#تعريف` with parameters, `#`, `##`, and **rescanning**), undefines (`#الغاء_تعريف`), conditional compilation (including expression evaluation for `#إذا`/`#وإلا_إذا`), predefined Arabic macros (`__الملف__`, `__السطر__` (as integer), `__التاريخ__`, `__الوقت__`). Error reporting is unified and provides original source locations (file, line, column).
 - **Core Architecture**: Well-defined architecture with clear separation of concerns
 - **Type System**: Basic types including Boolean, type conversion rules, and type checking
 - **AST (Abstract Syntax Tree)**: Comprehensive node structure, program, function nodes, enhanced parameter handling

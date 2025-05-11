@@ -18,13 +18,14 @@ The initial stage that processes the source file before tokenization:
 - **Features & Status:**
   - Implemented as a separate stage.
   - Handles `#تضمين` (relative and standard paths).
-  - Handles `#تعريف` (object-like and function-like macros, including `#`, `##`).
+  - Handles `#تعريف` (object-like and function-like macros, including `#`, `##`, and **rescanning of expansion results**).
   - Handles `#الغاء_تعريف` to undefine macros.
-  - Handles conditional compilation (`#إذا_عرف`, `#إذا_لم_يعرف`, `#إلا`, `#نهاية_إذا`, `#إذا`, `#وإلا_إذا`) with expression evaluation (excluding bitwise operators).
-  - Detects circular includes and recursive macro expansion.
+  - Handles conditional compilation (`#إذا_عرف`, `#إذا_لم_يعرف`, `#إلا`, `#نهاية_إذا`, `#إذا`, `#وإلا_إذا`) with expression evaluation (using `معرف` for `defined`; excludes bitwise ops).
+  - Detects circular includes and recursive macro expansion (expansion stack prevents direct self-recursion during a single expansion's rescan).
   - Enforces UTF-16LE input.
   - Provides error messages with file/line context.
-  - *Planned:* Bitwise operators in conditional expressions, predefined macros (`__الملف__`, `__السطر__`, `__التاريخ__`, `__الوقت__`, `__الدالة__`, `__إصدار_المعيار_باء__`), Variadic Macros (`وسائط_إضافية`, `__وسائط_متغيرة__`), other standard directives (`#خطأ`, `#تحذير`, `#سطر`, `#براغما`, `أمر_براغما`), UTF-8 input support.
+  - Predefined macros implemented: `__الملف__`, `__السطر__` (as integer), `__التاريخ__`, `__الوقت__`.
+  - *Planned:* Bitwise operators in conditional expressions, remaining predefined macros (`__الدالة__`, `__إصدار_المعيار_باء__`), Variadic Macros (`وسائط_إضافية`, `__وسائط_متغيرة__`), other standard directives (`#خطأ`, `#تحذير`, `#سطر`, `#براغما`, `أمر_براغما`), UTF-8 input support, full macro expansion in conditional expressions.
 
 ### 1. Lexer
 The lexical analyzer responsible for tokenizing source code. It has a modular structure:

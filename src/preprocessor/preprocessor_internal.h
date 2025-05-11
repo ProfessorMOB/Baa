@@ -132,7 +132,7 @@ typedef struct
 // From preprocessor_utils.c
 bool init_dynamic_buffer(DynamicWcharBuffer *db, size_t initial_capacity);
 bool append_to_dynamic_buffer(DynamicWcharBuffer *db, const wchar_t *str_to_append);
-bool append_dynamic_buffer_n(DynamicWcharBuffer *db, const wchar_t *str_to_append, size_t n);
+bool append_dynamic_buffer_n(DynamicWcharBuffer* db, const wchar_t* str_to_append, size_t n); // Re-typed
 void free_dynamic_buffer(DynamicWcharBuffer *db);
 wchar_t *wcsndup_internal(const wchar_t *s, size_t n); // Renamed to avoid potential conflicts if wcsndup exists
 // Reads file content, detecting UTF-8/UTF-16LE encoding.
