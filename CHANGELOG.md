@@ -13,6 +13,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - **Preprocessor Build:** Resolved various compiler errors (including "undeclared function" and "lvalue" issues) in `src/preprocessor/preprocessor_line_processing.c` related to the rescanning implementation through code refactoring and build cleaning.
 
+### Known Issues
+- **Preprocessor:** Token pasting (`##`) during the rescanning phase (i.e., when `##` appears in the output of a previous expansion, not in an original macro body) is not fully correctly handled. Operands of `##` that are macro names might be expanded prematurely before pasting, or the `##` operator itself might be treated literally. This is a known limitation of the current rescanning implementation.
+
 ## [0.1.12.0] - 2025-05-09
 
 ### Added
