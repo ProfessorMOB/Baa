@@ -42,6 +42,7 @@ This document compares C99 features with their B (باء) equivalents and outlin
 | `const`       | `ثابت`            | Partial  | Keyword `ثابت` exists and is parsed. Semantic enforcement needed. |
 | `volatile`    | `متطاير`          | Planned  | Keyword not observed. |
 | `restrict`    | `مقيد`            | Planned  | C99 keyword for pointer optimization. |
+| Literal Suffixes U, L, LL, F | `غ`, `ط`, `طط`, `ح` | Planned | Baa uses Arabic suffixes: `غ` (unsigned), `ط` (long), `طط` (long long), `ح` (float). Combinations like `غط` (unsigned long), `غطط` (unsigned long long) are also planned. |
 
 ### Literals
 
@@ -49,8 +50,8 @@ This document compares C99 features with their B (باء) equivalents and outlin
 |----------------------|--------------------------------------------------------------------|-------------|-------------------------------------------------------------------------------------------------------------------------------------|
 | Integer Literals     | Decimal (Western & Arabic-Indic), Binary (`0b`/`0B`), Hex (`0x`/`0X`). Underscores (`_`) for readability. | Implemented | K&R C had decimal, octal, hex. Baa does not explicitly support octal via `0` prefix (a leading `0` is just zero unless part of `0b`/`0x`). |
 | Floating-Point Literals | Decimal point (`.` or `٫`), Scientific notation (`e`/`E`). Western & Arabic-Indic digits. Underscores for readability. | Implemented | K&R C had basic float forms. Baa extends with `٫` and full underscore/digit support.                                              |
-| Character Literals   | `'c'` (Western/Arabic). Standard escapes (`\n`, `\t`, `\\`, `\'`, `\"`, `\r`, `\0`), Unicode (`\uXXXX`). | Implemented | K&R C had basic escapes and octal escapes. Baa focuses on standard and Unicode escapes.                                           |
-| String Literals      | `"...\"`, `"""..."""` (multiline), `خ"..."` (raw). (Western/Arabic). Standard escapes, Unicode (`\uXXXX`). | Implemented | K&R C had basic escapes. Baa supports richer character sets, Unicode escapes, multiline, and raw strings.                               |
+| Character Literals   | `'c'` (Western/Arabic). Arabic escapes planned (e.g., `\س` for newline, `\يXXXX` for Unicode). `\` retained as escape char. | Implemented (Standard Escapes), Planned (Arabic Escapes) | Baa will use `\` with Arabic letters for specific escapes. |
+| String Literals      | `"...\"`, `"""..."""` (multiline), `خ"..."` (raw). (Western/Arabic). Arabic escapes planned. `\` retained as escape char. | Implemented (Standard Escapes), Planned (Arabic Escapes) | Baa will use `\` with Arabic letters for specific escapes. |
 
 ### Control Flow
 
@@ -111,11 +112,12 @@ This document compares C99 features with their B (باء) equivalents and outlin
 | `#else`       | `#إلا`            | Implemented | Handled by `baa_preprocess`. |
 | `#endif`      | `#نهاية_إذا`      | Implemented | Handled by `baa_preprocess`. |
 | `#undef`      | `#الغاء_تعريف`    | Implemented | Handled by `baa_preprocess`. |
+| `defined` operator | `معرف` operator   | Implemented | Baa uses `معرف` for the `defined` operator. |
 | `__FILE__`           | `__الملف__`        | Implemented | Expands to current file name. |
 | `__LINE__`           | `__السطر__`        | Implemented | Expands to current line number. |
 | `__DATE__`           | `__التاريخ__`      | Implemented | Expands to preprocessing date. |
 | `__TIME__`           | `__الوقت__`        | Implemented | Expands to preprocessing time. |
-| `__STDC_VERSION__`   | (N/A)              | N/A         | C99: `199901L`. Indicates C standard version. Baa does not define this. |
+| `__STDC_VERSION__`   | `__إصدار_المعيار_باء__` | Planned    | Baa defines its own version macro, e.g., `__إصدار_المعيار_باء__` expanding to Baa version number. |
 | `__func__`           | `__الدالة__`       | Planned     | C99 predefined identifier for current function name. Baa equivalent `__الدالة__`. |
 | Variadic Macros (`...`, `__VA_ARGS__`) | `وسائط_إضافية`, `__وسائط_متغيرة__` | Planned     | Baa uses `وسائط_إضافية` for `...` and `__وسائط_متغيرة__` for `__VA_ARGS__`. |
 | `#error`             | `#خطأ`             | Planned     | Baa equivalent for `#error message`. |

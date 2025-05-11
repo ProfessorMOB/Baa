@@ -59,8 +59,9 @@ Baa supports a preprocessor step that handles directives starting with `#` befor
         ```
 
   * **Variadic Macros (C99):** Defines macros that can accept a variable number of arguments. For Baa, this is achieved using `وسائط_إضافية` in the parameter list and `__وسائط_متغيرة__` in the macro body. - *[Planned]*
-    *   `وسائط_إضافية` (wasā'iṭ iḍāfiyyah - additional arguments): Used in the parameter list to indicate variable arguments.
-    *   `__وسائط_متغيرة__` (al-wasā'iṭ al-mutaghayyirah - The Variable Arguments): The special identifier used in the macro body to refer to the arguments matched by `وسائط_إضافية`.
+    * `وسائط_إضافية` (wasā'iṭ iḍāfiyyah - additional arguments): Used in the parameter list to indicate variable arguments.
+    * `__وسائط_متغيرة__` (al-wasā'iṭ al-mutaghayyirah - The Variable Arguments): The special identifier used in the macro body to refer to the arguments matched by `وسائط_إضافية`.
+
         ```baa
         #تعريف DEBUG_PRINT(تنسيق, وسائط_إضافية) اطبع(تنسيق + ": " + __وسائط_متغيرة__).
         // Example usage:
@@ -78,7 +79,7 @@ Baa supports a preprocessor step that handles directives starting with `#` befor
 
 #### 1.1.3 Conditional Compilation
 
-Directives for compiling parts of the code based on conditions. Expressions in these directives can use arithmetic, bitwise, and logical operators, as well as the `defined()` operator. - *[Implemented]*
+Directives for compiling parts of the code based on conditions. Expressions in these directives can use arithmetic, bitwise, and logical operators, as well as the `معرف()` operator. - *[Implemented]*
 
 * **`#إذا` (If):** Compiles the subsequent code if the expression evaluates to true (non-zero). - *[Implemented]*
 
@@ -89,12 +90,12 @@ Directives for compiling parts of the code based on conditions. Expressions in t
     #نهاية_إذا
 
     #تعريف VALUE 10
-    #إذا VALUE > 5 && defined(DEBUG_MODE)
+    #إذا VALUE > 5 && معرف(DEBUG_MODE)
         اطبع("القيمة أكبر من 5 ووضع التصحيح مفعل.").
     #نهاية_إذا
     ```
 
-* **`#إذا_عرف` (If defined):** Compiles the subsequent code if the macro is defined. Equivalent to `#إذا defined(MACRO_NAME)`. - *[Implemented]*
+* **`#إذا_عرف` (If defined):** Compiles the subsequent code if the macro is defined. Equivalent to `#إذا معرف(MACRO_NAME)`. - *[Implemented]*
 
     ```baa
     #تعريف MY_FEATURE
@@ -103,7 +104,7 @@ Directives for compiling parts of the code based on conditions. Expressions in t
     #نهاية_إذا
     ```
 
-* **`#إذا_لم_يعرف` (If not defined):** Compiles the subsequent code if the macro is not defined. Equivalent to `#إذا !defined(MACRO_NAME)`. - *[Implemented]*
+* **`#إذا_لم_يعرف` (If not defined):** Compiles the subsequent code if the macro is not defined. Equivalent to `#إذا !معرف(MACRO_NAME)`. - *[Implemented]*
 
     ```baa
     #إذا_لم_يعرف PRODUCTION_BUILD
@@ -126,10 +127,10 @@ Directives for compiling parts of the code based on conditions. Expressions in t
 
 * **`#إلا` (Else):** Compiles the subsequent code if the preceding `#إذا` or `#وإلا_إذا` condition was false. - *[Implemented]*
 * **`#نهاية_إذا` (End if):** Marks the end of a conditional compilation block. - *[Implemented]*
-* **`defined()` Operator:** Used within conditional expressions to check if a macro is defined. Returns `1` if defined, `0` otherwise. - *[Implemented]*
+* **`معرف()` Operator:** Used within conditional expressions to check if a macro is defined. Returns `1` if defined, `0` otherwise. Can be used as `معرف(اسم_الماكرو)` or `معرف اسم_الماكرو`. - *[Implemented]*
 
     ```baa
-    #إذا defined(VERBOSE) || defined(EXTRA_DEBUG)
+    #إذا معرف(VERBOSE) || معرف EXTRA_DEBUG
         // Code for verbose or extra debug output
     #نهاية_إذا
     ```
@@ -139,23 +140,30 @@ Directives for compiling parts of the code based on conditions. Expressions in t
 Baa plans to support other standard C preprocessor directives with Arabic keywords:
 
 * **`#خطأ "رسالة"` (`#error "message"`):** Instructs the preprocessor to report a fatal error. The compilation process stops. - *[Planned]*
+
     ```baa
     #إذا_لم_يعرف REQUIRED_FEATURE
         #خطأ "الميزة المطلوبة REQUIRED_FEATURE غير معرفة."
     #نهاية_إذا
     ```
+
 * **`#تحذير "رسالة"` (`#warning "message"`):** Instructs the preprocessor to issue a warning message. Compilation typically continues. - *[Planned]*
+
     ```baa
     #تحذير "هذه الميزة مهملة وسيتم إزالتها في الإصدارات القادمة."
     ```
+
 * **`#سطر رقم "اسم_الملف"` (`#line number "filename"`):** Changes the preprocessor's internally stored line number and filename. This affects the output of `__السطر__` and `__الملف__`. - *[Planned]*
+
     ```baa
     #سطر ١٠٠ "ملف_مصدر_آخر.ب"
     // الآن __السطر__ سيكون ١٠٠ و __الملف__ سيكون "ملف_مصدر_آخر.ب"
     ```
+
 * **`#براغما توجيه_خاص` (`#pragma directive`):** Used for implementation-defined directives. The specific `توجيه_خاص` (special directive) and its behavior depend on the Baa compiler. - *[Planned]*
-    * Example: `#براغما مرة_واحدة` (could be Baa's equivalent of `#pragma once`).
+  * Example: `#براغما مرة_واحدة` (could be Baa's equivalent of `#pragma once`).
 * **`أمر_براغما("توجيه_نصي")` (`_Pragma("string_directive")`):** An operator (not a directive starting with `#`) that allows a macro to generate a `#براغما` directive. It takes a string literal which is then treated as the content of a `#براغما` directive. - *[Planned]*
+
     ```baa
     #تعريف DO_PRAGMA(x) أمر_براغما(#x)
     // DO_PRAGMA(توجيه_خاص للتحسين)
@@ -172,6 +180,7 @@ Baa provides several predefined macros that offer information about the compilat
 * `__التاريخ__` : Expands to a string literal representing the compilation date (e.g., "May 09 2025").
 * `__الوقت__` : Expands to a string literal representing the compilation time (e.g., "07:40:00").
 * `__الدالة__` : Expands to a string literal representing the name of the current function (similar to C99's `__func__`). - *[Planned]*
+* `__إصدار_المعيار_باء__` : Expands to a long integer constant representing the Baa language version (e.g., `10010L` for v0.1.10). - *[Planned]*
 
     ```baa
     اطبع("تم التجميع من الملف: " + __الملف__).
@@ -344,20 +353,21 @@ Literals represent fixed values in the source code.
 * **Boolean Literals (`منطقي`):**
   * `صحيح` (true) - *[Implemented]*
   * `خطأ` (false) - *[Implemented]*
-* **Character Literals (`حرف`):** Represent single characters enclosed in single quotes (`'`).
+* **Character Literals (`حرف`):** Represent single characters enclosed in single quotes (`'`). Baa uses `\` as the escape character followed by an Arabic letter or specific sequences.
   * `'a'`, `'أ'`, `'#'`, `'١'` - *[Implemented]*
-  * Escape Sequences:
-    * `'\n'` (newline), `'\t'` (tab), `'\\'` (backslash), `'\''` (single quote) - *[Implemented]*
-    * `'\"'` (double quote) - *[Implemented]*
-    * `'\r'` (carriage return), `'\0'` (null char) - *[Implemented]*
-    * `'\uXXXX'` (Unicode escape, where XXXX are four hex digits) - *[Implemented]*
-* **String Literals:** Represent sequences of characters enclosed in double quotes (`"`). Uses UTF-16LE encoding internally.
+  * Escape Sequences: - *[Planned for Arabic Escapes]*
+    * `\س` (newline), `\م` (tab), `\\` (backslash), `\'` (single quote)
+    * `\"` (double quote)
+    * `\ر` (carriage return), `\ص` (null char)
+    * `\يXXXX` (Unicode escape, where XXXX are four hex digits)
+    * `\هـHH` (Hex byte escape, where HH are two hex digits)
+* **String Literals:** Represent sequences of characters enclosed in double quotes (`"`). Uses UTF-16LE encoding internally. Baa uses `\` as the escape character followed by an Arabic letter or specific sequences.
   * `"مرحباً"` - *[Implemented]*
   * `"Hello, World!"` - *[Implemented]*
-  * Escape Sequences: Similar to characters: `\n`, `\t`, `\"`, `\\`, `\r`, `\0`, `\uXXXX` are implemented. - *[Implemented]*
-  * **Multiline Strings:** Sequences of characters enclosed in triple double quotes (`"""`). Newlines within the string are preserved. Escape sequences are processed as in regular strings. - *[Implemented]*
-    * Example: `حرف نص_متعدد = """سطر أول\nسطر ثاني مع \t تاب.""".`
-  * **Raw String Literals:** Prefixed with `خ` (Kha), these strings do not process escape sequences. All characters between the delimiters are taken literally.
+  * Escape Sequences: Similar to characters: `\س`, `\م`, `\"`, `\\`, `\ر`, `\ص`, `\يXXXX`, `\هـHH` are planned. - *[Planned for Arabic Escapes]*
+  * **Multiline Strings:** Sequences of characters enclosed in triple double quotes (`"""`). Newlines within the string are preserved. Escape sequences (using `\`) are processed as in regular strings. - *[Implemented, Arabic Escapes Planned]*
+    * Example: `حرف نص_متعدد = """سطر أول\سطر ثاني مع \م تاب.""".`
+  * **Raw String Literals:** Prefixed with `خ` (Kha), these strings do not process escape sequences. All characters between the delimiters are taken literally, including `\`.
     * Single-line raw strings: `خ"..."`
     * Multiline raw strings: `خ"""..."""` (newlines are preserved)
     * Examples:

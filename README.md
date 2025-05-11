@@ -12,20 +12,21 @@ The project now supports:
   - `#تضمين <...>` and `#تضمين "..."` (Include files)
   - `#تعريف NAME ...` (Parameterless and function-like macro definition/substitution)
   - `#الغاء_تعريف NAME` (Undefine macro)
-  - Conditional compilation (`#إذا_عرف`, `#إذا_لم_يعرف`, `#إذا`, `#وإلا_إذا`, `#إلا`, `#نهاية_إذا`)
+  - Conditional compilation (`#إذا_عرف`, `#إذا_لم_يعرف`, `#إذا`, `#وإلا_إذا`, `#إلا`, `#نهاية_إذا`) (using `معرف` for `defined`)
   - Stringification (`#`) and Token Pasting (`##`) operators in macros.
-  - Predefined Arabic macros: `__الملف__` (FILE), `__السطر__` (LINE), `__التاريخ__` (DATE), `__الوقت__` (TIME). (Planned: `__الدالة__` for `__func__`).
+  - Predefined Arabic macros: `__الملف__` (FILE), `__السطر__` (LINE), `__التاريخ__` (DATE), `__الوقت__` (TIME). (Planned: `__الدالة__` for `__func__`, `__إصدار_المعيار_باء__` for Baa version).
   - Variadic Macros (Planned: `وسائط_إضافية` for `...`, `__وسائط_متغيرة__` for `__VA_ARGS__`).
   - Other Standard Directives (Planned: `#خطأ`, `#تحذير`, `#سطر`, `#براغما`, and `أمر_براغما` operator).
 
-- Basic type system with K&R C compatibility
-  - عدد_صحيح (int) - 32-bit integer
-  - عدد_حقيقي (float) - 32-bit float
-  - حرف (char) - 16-bit UTF-16 character
-  - منطقي (boolean) - Logical true/false values (`صحيح`, `خطأ`)
-  - فراغ (void) - No value type
+- **Basic Type System (نظام الأنواع الأساسي):** (K&R C compatibility with Arabic keywords)
+  - `عدد_صحيح` (int) - 32-bit integer
+  - `عدد_حقيقي` (float) - 32-bit float
+  - `حرف` (char) - 16-bit UTF-16 character
+  - `منطقي` (boolean) - Logical true/false values (`صحيح`, `خطأ`)
+  - `فراغ` (void) - No value type
+  - (Planned: `عدد_صحيح_طويل_جدا` for long long int)
 
-- Core operator system
+- **Core Operator System (نظام المعاملات الأساسي):**
   - Arithmetic operators (+, -, *, /, %)
   - Comparison operators (==, !=, <, >, <=, >=)
   - Assignment operator (=)
@@ -35,12 +36,17 @@ The project now supports:
   - Type checking and validation
   - Arabic operator names
 
-- Control Flow Structures
-  - إذا/وإلا (if/else)
-  - طالما (while)
-  - إرجع (return)
+- **Control Flow Structures (بنى التحكم في التدفق):**
+  - `إذا`/`وإلا` (if/else)
+  - `طالما` (while)
+  - `لكل` (for - uses C-style semicolons internally)
+  - `إرجع` (return)
+  - `توقف` (break)
+  - `أكمل` (continue)
+  - `اختر`/`حالة`/`افتراضي` (switch/case/default)
+  - (Planned: `افعل` for do-while)
 
-- Function System
+- **Function System (نظام الدوال):** (Uses C-style declarations: `return_type name(params)`)
   - Regular function parameters
   - Optional parameters (with default values)
   - Rest parameters (variable argument lists)
@@ -49,12 +55,12 @@ The project now supports:
 
 - Literals
   - **Numeric Literals:**
-    - Integers: Decimal (Western `0-9` & Arabic-Indic `٠-٩`), Binary (`0b`/`0B`), Hexadecimal (`0x`/`0X`).
-    - Floats: Using `.` or Arabic `٫` as decimal separator. Scientific notation (`e`/`E`).
+    - Integers: Decimal (Western `0-9` & Arabic-Indic `٠-٩`), Binary (`0b`/`0B`), Hexadecimal (`0x`/`0X`). (Planned: Arabic suffixes like `غ` for unsigned, `ط` for long, `طط` for long long).
+    - Floats: Using `.` or Arabic `٫` as decimal separator. Scientific notation (`e`/`E`). (Planned: Arabic suffix `ح` for float).
     - Underscores (`_`) supported as separators in all number types.
-    - Examples: `123`, `١٢٣`, `0b1010`, `0xFACE`, `1_000_000`, `3.14`, `٣٫١٤`, `1.5e-2`.
-  - **String Literals:** `"..."` with standard C escapes and Unicode escapes (`\uXXXX`).
-  - **Character Literals:** `'...'` with standard C escapes and Unicode escapes (`\uXXXX`).
+    - Examples: `123`, `١٢٣غ`, `0b1010طط`, `0xFACEط`, `1_000_000`, `3.14ح`, `٣٫١٤`, `1.5e-2`.
+  - **String Literals:** `"..."` (Planned: Arabic escapes like `\س`, `\م` using `\` as escape char).
+  - **Character Literals:** `'...'` (Planned: Arabic escapes like `\س`, `\م` using `\` as escape char).
   - **Boolean Literals:** `صحيح` (true), `خطأ` (false).
 
 - Arabic File Support
@@ -270,11 +276,12 @@ The Baa programming language supports two file extensions:
 ### Example Program
 
 ```baa
-#تضمين <مكتبة_طباعة>
+#تضمين <مكتبة_طباعة> // Assuming a Baa standard library header
 #تعريف EXIT_SUCCESS 0
 
 // مثال برنامج بسيط بلغة باء
-دالة رئيسية() {
+// Baa uses C-style function declarations
+عدد_صحيح رئيسية() {
     اطبع("مرحباً بالعالم!").
     إرجع EXIT_SUCCESS.
 }

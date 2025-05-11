@@ -16,7 +16,6 @@ Baa (باء) provides comprehensive support for Arabic programming through:
 
 | Arabic | English | Description |
 |--------|---------|-------------|
-| دالة | function | Function declaration |
 | إذا | if | Conditional statement |
 | وإلا | else | Alternative branch |
 | طالما | while | While loop |
@@ -97,9 +96,9 @@ Baa uses Arabic keywords for its preprocessor directives, aligning with C99 func
 | `وسائط_إضافية` (in def)   | `...` (in def)     | Indicates variadic arguments in a function-like macro definition.           |
 | `__وسائط_متغيرة__` (in body) | `__VA_ARGS__` (in body) | Accesses variadic arguments within a macro expansion.                       |
 | `#الغاء_تعريف`            | `#undef`           | Removes a macro definition.                                                 |
-| `#إذا`                    | `#if`              | Conditional compilation based on an expression.                             |
-| `#إذا_عرف`                | `#ifdef`           | Conditional compilation if a macro is defined.                              |
-| `#إذا_لم_يعرف`            | `#ifndef`          | Conditional compilation if a macro is not defined.                          |
+| `#إذا`                    | `#if`              | Conditional compilation based on an expression. Uses `معرف` for `defined`. |
+| `#إذا_عرف`                | `#ifdef`           | Conditional compilation if a macro is defined. (Uses `معرف`)                |
+| `#إذا_لم_يعرف`            | `#ifndef`          | Conditional compilation if a macro is not defined. (Uses `!معرف`)         |
 | `#وإلا_إذا`                | `#elif`            | Else-if condition for conditional compilation.                              |
 | `#إلا`                    | `#else`            | Alternative branch for conditional compilation.                             |
 | `#نهاية_إذا`              | `#endif`           | Ends a conditional compilation block.                                       |
@@ -118,6 +117,7 @@ Baa uses Arabic keywords for its preprocessor directives, aligning with C99 func
 | `__التاريخ__`        | `__DATE__`     | Expands to the compilation date as a string literal (e.g., "May 10 2025").  |
 | `__الوقت__`          | `__TIME__`     | Expands to the compilation time as a string literal (e.g., "02:00:00").   |
 | `__الدالة__` (Planned)| `__func__`     | Expands to the current function name as a string literal.                   |
+| `__إصدار_المعيار_باء__` (Planned) | `__STDC_VERSION__` (conceptually) | Expands to a long int representing Baa language version (e.g., `10010L`). |
 
 ### 6. Numeric Literals (القيم العددية)
 
@@ -128,15 +128,37 @@ Baa supports Arabic in numeric literals extensively:
   - Example: `عدد_حقيقي pi = ٣٫١٤١٥٩.`
 - **Underscores with Arabic Numerals (الشرطة السفلية مع الأرقام العربية):** Underscores can be used as separators for readability with Arabic-Indic digits as well.
   - Example: `عدد_صحيح كبير = ١_٠٠٠_٠٠٠.` (one million)
+- **Literal Suffixes (لواحق القيم الحرفية):** Baa uses Arabic suffixes to specify integer and floating-point literal types. - *[Planned]*
+  * `غ` (ghayn): Unsigned (e.g., `123غ` for `123U`).
+  * `ط` (ṭāʾ): Long (e.g., `456ط` for `456L`).
+  * `طط` (ṭāʾ-ṭāʾ): Long Long (e.g., `789طط` for `789LL`).
+  * `ح` (ḥāʾ): Float (e.g., `3.14ح` for `3.14F`).
+  * Combinations are also possible, with a preferred order (e.g., unsignedness then length):
+    * `غط` for Unsigned Long (e.g., `100غط`).
+    * `غطط` for Unsigned Long Long (e.g., `200غطط`).
 
-### 6. Character Literals (القيم الحرفية)
+### 7. Character and String Literals (القيم الحرفية والنصية)
 
-Character literals are enclosed in single quotes and support basic escape sequences:
+Character literals are enclosed in single quotes (`'ح'`). String literals are enclosed in double quotes (`"نص"`).
+Baa uses the backslash (`\`) as the escape character, followed by an Arabic letter or specific sequences for special characters.
+
+**Planned Arabic Escape Sequences:**
+*   Newline: `\س`
+*   Tab: `\م`
+*   Backslash: `\\`
+*   Single Quote: `\'`
+*   Double Quote: `\"`
+*   Carriage Return: `\ر`
+*   Null Character: `\ص`
+*   Unicode (4 hex digits): `\يXXXX` (e.g., `\ي0623` for 'أ')
+*   Hex Byte (2 hex digits): `\هـHH` (e.g., `\هـ41` for 'A')
 
 ```baa
-حرف حرف1 = 'ب'.
-حرف حرف2 = '\t'. // Tab character
+حرف سطر_جديد = '\س'.
+حرف علامة_جدولة = '\م'.
+نص مثال = "هذا نص يتضمن \سسطر جديد و \متاب."
 ```
+*(Note: Standard C escapes like `\n`, `\t` are currently implemented; transition to full Arabic escapes is planned).*
 
 ### 8. Function Parameters (معاملات الدالة)
 
@@ -152,7 +174,10 @@ Character literals are enclosed in single quotes and support basic escape sequen
 ### 1. Hello World
 
 ```baa
-دالة رئيسية() {
+// Baa uses C-style function declarations, e.g.:
+// عدد_صحيح رئيسية() { ... }
+// فراغ رئيسية() { ... }
+عدد_صحيح رئيسية() {
     اطبع("مرحباً بالعالم!").
     إرجع 0.
 }
@@ -161,7 +186,7 @@ Character literals are enclosed in single quotes and support basic escape sequen
 ### 2. Function with Parameters
 
 ```baa
-دالة جمع_الأرقام(عدد_صحيح أ، عدد_صحيح ب) {
+عدد_صحيح جمع_الأرقام(عدد_صحيح أ، عدد_صحيح ب) {
     إرجع أ + ب.
 }
 ```

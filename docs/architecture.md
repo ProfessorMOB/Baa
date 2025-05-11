@@ -13,7 +13,7 @@ The initial stage that processes the source file before tokenization:
 - **Input Encoding**: Expects UTF-16LE input files (checks BOM).
 - **Output**: Produces a single `wchar_t*` stream for the lexer.
 - **Circular Include Detection**: Prevents infinite include loops.
-- **Conditional Compilation**: Handles `#إذا`, `#إذا_عرف`, `#إذا_لم_يعرف`, `#وإلا_إذا`, `#إلا`, `#نهاية_إذا`. Evaluates constant integer expressions for `#إذا`/`#وإلا_إذا` (supports arithmetic, comparison, logical operators, `defined()`; excludes bitwise ops).
+- **Conditional Compilation**: Handles `#إذا`, `#إذا_عرف`, `#إذا_لم_يعرف`, `#وإلا_إذا`, `#إلا`, `#نهاية_إذا`. Evaluates constant integer expressions for `#إذا`/`#وإلا_إذا` (supports arithmetic, comparison, logical operators, `معرف()`; excludes bitwise ops).
 - **Error Reporting**: Reports errors with file path and line number context.
 - **Features & Status:**
   - Implemented as a separate stage.
@@ -24,7 +24,7 @@ The initial stage that processes the source file before tokenization:
   - Detects circular includes and recursive macro expansion.
   - Enforces UTF-16LE input.
   - Provides error messages with file/line context.
-  - *Planned:* Bitwise operators in conditional expressions, predefined macros (`__الملف__`, `__السطر__`, `__التاريخ__`, `__الوقت__`, `__الدالة__`), Variadic Macros (`وسائط_إضافية`, `__وسائط_متغيرة__`), other standard directives (`#خطأ`, `#تحذير`, `#سطر`, `#براغما`, `أمر_براغما`), UTF-8 input support.
+  - *Planned:* Bitwise operators in conditional expressions, predefined macros (`__الملف__`, `__السطر__`, `__التاريخ__`, `__الوقت__`, `__الدالة__`, `__إصدار_المعيار_باء__`), Variadic Macros (`وسائط_إضافية`, `__وسائط_متغيرة__`), other standard directives (`#خطأ`, `#تحذير`, `#سطر`, `#براغما`, `أمر_براغما`), UTF-8 input support.
 
 ### 1. Lexer
 The lexical analyzer responsible for tokenizing source code. It has a modular structure:
@@ -41,7 +41,7 @@ The lexical analyzer responsible for tokenizing source code. It has a modular st
     - Supports underscores (`_`) as separators for readability in numbers.
     - The lexer's `scan_number` function (in `token_scanners.c`) handles the syntactic recognition and extracts the raw lexeme. The separate `number_parser.c` utility can be used later for converting these lexemes to actual numeric values.
 - **Comment Handling**: Skips single-line (`//`, `#`) and multi-line (`/* */`) comments.
-- **String/Char Literals**: Handles string (`"..."`) and character (`'...'`) literals, including standard C escape sequences (`\n`, `\t`, `\\`, `\"`, `\'` (in char literals), `\r`, `\0`) and Unicode escapes (`\uXXXX`).
+- **String/Char Literals**: Handles string (`"..."`) and character (`'...'`) literals. Currently implements standard C escapes. *Planned: Support for Baa-specific Arabic escape sequences (e.g., `\س` for newline, `\م` for tab, `\يXXXX` for Unicode) while retaining `\` as the escape character.*
 - **Features & Status:**
   - Core lexer functionality and modular structure are implemented.
   - UTF-16LE encoding is processed (input from preprocessor).
