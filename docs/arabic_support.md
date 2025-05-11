@@ -19,7 +19,7 @@ Baa (باء) provides comprehensive support for Arabic programming through:
 | إذا | if | Conditional statement |
 | وإلا | else | Alternative branch |
 | طالما | while | While loop |
-| من_أجل | for | For loop |
+| لكل | for | For loop (C-style: init; condition; increment) |
 | افعل | do | Do-while loop |
 | اختر | switch | Switch statement |
 | حالة | case | Case label |
@@ -36,6 +36,7 @@ Baa (باء) provides comprehensive support for Arabic programming through:
 | نوع_مستخدم | typedef | Type alias definition |
 | حجم | sizeof | Size of type/object operator |
 | متطاير | volatile | Volatile memory access qualifier (C99) |
+| تعداد | enum | Enumeration type definition |
 
 ### 2. Types (الأنواع)
 
@@ -51,6 +52,7 @@ Baa (باء) provides comprehensive support for Arabic programming through:
 | مؤشر        | pointer  | Pointer type       | -       |
 | بنية        | struct   | Structure type     | -       |
 | اتحاد       | union    | Union type         | -       |
+| تعداد       | enum     | Enumeration type     | -       |
 
 ### 3. Operators (العمليات)
 
@@ -77,6 +79,8 @@ Baa (باء) provides comprehensive support for Arabic programming through:
 | Logical | و | && | Logical AND |
 | | أو | \|\| | Logical OR |
 | | ليس | ! | Logical NOT |
+| Member Access | وصول_مباشر | :: | Direct member access (for structs/unions) |
+| | وصول_مؤشر | -> | Pointer member access (for structs/unions) |
 
 ### 4. Boolean Literals (القيم المنطقية)
 
@@ -126,6 +130,7 @@ Baa supports Arabic in numeric literals extensively:
   - Examples: `عدد_صحيح س = ١٢٣.` (s = 123), `عدد_حقيقي ص = ٣٫١٤.` (p = 3.14 using Arabic decimal separator)
 - **Arabic Decimal Separator (الفاصلة العشرية العربية):** The character `٫` (U+066B) is recognized as a decimal separator in floating-point numbers, in addition to the period (`.`).
   - Example: `عدد_حقيقي pi = ٣٫١٤١٥٩.`
+  - **Scientific Notation:** Uses `أ` (alif) as the exponent marker (e.g., `1.23أ4` for `1.23e4`).
 - **Underscores with Arabic Numerals (الشرطة السفلية مع الأرقام العربية):** Underscores can be used as separators for readability with Arabic-Indic digits as well.
   - Example: `عدد_صحيح كبير = ١_٠٠٠_٠٠٠.` (one million)
 - **Literal Suffixes (لواحق القيم الحرفية):** Baa uses Arabic suffixes to specify integer and floating-point literal types. - *[Planned]*
@@ -205,7 +210,7 @@ Baa uses the backslash (`\`) as the escape character, followed by an Arabic lett
 
 ```baa
 عدد_صحيح مجموع = 0.
-من_أجل (عدد_صحيح i = 1; i <= 10; i++) {
+لكل (عدد_صحيح i = 1; i <= 10; i++) {
     مجموع += i.
 }
 ```

@@ -36,9 +36,10 @@ The lexical analyzer responsible for tokenizing source code. It has a modular st
 - **Source Tracking**: Accurate line and column tracking for tokens and errors.
 - **Error Detection**: Identifies lexical errors (e.g., unexpected characters, unterminated literals, invalid escapes) and provides diagnostic messages.
 - **Numeric Literal Recognition**:
-    - Identifies various number formats: integers (decimal, binary `0b`/`0B`, hexadecimal `0x`/`0X`), floats (using `.` or `٫` as decimal separator), and scientific notation (`e`/`E`).
+    - Identifies various number formats: integers (decimal, binary `0b`/`0B`, hexadecimal `0x`/`0X`), floats (using `.` or `٫` as decimal separator), and scientific notation (using `أ` as exponent marker).
     - Supports Arabic-Indic digits (`٠`-`٩`) and Western digits (`0`-`9`) within all parts of numbers.
     - Supports underscores (`_`) as separators for readability in numbers.
+    - (Planned: Arabic literal suffixes like `غ`, `ط`, `طط`, `ح`).
     - The lexer's `scan_number` function (in `token_scanners.c`) handles the syntactic recognition and extracts the raw lexeme. The separate `number_parser.c` utility can be used later for converting these lexemes to actual numeric values.
 - **Comment Handling**: Skips single-line (`//`, `#`) and multi-line (`/* */`) comments.
 - **String/Char Literals**: Handles string (`"..."`) and character (`'...'`) literals. Currently implements standard C escapes. *Planned: Support for Baa-specific Arabic escape sequences (e.g., `\س` for newline, `\م` for tab, `\يXXXX` for Unicode) while retaining `\` as the escape character.*
@@ -80,6 +81,7 @@ The AST module provides the foundation for representing code structure:
 - **Enhanced Function Parameters**: Support for optional parameters, rest parameters, and named arguments *(Note: AST supports this, but parser implementation is currently limited to basic parameters)*.
 - **Control Flow Support**: If-else, while loops, for loops, switch/case, break/continue statements
 - **Array Support**: Array creation, indexing, and manipulation
+- **Struct/Union/Enum Support**: AST nodes for `بنية` (struct), `اتحاد` (union), `تعداد` (enum) and member access (`::`, `->`).
 - **Features & Status:**
   - Full implementation
   - Node creation and management
@@ -111,7 +113,7 @@ A robust type system that supports both C compatibility and Arabic type names:
 Operator system with full Arabic support:
 - **Arithmetic**: جمع (+), طرح (-), ضرب (*), قسمة (/)
 - **Comparison**: يساوي (==), أكبر_من (>), أصغر_من (<)
-- **Logical**: و (&&), أو (||), ليس (!)
+- **Logical**: Uses symbols `&&` (و - AND), `||` (أو - OR), `!` (ليس - NOT).
 - **Precedence**: Clear operator precedence rules
 - **Extensibility**: Easy addition of new operators
 - **Features & Status:**
@@ -127,7 +129,7 @@ Operator system with full Arabic support:
 Control structures with Arabic keywords:
 - **Conditions**: إذا (if), وإلا (else)
 - **Loops**: طالما (while), من_أجل (for)
-- **Functions**: دالة (function)
+- **Functions**: (Uses C-style declarations, no `دالة` keyword)
 - **Return**: إرجع (return)
 - **Features & Status:**
   - Complete implementation

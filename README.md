@@ -44,7 +44,7 @@ The project now supports:
   - `توقف` (break)
   - `أكمل` (continue)
   - `اختر`/`حالة`/`افتراضي` (switch/case/default)
-  - (Planned: `افعل` for do-while)
+  - (Planned: `افعل` for do-while, `تعداد` for enum)
 
 - **Function System (نظام الدوال):** (Uses C-style declarations: `return_type name(params)`)
   - Regular function parameters
@@ -56,12 +56,14 @@ The project now supports:
 - Literals
   - **Numeric Literals:**
     - Integers: Decimal (Western `0-9` & Arabic-Indic `٠-٩`), Binary (`0b`/`0B`), Hexadecimal (`0x`/`0X`). (Planned: Arabic suffixes like `غ` for unsigned, `ط` for long, `طط` for long long).
-    - Floats: Using `.` or Arabic `٫` as decimal separator. Scientific notation (`e`/`E`). (Planned: Arabic suffix `ح` for float).
+    - Floats: Using `.` or Arabic `٫` as decimal separator. Scientific notation (using `أ` as exponent marker). (Planned: Arabic suffix `ح` for float).
     - Underscores (`_`) supported as separators in all number types.
-    - Examples: `123`, `١٢٣غ`, `0b1010طط`, `0xFACEط`, `1_000_000`, `3.14ح`, `٣٫١٤`, `1.5e-2`.
+    - Examples: `123`, `١٢٣غ`, `0b1010طط`, `0xFACEط`, `1_000_000`, `3.14ح`, `٣٫١٤`, `1.5أ-2`.
   - **String Literals:** `"..."` (Planned: Arabic escapes like `\س`, `\م` using `\` as escape char).
   - **Character Literals:** `'...'` (Planned: Arabic escapes like `\س`, `\م` using `\` as escape char).
   - **Boolean Literals:** `صحيح` (true), `خطأ` (false).
+  - (Planned: `تعداد` keyword for enumerations).
+  - (Planned: Struct/union member access using `::` for direct and `->` for pointer).
 
 - Arabic File Support
   - Native `.ب` extension

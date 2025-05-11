@@ -16,6 +16,7 @@ This document compares C99 features with their B (باء) equivalents and outlin
 | `void`        | `فراغ`            | Implemented | Type exists. |
 | _Bool/bool    | `منطقي`           | Implemented | Boolean type exists; Baa uses `صحيح`/`خطأ` literals. |
 | `long long int` | `عدد_صحيح_طويل_جدا` | Planned | C99 standard. 64-bit integer. |
+| `enum`        | `تعداد`            | Planned | Baa keyword for enumerations. |
 
 ### Derived Types
 
@@ -23,8 +24,8 @@ This document compares C99 features with their B (باء) equivalents and outlin
 |---------------|--------------------|----------|-------|
 | Arrays        | `مصفوفة`          | Partial  | AST/Type support exists (`BAA_TYPE_ARRAY`, `BAA_EXPR_ARRAY`, `BAA_EXPR_INDEX`). Semantics/analysis likely incomplete. |
 | Pointers      | `مؤشر`            | Planned  | Mentioned in docs, but no clear AST/Type support observed. |
-| Structures    | `بنية`            | Planned  | Mentioned in docs, but no clear AST/Type support observed. |
-| Unions        | `اتحاد`           | Planned  | Mentioned in docs, but no clear AST/Type support observed. |
+| Structures    | `بنية`            | Planned  | Member access: `::` (direct), `->` (pointer). |
+| Unions        | `اتحاد`           | Planned  | Member access: `::` (direct), `->` (pointer). |
 
 ### Storage Classes
 
@@ -48,8 +49,8 @@ This document compares C99 features with their B (باء) equivalents and outlin
 
 | C99 Feature        | B (باء) Equivalent & Extensions                                     | Status      | Notes                                                                                                                               |
 |----------------------|--------------------------------------------------------------------|-------------|-------------------------------------------------------------------------------------------------------------------------------------|
-| Integer Literals     | Decimal (Western & Arabic-Indic), Binary (`0b`/`0B`), Hex (`0x`/`0X`). Underscores (`_`) for readability. | Implemented | K&R C had decimal, octal, hex. Baa does not explicitly support octal via `0` prefix (a leading `0` is just zero unless part of `0b`/`0x`). |
-| Floating-Point Literals | Decimal point (`.` or `٫`), Scientific notation (`e`/`E`). Western & Arabic-Indic digits. Underscores for readability. | Implemented | K&R C had basic float forms. Baa extends with `٫` and full underscore/digit support.                                              |
+| Integer Literals     | Decimal (Western & Arabic-Indic), Binary (`0b`/`0B`), Hex (`0x`/`0X`). Underscores (`_`) for readability. Arabic suffixes `غ`, `ط`, `طط` planned. | Implemented | K&R C had decimal, octal, hex. Baa does not explicitly support octal via `0` prefix. |
+| Floating-Point Literals | Decimal point (`.` or `٫`), Scientific notation (using `أ` as exponent marker). Western & Arabic-Indic digits. Underscores for readability. Arabic suffix `ح` planned. | Implemented (exponent `e`/`E`), Planned (exponent `أ`, suffix `ح`) | Baa extends with `٫`, Arabic digits, underscores, and plans Arabic exponent marker `أ` and suffix `ح`. |
 | Character Literals   | `'c'` (Western/Arabic). Arabic escapes planned (e.g., `\س` for newline, `\يXXXX` for Unicode). `\` retained as escape char. | Implemented (Standard Escapes), Planned (Arabic Escapes) | Baa will use `\` with Arabic letters for specific escapes. |
 | String Literals      | `"...\"`, `"""..."""` (multiline), `خ"..."` (raw). (Western/Arabic). Arabic escapes planned. `\` retained as escape char. | Implemented (Standard Escapes), Planned (Arabic Escapes) | Baa will use `\` with Arabic letters for specific escapes. |
 
@@ -81,6 +82,8 @@ This document compares C99 features with their B (باء) equivalents and outlin
 | Compound Assignment | Same symbols | Implemented | +=, -=, *=, /=, %=. AST/Parsing exists. Type validation logic missing. |
 | Increment/Decrement | Same symbols | Implemented | ++, --. AST/Parsing exists. Type validation logic missing. |
 | Address       | Same symbols       | Planned     | &, *. Requires pointer implementation. |
+| Member Access (direct) | `::`             | Planned     | C uses `.`, Baa uses `::` due to `.` as statement terminator. |
+| Member Access (pointer) | `->`             | Planned     | Same as C. |
 | Sizeof        | `حجم`             | Planned     | Keyword not observed in lexer/parser implementation. |
 
 ### Boolean Literals

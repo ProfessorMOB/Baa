@@ -318,7 +318,7 @@ Keywords are reserved words with special meaning in the Baa language and cannot 
 
 *(Based on `lexer.h` and `language.md`)*
 
-* **Declarations:** `ثابت` (`const`), `مستقر` (`static`), `خارجي` (`extern`), `مضمن` (`inline`), `مقيد` (`restrict`), `نوع_مستخدم` (`typedef`), `حجم` (`sizeof`) - *[Implemented/Partial for `ثابت`/`خارجي`, Planned for others]*
+* **Declarations:** `ثابت` (`const`), `مستقر` (`static`), `خارجي` (`extern`), `مضمن` (`inline`), `مقيد` (`restrict`), `نوع_مستخدم` (`typedef`), `حجم` (`sizeof`), `تعداد` (`enum`) - *[Implemented/Partial for `ثابت`/`خارجي`, Planned for others]*
 * **Control Flow:** `إذا`, `وإلا`, `طالما`, `إرجع`, `توقف` (`break`), `أكمل` (`continue`) - *[Implemented]*
   * *Partial/Planned:* `لكل` (`for`), `افعل` (`do`), `اختر` (`switch`), `حالة` (`case`)
 * **Types:** `عدد_صحيح`, `عدد_حقيقي`, `حرف`, `منطقي`, `فراغ` - *[Implemented]*
@@ -378,11 +378,14 @@ Literals represent fixed values in the source code.
     * *[Implemented]*
 * **Compound Literals (C99):** Allow the creation of unnamed objects of a given type using an initializer list. The syntax is `(type_name){initializer_list}`. - *[Planned]*
   * Example: `دالة_تأخذ_مصفوفة((عدد_صحيح[]){1, 2, 3}).`
-  * Example: `مؤشر_للبنية = &(بنية_مثال){ .عضو1 = 10, .عضو2 = "نص" }.`
+  * Example: `مؤشر_للبنية = &(بنية_مثال){ ::عضو1 = 10, ::عضو2 = "نص" }.` (Assuming `::` for designated initializers as well)
 
 ### 2.5 Operators
 
 Operators perform operations on values. See Section 5 for a detailed list and precedence.
+* **Member Access:**
+    * Direct member access: `::` (e.g., `متغير_بنية::عضو`) - *[Planned]*
+    * Indirect (pointer) member access: `->` (e.g., `مؤشر_بنية->عضو`) - *[Planned]*
 
 ### 2.6 Separators / Delimiters
 
@@ -413,8 +416,9 @@ Baa has a static type system based on C, with Arabic names for built-in types.
 | ----------- | -------------- | ------------------------------ | ------- | ----------------------------------------- |
 | `مصفوفة`    | array          | Ordered collection of elements | Partial | Basic AST/Type support exists.            |
 | `مؤشر`      | pointer        | Address of a variable          | Planned | Requires memory model & operator support. |
-| `بنية`      | struct         | Collection of named members. Supports C99 flexible array members (e.g., `type last_member[];`) as the last member. - *[Planned for flexible array members]* | Planned |                                           |
-| `اتحاد`     | union          | Shared memory for members      | Planned |                                           |
+| `بنية`      | struct         | Collection of named members. Supports C99 flexible array members (e.g., `type last_member[];`) as the last member. Direct member access via `::`, pointer access via `->`. | Planned |                                           |
+| `اتحاد`     | union          | Shared memory for members. Direct member access via `::`, pointer access via `->`.      | Planned |                                           |
+| `تعداد`     | enum           | Enumeration type. Allows defining a set of named integer constants. | Planned |                                           |
 
 ### 3.3 Type Compatibility & Conversion
 
@@ -457,7 +461,7 @@ Variables store values that can potentially change.
 
 Functions define reusable blocks of code.
 
-* **Syntax:** `return_type? identifier '(' parameter_list? ')' '{' statement* '}'` - *[Implementation Pending]*
+* **Syntax:** `return_type? identifier '(' parameter_list? ')' '{' statement* '}'` (C-style declaration) - *[Implementation Pending]*
 * **Return Type:** Specified *before* the function identifier. If omitted, defaults to `فراغ` (void).
 * **Parameters (`parameter_list`):** Comma-separated list of `type identifier`. `( )` for no parameters.
 * **Entry Point:** The program must contain a function named `رئيسية` with no parameters and typically returning `عدد_صحيح`. `عدد_صحيح رئيسية() { ... إرجع 0. }`
@@ -496,7 +500,7 @@ The following table summarizes operator precedence (highest first) and associati
 
 | Precedence Level  | Operators          | Associativity | Notes                    | Status                  |
 | ----------------- | ------------------ | ------------- | ------------------------ | ----------------------- |
-| Highest (Primary) | `()` `[]` `.`     | Left-to-right | Grouping, Index, Member  | Implemented/Partial(.)  |
+| Highest (Primary) | `()` `[]` `::` `->` | Left-to-right | Grouping, Index, Member Access | Implemented/Partial(::, -> Planned)  |
 | (Postfix)         | `++` `--`          | Left-to-right | Postfix Inc/Dec          | Implemented             |
 | (Unary)           | `++` `--`          | Right-to-left | Prefix Inc/Dec           | Implemented             |
 |                   | `+` `-` (unary)    | Right-to-left | Unary Plus/Minus         | Implemented             |
@@ -515,7 +519,7 @@ The following table summarizes operator precedence (highest first) and associati
 
 *(Status indicates parsing support based on `expression_parser.c` and `operators.h`. Semantic validation status for operators varies - see Section 3.3 and `c_comparison.md`)*.
 
-*(Note: Member access `.` and pointer dereference `*`/address-of `&` depend on planned struct/pointer features).*
+*(Note: Pointer dereference `*`/address-of `&` depend on planned pointer features).*
 
 ## 6. Statements
 
