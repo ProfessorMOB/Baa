@@ -25,6 +25,10 @@ The Semantic Analysis phase is a critical part of the Baa compiler that bridges 
         - [ ] Block scope.
         - [ ] Rules for scope entry and exit.
     - [ ] Define symbol entries (for variables, functions, types, etc.) storing attributes like type, kind, definition location, modifiers.
+    - [ ] **Future Enhancements:**
+        - [ ] Store richer symbol information (e.g., initialization status (`is_initialized`), usage status (`is_used`), access modifiers if introduced, links to documentation comments from AST).
+        - [ ] Consider support for function/operator overloading (requires mangling or more complex lookup).
+        - [ ] Extend symbol table and name resolution for module/namespace system if Baa adds these features.
 
 ### 2.2 Name Resolution
     - [ ] Implement algorithms to resolve identifiers to their declared symbols within the correct scope.
@@ -45,38 +49,57 @@ The Semantic Analysis phase is a critical part of the Baa compiler that bridges 
         - [ ] While/For loop conditions.
         - [ ] Return statement values (compatibility with function return type).
     - [ ] Define and implement type compatibility and conversion rules (implicit and explicit casts).
+    - [ ] **Future Enhancements:**
+        - [ ] Explore limited type inference for simple variable initializations (e.g., `ثابت س = 10.` infers `عدد_صحيح`).
+        - [ ] Implement compile-time constant expression evaluation for contexts like array sizes, `ثابت` initializers, and case labels.
+        - [ ] Define clear rules for user-defined type equivalence (e.g., name equivalence vs. structural equivalence for structs/unions, once they are implemented).
 
 ### 2.4 Control Flow Analysis
     - [ ] Integrate and adapt existing `src/analysis/flow_analysis.c` to work with the new AST.
     - [ ] Verify that all paths in non-void functions return a value.
     - [ ] Check for unreachable code.
     - [ ] Validate correct usage of `توقف` (break) and `أكمل` (continue).
+    - [ ] **Future Enhancements:**
+        - [ ] Implement more precise "all paths return" analysis using graph-based algorithms.
+        - [ ] Add definite assignment analysis (ensuring variables are assigned before use).
+        - [ ] Implement more comprehensive dead code detection.
 
 ### 2.5 Other Semantic Checks
     - [ ] Enforce `ثابت` (const) correctness (e.g., no assignment to const variables after initialization).
-    - [ ] Validate usage of `مقيد` (restrict) qualifiers on pointers.
-    - [ ] Validate usage of `مضمن` (inline) function specifiers (if any semantic rules apply beyond hints).
-    - [ ] Check for main function (`رئيسية`) correctness.
+    - [ ] Validate usage of `مقيد` (restrict) qualifiers on pointers (once pointers are implemented).
+    - [ ] Validate usage of `مضمن` (inline) function specifiers (if any semantic rules apply beyond hints to the optimizer).
+    - [ ] Check for main function (`رئيسية`) correctness (e.g., signature).
 
-## 3. AST Annotation
+### 2.6 Advanced Semantic Processing (Future Considerations)
+    - [ ] **Attribute/Annotation Processing:** If Baa supports attributes (e.g., `@deprecated`, custom attributes), define how semantic analysis will validate and process them.
+    - [ ] **Linter-like Checks:** Consider integrating optional checks for style issues or common pitfalls (e.g., variable shadowing warnings, overly complex expressions) that aren't strict semantic errors but improve code quality.
 
-- [ ] Plan how the AST will be annotated:
-    - [ ] Expression nodes: Store resolved type.
-    - [ ] Variable/Function call nodes: Link to symbol table entry for the declaration.
-    - [ ] Other relevant annotations.
+## 3. AST Annotation and Transformation
+
+- **AST Annotation:**
+    - [ ] Plan how the AST will be annotated with semantic information:
+        - [ ] Expression nodes: Store resolved `BaaType*`.
+        - [ ] Variable/Function call nodes: Link to their symbol table entry/declaration node.
+        - [ ] Other relevant annotations (e.g., lvalue/rvalue status for expressions).
+- **AST Transformation (Semantic-driven):**
+    - [ ] Consider AST transformations like inserting explicit cast nodes (`BAA_EXPR_CAST`) for allowed implicit conversions, making the AST more explicit for the code generator (Desugaring).
+    - [ ] Other desugaring of syntactic sugar into more fundamental AST constructs.
 
 ## 4. Error Reporting
 
-- [ ] Design a system for collecting and reporting semantic errors.
-- [ ] Ensure error messages are clear, in Arabic, and provide precise source location information (line, column).
+- [ ] Design a system for collecting and reporting semantic errors (and potentially warnings).
+- [ ] Ensure error messages are clear, in Arabic, and provide precise source location information (line, column, filename).
 - [ ] Consider different severity levels (e.g., errors, warnings).
+- [ ] **Future Enhancements:**
+    - [ ] Implement mechanisms to suppress cascading errors after an initial semantic error is found.
+    - [ ] Provide more contextual error messages, potentially with "Did you mean?" suggestions for misspelled identifiers or type names.
 
 ## 5. Interaction with Other Phases
 
 - **Parser:** Consumes the AST generated by the parser.
-- **Code Generator:** The annotated AST produced by semantic analysis will be the input for the code generation phase.
+- **Code Generator:** The annotated (and potentially transformed) AST produced by semantic analysis will be the input for the code generation phase.
 
 ## Arabic/RTL Considerations
 
-- Error messages must be clear and correctly formatted for RTL display, referencing source code accurately.
-- Symbol table lookups and storage must correctly handle Arabic identifiers.
+- Error messages must be clear and correctly formatted for RTL display, referencing source code accurately using `BaaSourceLocation` data.
+- Symbol table lookups and storage must correctly handle Arabic identifiers (UTF-16LE strings).
