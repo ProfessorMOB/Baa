@@ -1,6 +1,8 @@
-# Baa Language Parser Structure Documentation
+# Baa Language Parser Structure Documentation (New Design)
 
-This document provides a comprehensive reference for the parser implementation in the Baa programming language compiler. The parser's role is to transform token sequences produced by the lexer into an Abstract Syntax Tree (AST) representation.
+**Status: This document outlines the new design for the Parser following the removal of the previous implementation. Items here are largely planned unless otherwise noted.**
+
+This document provides a comprehensive reference for the parser implementation in the Baa programming language compiler. The parser's role is to transform token sequences produced by the lexer into an Abstract Syntax Tree (AST) representation, based on the design in `docs/AST.md`.
 
 ## Core Design Principles
 
@@ -22,6 +24,20 @@ BaaParser (Main Parser)
 └── Type Parser
 ```
 
+## Current Implementation Status (New Design - May 2025)
+
+**Note:** Following the removal of the old parser components, the parser is being rebuilt. Most features listed below are planned for the new implementation. The modular structure (`expression_parser.c`, `statement_parser.c`, etc.) is the intended organization.
+
+- 🔲 Basic parser infrastructure with recursive descent approach
+- 🔲 Expression parsing with precedence handling
+- 🔲 Statement parsing for basic control flow
+- 🔲 Declaration parsing for variables, functions
+- 🔲 Basic type annotation support
+- 🔲 Error detection and reporting mechanisms
+- 🔲 Boolean type support (`منطقي`)
+- 🔲 Basic function parameter handling
+- 🔲 Basic operator support
+
 ## Parser State
 
 The parser maintains its state in the `BaaParser` structure:
@@ -41,12 +57,14 @@ typedef struct {
 ## Module Organization
 
 ### Main Parser (parser.c/h)
+
 - Entry point for parsing a complete program
 - Manages parser state and token advancement
 - Delegates to specialized parsers for expressions, statements, etc.
 - Contains utility functions like `is_type_token` (declared in `parser.h`) for checking if a token represents a type keyword.
 
 ### Expression Parser (expression_parser.c/h)
+
 - Parses all types of expressions
 - Handles operator precedence
 - Supports literals, identifiers, calls, operators, etc.
@@ -57,7 +75,8 @@ typedef struct {
   - Array indexing expressions
 
 ### Statement Parser (statement_parser.c)
-- Parses control flow statements (if (`لو`), while (`طالما`), for (`لكل`), return (`ارجع`)). Support for `switch`, `case`, `break`, and `continue` is planned.
+
+- Parses control flow statements (if (`إذا`), while (`طالما`), for (`لكل`), return (`إرجع`)). Support for `switch` (`اختر`), `case` (`حالة`), `break` (`توقف`), and `continue` (`أكمل`) is planned.
 - Handles blocks and expression statements
 - Implements support for:
   - If-else statements with conditions and multiple branches
@@ -67,21 +86,25 @@ typedef struct {
   - Blocks of statements
 
 ### Declaration Parser (declaration_parser.c)
+
 - Parses variable declarations
 - Parses function declarations with parameters
 - **Note:** Functions like `baa_parse_function_rest`, `baa_parse_variable_rest`, and `baa_parse_import_directive` (which are called by the main parser logic for top-level declarations and by the statement parser for local declarations) are currently stubbed in `declaration_parser.c`. This was done to allow the project to build and test preprocessor changes. The full implementation for parsing these declaration types, reconciling with existing functions like `baa_parse_function_declaration` and `baa_parse_variable_declaration`, requires further work.
 
 ### Type Parser (type_parser.c)
+
 - Parses type annotations
 - Handles primitive types and arrays
 
 ### Helper Modules (e.g., parser_helper.c)
+
 - Provides utility functions used across different parser modules (e.g., error synchronization, token consumption).
 - Other specialized modules (like `control_flow_parser.c`) might exist to handle specific statement types.
 
 ## Parsing Process
 
 The parsing process follows this general flow:
+
 1. Initialize parser with lexer
 2. Parse program (entry point)
 3. Parse top-level declarations (e.g., functions). Preprocessor directives like `#تضمين` for file inclusion are handled before parsing.
@@ -110,6 +133,7 @@ Expression parsing uses precedence climbing to handle operator precedence:
 ### Boolean Literal Support
 
 The parser recognizes and processes Arabic boolean literals:
+
 - `صحيح` (True)
 - `خطأ` (False)
 
@@ -118,6 +142,7 @@ These are parsed in the `parse_primary` function and generate a boolean literal 
 ### Compound Assignment Support
 
 Compound assignment operators are handled in the `parse_assignment` function:
+
 - `+=` (Add and assign)
 - `-=` (Subtract and assign)
 - `*=` (Multiply and assign)
@@ -129,6 +154,7 @@ These operators create a special compound assignment expression that combines th
 ### Increment/Decrement Support
 
 Increment and decrement operators are handled in both prefix and postfix positions:
+
 - Prefix: `++x`, `--x` (increment/decrement before use)
 - Postfix: `x++`, `x--` (increment/decrement after use)
 
@@ -154,6 +180,7 @@ Declarations are recognized and parsed:
 ## Type System Integration
 
 Type parsing includes:
+
 - Basic types (int, float, etc.)
 - Boolean type (منطقي)
 - Array types with dimensions
@@ -162,6 +189,7 @@ Type parsing includes:
 ## Error Handling
 
 The parser includes error handling mechanisms:
+
 - Error detection during parsing
 - Error reporting with meaningful messages
 - Basic error recovery to continue parsing
@@ -169,6 +197,7 @@ The parser includes error handling mechanisms:
 ## Helper Functions
 
 Various helper functions support the parsing process:
+
 - Token matching and consumption
 - Error reporting
 - AST node creation
