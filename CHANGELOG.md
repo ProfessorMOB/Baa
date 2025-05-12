@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - **Lexer:** Implemented support for Arabic integer literal suffixes: `غ` (unsigned), `ط` (long), `طط` (long long), and their combinations (e.g., `غط`, `ططغ`). The lexer now correctly tokenizes these suffixes as part of `BAA_TOKEN_INT_LIT`. (File affected: `src/lexer/token_scanners.c`).
 - **Lexer:** Added C99 keywords `مضمن` (inline) and `مقيد` (restrict) to the lexer. This includes new token types `BAA_TOKEN_KEYWORD_INLINE` and `BAA_TOKEN_KEYWORD_RESTRICT` and updates to the keyword recognition logic. (Files affected: `include/baa/lexer/lexer.h`, `src/lexer/lexer.c`).
+- **Lexer:** Removed `دالة` (BAA_TOKEN_FUNC) and `متغير` (BAA_TOKEN_VAR) as keywords from the lexer, aligning with the language specification that Baa uses C-style function and variable declarations. These will now be tokenized as identifiers. (Files affected: `include/baa/lexer/lexer.h`, `src/lexer/lexer.c`).
 - **Tools:** Added a new `baa_lexer_tester` tool (`tools/baa_lexer_tester.c`) to facilitate testing of the lexer by tokenizing a Baa source file and printing the token stream. Added to `CMakeLists.txt`.
 - **Preprocessor:** Implemented `معرف` as the Arabic equivalent for the `defined` operator in conditional expressions. (File affected: `src/preprocessor/preprocessor_expr_eval.c`).
 - **Preprocessor:** Implemented macro expansion rescanning. The preprocessor now correctly rescans the output of a macro expansion for further macro names to be replaced, adhering more closely to C99 standards. This includes handling nested expansions and using the macro expansion stack to prevent direct recursion during the rescan of a macro's own output. (Files affected: `src/preprocessor/preprocessor_line_processing.c`).
@@ -23,9 +24,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - Finalize and document Arabic keywords for: `معرف` (for `defined`), `__إصدار_المعيار_باء__` (for Baa version), `__الدالة__` (for `__func__`), variadic macros (`وسائط_إضافية`, `__وسائط_متغيرة__`), other standard directives (`#خطأ`, `#تحذير`, `#سطر`, `أمر_براغما`, `#براغما`), `تعداد` (for `enum`), `لكل` (for C-style `for` loop).
     - Finalize and document Arabic syntax for: float exponent marker (`أ`), literal suffixes (`غ`, `ط`, `طط`, `ح`), and escape sequences (using `\` + Arabic letter).
     - Clarify struct/union member access (`::` for direct, `->` for pointer).
-    - Remove `دالة` as a function declaration keyword and update examples to C-style.
+    - Remove `دالة` as a function declaration keyword and `متغير` as a variable declaration keyword from documentation and update examples to C-style.
     - Ensure consistency in logical operator representation (symbols `&&, ||, !` used in syntax).
     - General alignment of C99 features and their Baa equivalents, including keywords like `مستقر`, `خارجي`, `مضمن`, `مقيد`, `متطاير`, `نوع_مستخدم`, `حجم` and type `عدد_صحيح_طويل_جدا`.
+- **Lexer:** Updated keyword list in `src/lexer/lexer.c` to use `لكل` for `for` and `أكمل` for `continue` to match documentation.
 - **Tests:** Updated `tests/resources/preprocessor_test_cases/consolidated_preprocessor_test.baa` to use `معرف` instead of `defined`.
 
 ### Fixed
