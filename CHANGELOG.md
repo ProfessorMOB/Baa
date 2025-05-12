@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - **Lexer:** Implemented support for Arabic integer literal suffixes: `غ` (unsigned), `ط` (long), `طط` (long long), and their combinations (e.g., `غط`, `ططغ`). The lexer now correctly tokenizes these suffixes as part of `BAA_TOKEN_INT_LIT`. (File affected: `src/lexer/token_scanners.c`).
+- **Lexer:** Added C99 keywords `مضمن` (inline) and `مقيد` (restrict) to the lexer. This includes new token types `BAA_TOKEN_KEYWORD_INLINE` and `BAA_TOKEN_KEYWORD_RESTRICT` and updates to the keyword recognition logic. (Files affected: `include/baa/lexer/lexer.h`, `src/lexer/lexer.c`).
 - **Tools:** Added a new `baa_lexer_tester` tool (`tools/baa_lexer_tester.c`) to facilitate testing of the lexer by tokenizing a Baa source file and printing the token stream. Added to `CMakeLists.txt`.
 - **Preprocessor:** Implemented `معرف` as the Arabic equivalent for the `defined` operator in conditional expressions. (File affected: `src/preprocessor/preprocessor_expr_eval.c`).
 - **Preprocessor:** Implemented macro expansion rescanning. The preprocessor now correctly rescans the output of a macro expansion for further macro names to be replaced, adhering more closely to C99 standards. This includes handling nested expansions and using the macro expansion stack to prevent direct recursion during the rescan of a macro's own output. (Files affected: `src/preprocessor/preprocessor_line_processing.c`).
@@ -15,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Preprocessor:** Implemented C99-style Variadic Macros using Arabic syntax: `وسائط_إضافية` (for `...`) in parameter lists and `__وسائط_متغيرة__` (for `__VA_ARGS__`) in macro bodies. This includes parsing, argument collection, and substitution logic. (Files affected: `include/baa/preprocessor/preprocessor.h`, `src/preprocessor/preprocessor_macros.c`, `src/preprocessor/preprocessor_directives.c`, `src/preprocessor/preprocessor_expansion.c`, `src/preprocessor/preprocessor_line_processing.c`, `src/preprocessor/preprocessor.c`).
 - **Testing:** Added comprehensive test cases for `معرف` operator, `#الغاء_تعريف` directive, various complex macro rescanning scenarios, and variadic macros to `tests/resources/preprocessor_test_cases/consolidated_preprocessor_test.baa`.
 - **Testing:** Added test cases for new Arabic integer suffixes to `tests/resources/lexer_test_cases/lexer_test_suite.baa`.
+- **Testing:** Added test cases for new keywords `مضمن` and `مقيد` to `tests/resources/lexer_test_cases/lexer_test_suite.baa`.
 
 ### Changed
 - **Documentation:** Extensive updates across `docs/language.md`, `docs/c_comparison.md`, `docs/arabic_support.md`, `docs/architecture.md`, `README.md`, `docs/PREPROCESSOR_ROADMAP.md`, and `docs/LEXER_ROADMAP.md` to:

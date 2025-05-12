@@ -29,7 +29,7 @@ This roadmap outlines the planned improvements and current status of the Baa lan
 - [ ] Literals (String): Implement Baa Arabic escape sequences (e.g., `\س`, `\م`, `\يXXXX`) using `\` as the escape character.
 - [x] Literals (Boolean - Defined `BAA_TOKEN_BOOL_LIT`, keywords `صحيح`/`خطأ` scanned)
 - [x] **Keywords Aligned**: `دالة` (FUNC) and `متغير` (VAR) are not Baa keywords. Baa uses C-style function declarations and type-prefixed variable declarations.
-- [ ] **Add C99 Keywords**: Support `مضمن` (inline) and `مقيد` (restrict) (Tokenization for these Arabic keywords).
+- [x] **Add C99 Keywords**: Support `مضمن` (inline) and `مقيد` (restrict) (Tokenization for these Arabic keywords).
 - [x] Types (TYPE_INT, TYPE_FLOAT, TYPE_CHAR, TYPE_VOID, TYPE_BOOL - Defined and added to `lexer.c` keyword list)
 - [x] Operators (+, -, *, /, %, =, ==, !, !=, <, <=, >, >=)
 - [x] Operators (&&, || - Defined and scanning logic added in `lexer.c`)

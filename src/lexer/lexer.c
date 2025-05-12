@@ -7,7 +7,7 @@
 #include <wctype.h>
 #include <stdarg.h> // Needed for va_list, etc.
 // lexer_char_utils.h is included via lexer_internal.h
-#include "baa/lexer/lexer_internal.h"      // For internal helper declarations
+#include "baa/lexer/lexer_internal.h" // For internal helper declarations
 #include "baa/lexer/token_scanners.h" // For scan_* function declarations (public as requested)
 
 // Array of keywords and their corresponding token types
@@ -27,15 +27,17 @@ struct KeywordMapping keywords[] = {
     {L"حالة", BAA_TOKEN_CASE},
     {L"توقف", BAA_TOKEN_BREAK},
     {L"استمر", BAA_TOKEN_CONTINUE},
-    {L"متغير", BAA_TOKEN_VAR},            // Keyword for variable declaration
-    {L"ثابت", BAA_TOKEN_CONST},           // Keyword for constant declaration
-    {L"صحيح", BAA_TOKEN_BOOL_LIT},        // Boolean literal true
-    {L"خطأ", BAA_TOKEN_BOOL_LIT},         // Boolean literal false
-    {L"عدد_صحيح", BAA_TOKEN_TYPE_INT},    // Type keyword: integer
-    {L"عدد_حقيقي", BAA_TOKEN_TYPE_FLOAT}, // Type keyword: float
-    {L"حرف", BAA_TOKEN_TYPE_CHAR},        // Type keyword: char
-    {L"فراغ", BAA_TOKEN_TYPE_VOID},       // Type keyword: void
-    {L"منطقي", BAA_TOKEN_TYPE_BOOL}       // Type keyword: boolean
+    {L"متغير", BAA_TOKEN_VAR},             // Keyword for variable declaration
+    {L"ثابت", BAA_TOKEN_CONST},            // Keyword for constant declaration
+    {L"مضمن", BAA_TOKEN_KEYWORD_INLINE},   // Keyword for inline
+    {L"مقيد", BAA_TOKEN_KEYWORD_RESTRICT}, // Keyword for restrict
+    {L"صحيح", BAA_TOKEN_BOOL_LIT},         // Boolean literal true
+    {L"خطأ", BAA_TOKEN_BOOL_LIT},          // Boolean literal false
+    {L"عدد_صحيح", BAA_TOKEN_TYPE_INT},     // Type keyword: integer
+    {L"عدد_حقيقي", BAA_TOKEN_TYPE_FLOAT},  // Type keyword: float
+    {L"حرف", BAA_TOKEN_TYPE_CHAR},         // Type keyword: char
+    {L"فراغ", BAA_TOKEN_TYPE_VOID},        // Type keyword: void
+    {L"منطقي", BAA_TOKEN_TYPE_BOOL}        // Type keyword: boolean
 };
 const size_t NUM_KEYWORDS = sizeof(keywords) / sizeof(keywords[0]);
 
@@ -253,47 +255,62 @@ static BaaToken *skip_whitespace(BaaLexer *lexer)
         case L'\n':
             advance(lexer);
             break;
-        // Removed legacy '#' comment support.
-        // The preprocessor handles lines starting with # for directives.
-        // Any non-directive '#' reaching the lexer should be an error or part of other syntax.
-    case L'/':
-        if (peek_next(lexer) == L'*') { // Potential /* or /**
-            size_t start_line = lexer->line;
-            size_t start_col = lexer->column;
-            advance(lexer); // Consume '/'
-            advance(lexer); // Consume '*'
+            // Removed legacy '#' comment support.
+            // The preprocessor handles lines starting with # for directives.
+            // Any non-directive '#' reaching the lexer should be an error or part of other syntax.
+        case L'/':
+            if (peek_next(lexer) == L'*')
+            { // Potential /* or /**
+                size_t start_line = lexer->line;
+                size_t start_col = lexer->column;
+                advance(lexer); // Consume '/'
+                advance(lexer); // Consume '*'
 
-            if (peek(lexer) == L'*' && peek_next(lexer) != L'/') { // Check for /** (but not /**/)
-                // Documentation Comment /** ... */
-                advance(lexer); // Consume the second '*'
-                // Need a function to scan the doc comment content
-                return scan_doc_comment(lexer, start_line, start_col);
-            } else {
-                // Regular Multi-line Comment /* ... */
-                while (!(peek(lexer) == L'*' && peek_next(lexer) == L'/') && !is_at_end(lexer)) {
-                    if (peek(lexer) == L'\n') {
-                        advance(lexer);
-                    } else {
-                        advance(lexer);
+                if (peek(lexer) == L'*' && peek_next(lexer) != L'/')
+                { // Check for /** (but not /**/)
+                    // Documentation Comment /** ... */
+                    advance(lexer); // Consume the second '*'
+                    // Need a function to scan the doc comment content
+                    return scan_doc_comment(lexer, start_line, start_col);
+                }
+                else
+                {
+                    // Regular Multi-line Comment /* ... */
+                    while (!(peek(lexer) == L'*' && peek_next(lexer) == L'/') && !is_at_end(lexer))
+                    {
+                        if (peek(lexer) == L'\n')
+                        {
+                            advance(lexer);
+                        }
+                        else
+                        {
+                            advance(lexer);
+                        }
+                    }
+                    if (!is_at_end(lexer))
+                    {
+                        advance(lexer); // Consume '*'
+                        advance(lexer); // Consume '/'
+                    }
+                    else
+                    {
+                        BaaToken *error_token = make_error_token(lexer, L"تعليق متعدد الأسطر غير منتهٍ (بدأ في السطر %zu، العمود %zu)", start_line, start_col);
+                        return error_token;
                     }
                 }
-                if (!is_at_end(lexer)) {
-                    advance(lexer); // Consume '*'
-                    advance(lexer); // Consume '/'
-                } else {
-                    BaaToken *error_token = make_error_token(lexer, L"تعليق متعدد الأسطر غير منتهٍ (بدأ في السطر %zu، العمود %zu)", start_line, start_col);
-                    return error_token;
-                }
             }
-        } else if (peek_next(lexer) == L'/') { // Single-line comment //
-            while (peek(lexer) != L'\n' && !is_at_end(lexer))
-                advance(lexer);
-        } else {
-            // Just a slash, not a comment start
-            return NULL; // Finished skipping whitespace/comments
-        }
-        break;
-    default:
+            else if (peek_next(lexer) == L'/')
+            { // Single-line comment //
+                while (peek(lexer) != L'\n' && !is_at_end(lexer))
+                    advance(lexer);
+            }
+            else
+            {
+                // Just a slash, not a comment start
+                return NULL; // Finished skipping whitespace/comments
+            }
+            break;
+        default:
             return NULL; // Finished skipping whitespace/comments
         }
     }
@@ -481,7 +498,8 @@ BaaToken *baa_lexer_next_token(BaaLexer *lexer)
     lexer->start = lexer->current; // Set start for every token attempt
 
     // Explicit EOF Check: Check if current position is at or beyond the source length.
-    if (lexer->current >= lexer->source_length) {
+    if (lexer->current >= lexer->source_length)
+    {
         // Ensure start is also at the end for a zero-length EOF token
         lexer->start = lexer->current;
         return make_token(lexer, BAA_TOKEN_EOF);
@@ -491,26 +509,31 @@ BaaToken *baa_lexer_next_token(BaaLexer *lexer)
     wchar_t current_char_peeked = peek(lexer);
 
     // Handle raw string literals (خ"..." and خ"""...""")
-    if (current_char_peeked == L'\u062E') { // 'خ'
-        if (lexer->current + 1 < lexer->source_length && lexer->source[lexer->current + 1] == L'"') {
+    if (current_char_peeked == L'\u062E')
+    { // 'خ'
+        if (lexer->current + 1 < lexer->source_length && lexer->source[lexer->current + 1] == L'"')
+        {
             // Potential خ" or خ"""
             if (lexer->current + 3 < lexer->source_length && // Check for خ"""
                 lexer->source[lexer->current + 2] == L'"' &&
-                lexer->source[lexer->current + 3] == L'"') {
+                lexer->source[lexer->current + 3] == L'"')
+            {
                 // It's خ"""
                 size_t start_line = lexer->line;
                 size_t start_col = lexer->column;
-                advance(lexer); // Consume خ
-                advance(lexer); // Consume "
-                advance(lexer); // Consume "
-                advance(lexer); // Consume "
+                advance(lexer);                                                     // Consume خ
+                advance(lexer);                                                     // Consume "
+                advance(lexer);                                                     // Consume "
+                advance(lexer);                                                     // Consume "
                 return scan_raw_string_literal(lexer, true, start_line, start_col); // true for multiline
-            } else {
+            }
+            else
+            {
                 // It's خ"
                 size_t start_line = lexer->line;
                 size_t start_col = lexer->column;
-                advance(lexer); // Consume خ
-                advance(lexer); // Consume "
+                advance(lexer);                                                      // Consume خ
+                advance(lexer);                                                      // Consume "
                 return scan_raw_string_literal(lexer, false, start_line, start_col); // false for single line
             }
         }
@@ -518,19 +541,23 @@ BaaToken *baa_lexer_next_token(BaaLexer *lexer)
     }
 
     // Handle regular string literals (single and multiline) by peeking
-    if (current_char_peeked == L'"') {
+    if (current_char_peeked == L'"')
+    {
         // Check for """
         if (lexer->current + 2 < lexer->source_length &&
             lexer->source[lexer->current + 1] == L'"' &&
-            lexer->source[lexer->current + 2] == L'"') {
+            lexer->source[lexer->current + 2] == L'"')
+        {
             // It's a multiline string.
-            size_t start_line = lexer->line;   // Capture line before consuming """
+            size_t start_line = lexer->line;  // Capture line before consuming """
             size_t start_col = lexer->column; // Capture column before consuming """
-            advance(lexer); // Consume first "
-            advance(lexer); // Consume second "
-            advance(lexer); // Consume third "
+            advance(lexer);                   // Consume first "
+            advance(lexer);                   // Consume second "
+            advance(lexer);                   // Consume third "
             return scan_multiline_string_literal(lexer, start_line, start_col);
-        } else {
+        }
+        else
+        {
             // It's a regular string. scan_string consumes the opening quote.
             return scan_string(lexer);
         }
@@ -543,15 +570,18 @@ BaaToken *baa_lexer_next_token(BaaLexer *lexer)
     //          is_baa_digit(current_char_peeked), is_arabic_digit(current_char_peeked), iswdigit(current_char_peeked));
 
     // Prioritize digits: Arabic-Indic first, then Western, then general identifier characters.
-    if (is_arabic_digit(current_char_peeked)) {
+    if (is_arabic_digit(current_char_peeked))
+    {
         // fwprintf(stderr, L"DEBUG: Calling scan_number for Arabic digit '%lc'\n", current_char_peeked);
         return scan_number(lexer);
     }
-    if (iswdigit(current_char_peeked)) { // For '0'-'9'
+    if (iswdigit(current_char_peeked))
+    { // For '0'-'9'
         // fwprintf(stderr, L"DEBUG: Calling scan_number for Western digit '%lc'\n", current_char_peeked);
         return scan_number(lexer);
     }
-    if (iswalpha(current_char_peeked) || current_char_peeked == L'_' || is_arabic_letter(current_char_peeked)) {
+    if (iswalpha(current_char_peeked) || current_char_peeked == L'_' || is_arabic_letter(current_char_peeked))
+    {
         // This will catch letters and underscore. is_arabic_letter is specific to letters.
         // iswalpha might be true for Arabic-Indic digits in some locales, but we've already handled them.
         // fwprintf(stderr, L"DEBUG: Calling scan_identifier for '%lc'\n", current_char_peeked);
@@ -565,7 +595,8 @@ BaaToken *baa_lexer_next_token(BaaLexer *lexer)
     // Safeguard: If advance() returned L'\0' because we were already at the end
     // (e.g., if the initial is_at_end() check was somehow bypassed or state was inconsistent),
     // this should definitively become an EOF token.
-    if (c == L'\0' && is_at_end(lexer)) {
+    if (c == L'\0' && is_at_end(lexer))
+    {
         // lexer->start should ideally be lexer->current here for a zero-length EOF token.
         // The main is_at_end() check at the top of the function should have caught this.
         // This is a defensive measure.
@@ -666,90 +697,166 @@ BaaToken *baa_lexer_next_token(BaaLexer *lexer)
 //     return lexer->had_error;
 // }
 
-const wchar_t* baa_token_type_to_string(BaaTokenType type) {
-    switch (type) {
-        case BAA_TOKEN_EOF: return L"BAA_TOKEN_EOF";
-        case BAA_TOKEN_ERROR: return L"BAA_TOKEN_ERROR";
-        case BAA_TOKEN_UNKNOWN: return L"BAA_TOKEN_UNKNOWN";
-        case BAA_TOKEN_COMMENT: return L"BAA_TOKEN_COMMENT";
-        case BAA_TOKEN_DOC_COMMENT: return L"BAA_TOKEN_DOC_COMMENT";
-        case BAA_TOKEN_IDENTIFIER: return L"BAA_TOKEN_IDENTIFIER";
-        case BAA_TOKEN_INT_LIT: return L"BAA_TOKEN_INT_LIT";
-        case BAA_TOKEN_FLOAT_LIT: return L"BAA_TOKEN_FLOAT_LIT";
-        case BAA_TOKEN_CHAR_LIT: return L"BAA_TOKEN_CHAR_LIT";
-        case BAA_TOKEN_STRING_LIT: return L"BAA_TOKEN_STRING_LIT";
-        case BAA_TOKEN_BOOL_LIT: return L"BAA_TOKEN_BOOL_LIT";
-        case BAA_TOKEN_FUNC: return L"BAA_TOKEN_FUNC";
-        case BAA_TOKEN_VAR: return L"BAA_TOKEN_VAR";
-        case BAA_TOKEN_CONST: return L"BAA_TOKEN_CONST";
-        case BAA_TOKEN_IF: return L"BAA_TOKEN_IF";
-        case BAA_TOKEN_ELSE: return L"BAA_TOKEN_ELSE";
-        case BAA_TOKEN_WHILE: return L"BAA_TOKEN_WHILE";
-        case BAA_TOKEN_FOR: return L"BAA_TOKEN_FOR";
-        case BAA_TOKEN_DO: return L"BAA_TOKEN_DO";
-        case BAA_TOKEN_CASE: return L"BAA_TOKEN_CASE";
-        case BAA_TOKEN_SWITCH: return L"BAA_TOKEN_SWITCH";
-        case BAA_TOKEN_RETURN: return L"BAA_TOKEN_RETURN";
-        case BAA_TOKEN_BREAK: return L"BAA_TOKEN_BREAK";
-        case BAA_TOKEN_CONTINUE: return L"BAA_TOKEN_CONTINUE";
-        case BAA_TOKEN_TYPE_INT: return L"BAA_TOKEN_TYPE_INT";
-        case BAA_TOKEN_TYPE_FLOAT: return L"BAA_TOKEN_TYPE_FLOAT";
-        case BAA_TOKEN_TYPE_CHAR: return L"BAA_TOKEN_TYPE_CHAR";
-        case BAA_TOKEN_TYPE_VOID: return L"BAA_TOKEN_TYPE_VOID";
-        case BAA_TOKEN_TYPE_BOOL: return L"BAA_TOKEN_TYPE_BOOL";
-        case BAA_TOKEN_PLUS: return L"BAA_TOKEN_PLUS";
-        case BAA_TOKEN_MINUS: return L"BAA_TOKEN_MINUS";
-        case BAA_TOKEN_STAR: return L"BAA_TOKEN_STAR";
-        case BAA_TOKEN_SLASH: return L"BAA_TOKEN_SLASH";
-        case BAA_TOKEN_PERCENT: return L"BAA_TOKEN_PERCENT";
-        case BAA_TOKEN_EQUAL: return L"BAA_TOKEN_EQUAL";
-        case BAA_TOKEN_EQUAL_EQUAL: return L"BAA_TOKEN_EQUAL_EQUAL";
-        case BAA_TOKEN_BANG: return L"BAA_TOKEN_BANG";
-        case BAA_TOKEN_BANG_EQUAL: return L"BAA_TOKEN_BANG_EQUAL";
-        case BAA_TOKEN_LESS: return L"BAA_TOKEN_LESS";
-        case BAA_TOKEN_LESS_EQUAL: return L"BAA_TOKEN_LESS_EQUAL";
-        case BAA_TOKEN_GREATER: return L"BAA_TOKEN_GREATER";
-        case BAA_TOKEN_GREATER_EQUAL: return L"BAA_TOKEN_GREATER_EQUAL";
-        case BAA_TOKEN_AND: return L"BAA_TOKEN_AND";
-        case BAA_TOKEN_OR: return L"BAA_TOKEN_OR";
-        case BAA_TOKEN_PLUS_EQUAL: return L"BAA_TOKEN_PLUS_EQUAL";
-        case BAA_TOKEN_MINUS_EQUAL: return L"BAA_TOKEN_MINUS_EQUAL";
-        case BAA_TOKEN_STAR_EQUAL: return L"BAA_TOKEN_STAR_EQUAL";
-        case BAA_TOKEN_SLASH_EQUAL: return L"BAA_TOKEN_SLASH_EQUAL";
-        case BAA_TOKEN_PERCENT_EQUAL: return L"BAA_TOKEN_PERCENT_EQUAL";
-        case BAA_TOKEN_INCREMENT: return L"BAA_TOKEN_INCREMENT";
-        case BAA_TOKEN_DECREMENT: return L"BAA_TOKEN_DECREMENT";
-        case BAA_TOKEN_LPAREN: return L"BAA_TOKEN_LPAREN";
-        case BAA_TOKEN_RPAREN: return L"BAA_TOKEN_RPAREN";
-        case BAA_TOKEN_LBRACE: return L"BAA_TOKEN_LBRACE";
-        case BAA_TOKEN_RBRACE: return L"BAA_TOKEN_RBRACE";
-        case BAA_TOKEN_LBRACKET: return L"BAA_TOKEN_LBRACKET";
-        case BAA_TOKEN_RBRACKET: return L"BAA_TOKEN_RBRACKET";
-        case BAA_TOKEN_COMMA: return L"BAA_TOKEN_COMMA";
-        case BAA_TOKEN_DOT: return L"BAA_TOKEN_DOT";
-        case BAA_TOKEN_SEMICOLON: return L"BAA_TOKEN_SEMICOLON";
-        case BAA_TOKEN_COLON: return L"BAA_TOKEN_COLON";
-        default: return L"BAA_TOKEN_INVALID_TYPE_IN_TO_STRING"; // Should not happen
+const wchar_t *baa_token_type_to_string(BaaTokenType type)
+{
+    switch (type)
+    {
+    case BAA_TOKEN_EOF:
+        return L"BAA_TOKEN_EOF";
+    case BAA_TOKEN_ERROR:
+        return L"BAA_TOKEN_ERROR";
+    case BAA_TOKEN_UNKNOWN:
+        return L"BAA_TOKEN_UNKNOWN";
+    case BAA_TOKEN_COMMENT:
+        return L"BAA_TOKEN_COMMENT";
+    case BAA_TOKEN_DOC_COMMENT:
+        return L"BAA_TOKEN_DOC_COMMENT";
+    case BAA_TOKEN_IDENTIFIER:
+        return L"BAA_TOKEN_IDENTIFIER";
+    case BAA_TOKEN_INT_LIT:
+        return L"BAA_TOKEN_INT_LIT";
+    case BAA_TOKEN_FLOAT_LIT:
+        return L"BAA_TOKEN_FLOAT_LIT";
+    case BAA_TOKEN_CHAR_LIT:
+        return L"BAA_TOKEN_CHAR_LIT";
+    case BAA_TOKEN_STRING_LIT:
+        return L"BAA_TOKEN_STRING_LIT";
+    case BAA_TOKEN_BOOL_LIT:
+        return L"BAA_TOKEN_BOOL_LIT";
+    case BAA_TOKEN_FUNC:
+        return L"BAA_TOKEN_FUNC";
+    case BAA_TOKEN_VAR:
+        return L"BAA_TOKEN_VAR";
+    case BAA_TOKEN_CONST:
+        return L"BAA_TOKEN_CONST";
+    case BAA_TOKEN_KEYWORD_INLINE:
+        return L"BAA_TOKEN_KEYWORD_INLINE";
+    case BAA_TOKEN_KEYWORD_RESTRICT:
+        return L"BAA_TOKEN_KEYWORD_RESTRICT";
+    case BAA_TOKEN_IF:
+        return L"BAA_TOKEN_IF";
+    case BAA_TOKEN_ELSE:
+        return L"BAA_TOKEN_ELSE";
+    case BAA_TOKEN_WHILE:
+        return L"BAA_TOKEN_WHILE";
+    case BAA_TOKEN_FOR:
+        return L"BAA_TOKEN_FOR";
+    case BAA_TOKEN_DO:
+        return L"BAA_TOKEN_DO";
+    case BAA_TOKEN_CASE:
+        return L"BAA_TOKEN_CASE";
+    case BAA_TOKEN_SWITCH:
+        return L"BAA_TOKEN_SWITCH";
+    case BAA_TOKEN_RETURN:
+        return L"BAA_TOKEN_RETURN";
+    case BAA_TOKEN_BREAK:
+        return L"BAA_TOKEN_BREAK";
+    case BAA_TOKEN_CONTINUE:
+        return L"BAA_TOKEN_CONTINUE";
+    case BAA_TOKEN_TYPE_INT:
+        return L"BAA_TOKEN_TYPE_INT";
+    case BAA_TOKEN_TYPE_FLOAT:
+        return L"BAA_TOKEN_TYPE_FLOAT";
+    case BAA_TOKEN_TYPE_CHAR:
+        return L"BAA_TOKEN_TYPE_CHAR";
+    case BAA_TOKEN_TYPE_VOID:
+        return L"BAA_TOKEN_TYPE_VOID";
+    case BAA_TOKEN_TYPE_BOOL:
+        return L"BAA_TOKEN_TYPE_BOOL";
+    case BAA_TOKEN_PLUS:
+        return L"BAA_TOKEN_PLUS";
+    case BAA_TOKEN_MINUS:
+        return L"BAA_TOKEN_MINUS";
+    case BAA_TOKEN_STAR:
+        return L"BAA_TOKEN_STAR";
+    case BAA_TOKEN_SLASH:
+        return L"BAA_TOKEN_SLASH";
+    case BAA_TOKEN_PERCENT:
+        return L"BAA_TOKEN_PERCENT";
+    case BAA_TOKEN_EQUAL:
+        return L"BAA_TOKEN_EQUAL";
+    case BAA_TOKEN_EQUAL_EQUAL:
+        return L"BAA_TOKEN_EQUAL_EQUAL";
+    case BAA_TOKEN_BANG:
+        return L"BAA_TOKEN_BANG";
+    case BAA_TOKEN_BANG_EQUAL:
+        return L"BAA_TOKEN_BANG_EQUAL";
+    case BAA_TOKEN_LESS:
+        return L"BAA_TOKEN_LESS";
+    case BAA_TOKEN_LESS_EQUAL:
+        return L"BAA_TOKEN_LESS_EQUAL";
+    case BAA_TOKEN_GREATER:
+        return L"BAA_TOKEN_GREATER";
+    case BAA_TOKEN_GREATER_EQUAL:
+        return L"BAA_TOKEN_GREATER_EQUAL";
+    case BAA_TOKEN_AND:
+        return L"BAA_TOKEN_AND";
+    case BAA_TOKEN_OR:
+        return L"BAA_TOKEN_OR";
+    case BAA_TOKEN_PLUS_EQUAL:
+        return L"BAA_TOKEN_PLUS_EQUAL";
+    case BAA_TOKEN_MINUS_EQUAL:
+        return L"BAA_TOKEN_MINUS_EQUAL";
+    case BAA_TOKEN_STAR_EQUAL:
+        return L"BAA_TOKEN_STAR_EQUAL";
+    case BAA_TOKEN_SLASH_EQUAL:
+        return L"BAA_TOKEN_SLASH_EQUAL";
+    case BAA_TOKEN_PERCENT_EQUAL:
+        return L"BAA_TOKEN_PERCENT_EQUAL";
+    case BAA_TOKEN_INCREMENT:
+        return L"BAA_TOKEN_INCREMENT";
+    case BAA_TOKEN_DECREMENT:
+        return L"BAA_TOKEN_DECREMENT";
+    case BAA_TOKEN_LPAREN:
+        return L"BAA_TOKEN_LPAREN";
+    case BAA_TOKEN_RPAREN:
+        return L"BAA_TOKEN_RPAREN";
+    case BAA_TOKEN_LBRACE:
+        return L"BAA_TOKEN_LBRACE";
+    case BAA_TOKEN_RBRACE:
+        return L"BAA_TOKEN_RBRACE";
+    case BAA_TOKEN_LBRACKET:
+        return L"BAA_TOKEN_LBRACKET";
+    case BAA_TOKEN_RBRACKET:
+        return L"BAA_TOKEN_RBRACKET";
+    case BAA_TOKEN_COMMA:
+        return L"BAA_TOKEN_COMMA";
+    case BAA_TOKEN_DOT:
+        return L"BAA_TOKEN_DOT";
+    case BAA_TOKEN_SEMICOLON:
+        return L"BAA_TOKEN_SEMICOLON";
+    case BAA_TOKEN_COLON:
+        return L"BAA_TOKEN_COLON";
+    default:
+        return L"BAA_TOKEN_INVALID_TYPE_IN_TO_STRING"; // Should not happen
     }
 }
 
 // --- Token Utility Implementations ---
 
-bool baa_token_is_keyword(BaaTokenType type) {
+bool baa_token_is_keyword(BaaTokenType type)
+{
     // Check if the type is within the keyword range
+    // Adjusted to include new keywords if they are outside the old contiguous range.
+    // For now, assuming they are placed to keep it contiguous or this check is updated.
+    // If BAA_TOKEN_KEYWORD_INLINE and BAA_TOKEN_KEYWORD_RESTRICT are between BAA_TOKEN_CONST and BAA_TOKEN_IF,
+    // the existing range check might still be valid if BAA_TOKEN_FUNC is the lowest and BAA_TOKEN_CONTINUE is highest.
+    // Let's verify the enum order: CONST, INLINE, RESTRICT, IF. So FUNC to CONTINUE still covers it.
     return type >= BAA_TOKEN_FUNC && type <= BAA_TOKEN_CONTINUE;
 }
 
-bool baa_token_is_type(BaaTokenType type) {
+bool baa_token_is_type(BaaTokenType type)
+{
     // Check if the type is within the type name range
     return type >= BAA_TOKEN_TYPE_INT && type <= BAA_TOKEN_TYPE_BOOL;
 }
 
-bool baa_token_is_operator(BaaTokenType type) {
+bool baa_token_is_operator(BaaTokenType type)
+{
     // Check if the type is within any of the operator ranges
-    return (type >= BAA_TOKEN_PLUS && type <= BAA_TOKEN_OR) ||          // Arithmetic, Comparison, Logical
+    return (type >= BAA_TOKEN_PLUS && type <= BAA_TOKEN_OR) ||                  // Arithmetic, Comparison, Logical
            (type >= BAA_TOKEN_PLUS_EQUAL && type <= BAA_TOKEN_PERCENT_EQUAL) || // Compound Assignment
-           (type >= BAA_TOKEN_INCREMENT && type <= BAA_TOKEN_DECREMENT);       // Increment/Decrement
+           (type >= BAA_TOKEN_INCREMENT && type <= BAA_TOKEN_DECREMENT);        // Increment/Decrement
     // Note: Does not include assignment (=) or delimiters like dot (.).
     // Adjust ranges if definition of "operator" needs to change.
 }

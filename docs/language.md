@@ -319,7 +319,7 @@ Keywords are reserved words with special meaning in the Baa language and cannot 
 
 *(Based on `lexer.h` and `language.md`)*
 
-* **Declarations:** `ثابت` (`const`), `مستقر` (`static`), `خارجي` (`extern`), `مضمن` (`inline`), `مقيد` (`restrict`), `نوع_مستخدم` (`typedef`), `حجم` (`sizeof`), `تعداد` (`enum`) - *[Implemented/Partial for `ثابت`/`خارجي`, Planned for others]*
+* **Declarations:** `ثابت` (`const`), `مستقر` (`static`), `خارجي` (`extern`), `مضمن` (`inline`), `مقيد` (`restrict`), `نوع_مستخدم` (`typedef`), `حجم` (`sizeof`), `تعداد` (`enum`) - *[Lexer Implemented for `ثابت`, `مضمن`, `مقيد`; Partial/Planned for others]*
 * **Control Flow:** `إذا`, `وإلا`, `طالما`, `إرجع`, `توقف` (`break`), `أكمل` (`continue`) - *[Implemented]*
   * *Partial/Planned:* `لكل` (`for`), `افعل` (`do`), `اختر` (`switch`), `حالة` (`case`)
 * **Types:** `عدد_صحيح`, `عدد_حقيقي`, `حرف`, `منطقي`, `فراغ` - *[Implemented]*
@@ -396,9 +396,10 @@ Literals represent fixed values in the source code.
 ### 2.5 Operators
 
 Operators perform operations on values. See Section 5 for a detailed list and precedence.
+
 * **Member Access:**
-    * Direct member access: `::` (e.g., `متغير_بنية::عضو`) - *[Planned]*
-    * Indirect (pointer) member access: `->` (e.g., `مؤشر_بنية->عضو`) - *[Planned]*
+  * Direct member access: `::` (e.g., `متغير_بنية::عضو`) - *[Planned]*
+  * Indirect (pointer) member access: `->` (e.g., `مؤشر_بنية->عضو`) - *[Planned]*
 
 ### 2.6 Separators / Delimiters
 
@@ -492,7 +493,7 @@ Functions define reusable blocks of code.
 ```
 
 * **Planned/Partial:** Optional parameters, rest parameters, named arguments (AST support exists, parsing/analysis status unclear).
-* **Inline Functions (C99):** Functions can be prefixed with the `مضمن` (`inline`) keyword. This serves as a hint to the compiler to attempt to reduce function call overhead, typically by integrating the function's code directly at the call site. The exact behavior follows C99 semantics for `inline`. - *[Planned]*
+* **Inline Functions (C99):** Functions can be prefixed with the `مضمن` (`inline`) keyword. This serves as a hint to the compiler to attempt to reduce function call overhead, typically by integrating the function's code directly at the call site. The exact behavior follows C99 semantics for `inline`. - *[Lexer Implemented, Semantic enforcement needed]*
 
 ### 4.3 Other Declarations (Planned)
 
@@ -503,8 +504,8 @@ Support for `typedef` (`نوع_مستخدم`), `struct` (`بنية`), `union` (`
 Type qualifiers modify the properties of types. Baa plans to support C99 qualifiers.
 
 * **`ثابت` (`const`):** Indicates that the object's value cannot be changed after initialization. Constants *must* be initialized.
-  `ثابت type identifier = initializer_expression '.'` - *[Partial - Keyword parsed, semantic enforcement needed]*
-* **`مقيد` (`restrict`):** Can only be applied to pointers to an object type. It indicates that for the lifetime of the pointer, only that pointer itself or values derived directly from it (such as `pointer + 1`) will be used to access the object it points to. This is a hint for compiler optimizations and does not change the program's semantics if correctly used. - *[Planned]*
+  `ثابت type identifier = initializer_expression '.'` - *[Lexer Implemented, Semantic enforcement needed]*
+* **`مقيد` (`restrict`):** Can only be applied to pointers to an object type. It indicates that for the lifetime of the pointer, only that pointer itself or values derived directly from it (such as `pointer + 1`) will be used to access the object it points to. This is a hint for compiler optimizations and does not change the program's semantics if correctly used. - *[Lexer Implemented, Semantic enforcement needed]*
 * **`متطاير` (`volatile`):** Indicates that an object may be modified by means not under the control of the compiler (e.g., by hardware or another thread). Accesses to volatile objects should not be optimized away. - *[Planned]*
 
 ## 5. Operator Precedence and Associativity

@@ -63,6 +63,8 @@ typedef enum {
     BAA_TOKEN_FUNC,       // دالة
     BAA_TOKEN_VAR,        // متغير
     BAA_TOKEN_CONST,      // ثابت
+    BAA_TOKEN_KEYWORD_INLINE, // مضمن (inline)
+    BAA_TOKEN_KEYWORD_RESTRICT, // مقيد (restrict)
     BAA_TOKEN_IF,         // إذا
     BAA_TOKEN_ELSE,       // وإلا
     BAA_TOKEN_WHILE,      // طالما
