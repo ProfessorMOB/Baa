@@ -13,15 +13,17 @@
 ## Phase 1: Foundational AST Structures
 
 - **Base Nodes & Kinds:**
-  - [ ] Define `BaaNode`, `BaaExpr`, `BaaStmt` base structs.
+  - [ ] Define `BaaNode`, `BaaExpr`, `BaaStmt` base structs in `ast.h` (or equivalent header).
+    - [ ] **New Sub-task:** Clarify and implement the precise interrelationship and hierarchy between `BaaNode`, `BaaExpr`, and `BaaStmt` (e.g., decide on struct embedding vs. unified kind enum vs. distinct hierarchies as per `AST.md` discussion, and implement chosen approach).
   - [ ] Define `BaaNodeKind` enum (`BAA_NODE_PROGRAM`, `BAA_NODE_FUNCTION`, `BAA_NODE_EXPRESSION`, `BAA_NODE_STATEMENT`, etc.).
   - [ ] Define `BaaExprKind` enum.
   - [ ] Define `BaaStmtKind` enum.
   - [ ] Implement `BaaSourceLocation` struct:
     - [ ] Initial implementation with start line/column and filename.
     - [ ] Future Consideration: Evaluate adding end line/column or token length for more precise source mapping.
-  - [ ] Implement creation functions (`baa_create_node`, `baa_create_expr`, `baa_create_stmt`).
-  - [ ] Implement destruction functions (`baa_free_node`, `baa_free_expr`, `baa_free_stmt`).
+  - [ ] Implement creation functions (`baa_ast_create_node`, `baa_ast_create_expr`, `baa_ast_create_stmt`).
+    - [ ] **New Sub-task:** Implement type-safe accessor helpers/macros for `void* data` payloads (e.g., `AS_LITERAL_EXPR_DATA(node)`) to improve code safety and readability when accessing specific node data.
+  - [ ] Implement destruction functions (`baa_ast_free_node`, `baa_ast_free_expr`, `baa_ast_free_stmt`).
 
 - **Basic Literal Expressions (`BAA_EXPR_LITERAL`):**
   - [ ] Define `BaaLiteralKind` enum (`BAA_LITERAL_BOOL`, `BAA_LITERAL_INT`, `BAA_LITERAL_FLOAT`, `BAA_LITERAL_CHAR`, `BAA_LITERAL_STRING`, `BAA_LITERAL_NULL`).

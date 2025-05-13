@@ -25,7 +25,7 @@
 
 - **Unary and Binary Expression Parsing:**
   - [ ] Implement parsing for unary operators (e.g., `!`, `-`) with correct precedence (`BAA_EXPR_UNARY`).
-  - [ ] Implement parsing for binary operators (e.g., `+`, `-`, `*`, `/`, `==`, `!=`, `<`, `>` etc.) using a chosen robust algorithm (e.g., Precedence Climbing or Shunting-Yard, to be documented in `PARSER.md`) (`BAA_EXPR_BINARY`).
+  - [ ] Implement parsing for binary operators (e.g., `+`, `-`, `*`, `/`, `==`, `!=`, `<`, `>` etc.) primarily using a cascaded series of functions for precedence levels. Document this chosen strategy in detail in `docs/PARSER.md`, including how operator precedence and associativity from `src/operators/` are handled. (Consider Pratt parsing or Shunting-Yard if cascaded approach proves insufficient for complex cases.) (`BAA_EXPR_BINARY`).
 - **Assignment Expression Parsing:**
   - [ ] Parse simple assignment (`=`) (`BAA_EXPR_ASSIGN`).
   - [ ] Parse compound assignment operators (e.g., `+=`, `-=`).
