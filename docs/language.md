@@ -180,8 +180,8 @@ Baa provides several predefined macros that offer information about the compilat
 * `__السطر__` : Expands to an integer constant representing the current line number in the source file.
 * `__التاريخ__` : Expands to a string literal representing the compilation date (e.g., "May 09 2025").
 * `__الوقت__` : Expands to a string literal representing the compilation time (e.g., "07:40:00").
-* `__الدالة__` : Expands to a string literal representing the name of the current function (similar to C99's `__func__`). - *[Planned]*
-* `__إصدار_المعيار_باء__` : Expands to a long integer constant representing the Baa language version (e.g., `10010L` for v0.1.10). - *[Planned]*
+* `__الدالة__` : Expands to a string literal placeholder `L"__BAA_FUNCTION_PLACEHOLDER__"`. Actual function name substitution is intended for later compiler stages. - *[Implemented by Preprocessor as placeholder]*
+* `__إصدار_المعيار_باء__` : Expands to a long integer constant `10010L` (representing Baa language version 0.1.10). - *[Implemented by Preprocessor]*
 
     ```baa
     اطبع("تم التجميع من الملف: " + __الملف__).

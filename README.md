@@ -16,6 +16,7 @@ The project now supports:
   - Stringification (`#`) and Token Pasting (`##`) operators in macros.
   - Predefined Arabic macros: `__الملف__` (FILE), `__السطر__` (LINE - expands to integer), `__التاريخ__` (DATE), `__الوقت__` (TIME). (Planned: `__الدالة__` for `__func__`, `__إصدار_المعيار_باء__` for Baa version).
   - Variadic Macros (using `وسائط_إضافية` for `...`, and `__وسائط_متغيرة__` for `__VA_ARGS__`). - *[Implemented]*
+  - Additional Predefined Macros: `__الدالة__` (expands to placeholder `L"__BAA_FUNCTION_PLACEHOLDER__"`), `__إصدار_المعيار_باء__` (expands to `10010L`). - *[Implemented]*
   - Other Standard Directives (Planned: `#خطأ`, `#تحذير`, `#سطر`, `#براغما`, and `أمر_براغما` operator).
 
 - **Basic Type System (نظام الأنواع الأساسي):** (K&R C compatibility with Arabic keywords)
@@ -85,6 +86,7 @@ For detailed information about Arabic support, see [Arabic Support Documentation
 - **Parser**: Recursive descent implementation, expression parsing with precedence, statement parsing
 - **Utils**: Memory management, string handling, error infrastructure
 - **Preprocessor integration with include and basic macro support.**
+- **Additional Predefined Macros**: `__الدالة__` (as placeholder) and `__إصدار_المعيار_باء__` are implemented in the preprocessor.
 
 #### What's Not Working
 

@@ -120,12 +120,13 @@ Baa uses Arabic keywords for its preprocessor directives, aligning with C99 func
 | `__السطر__`          | `__LINE__`     | Expands to the current line number as an integer constant.                  |
 | `__التاريخ__`        | `__DATE__`     | Expands to the compilation date as a string literal (e.g., "May 10 2025").  |
 | `__الوقت__`          | `__TIME__`     | Expands to the compilation time as a string literal (e.g., "02:00:00").   |
-| `__الدالة__` (Planned)| `__func__`     | Expands to the current function name as a string literal.                   |
-| `__إصدار_المعيار_باء__` (Planned) | `__STDC_VERSION__` (conceptually) | Expands to a long int representing Baa language version (e.g., `10010L`). |
+| `__الدالة__` | `__func__`     | Expands to `L"__BAA_FUNCTION_PLACEHOLDER__"` in preprocessor. Final value by later stages. |
+| `__إصدار_المعيار_باء__` | `__STDC_VERSION__` (conceptually) | Expands to a long int `10010L` representing Baa language version. |
 
 ### 6. Numeric Literals (القيم العددية)
 
 Baa supports Arabic in numeric literals extensively:
+
 - **Arabic-Indic Digits (الأرقام الهندية):** Digits `٠` through `٩` (U+0660-U+0669) can be used wherever Western digits (`0`-`9`) are used, for both integers and floats.
   - Examples: `عدد_صحيح س = ١٢٣.` (s = 123), `عدد_حقيقي ص = ٣٫١٤.` (p = 3.14 using Arabic decimal separator)
 - **Arabic Decimal Separator (الفاصلة العشرية العربية):** The character `٫` (U+066B) is recognized as a decimal separator in floating-point numbers, in addition to the period (`.`).
@@ -134,13 +135,13 @@ Baa supports Arabic in numeric literals extensively:
 - **Underscores with Arabic Numerals (الشرطة السفلية مع الأرقام العربية):** Underscores can be used as separators for readability with Arabic-Indic digits as well.
   - Example: `عدد_صحيح كبير = ١_٠٠٠_٠٠٠.` (one million)
 - **Literal Suffixes (لواحق القيم الحرفية):** Baa uses Arabic suffixes to specify integer and floating-point literal types. The lexer recognizes these suffixes and includes them in the token's lexeme. The interpretation of these suffixes to determine the exact numeric type (e.g., unsigned long long) is handled by later compiler stages.
-  * `غ` (ghayn): Unsigned (e.g., `123غ` for `123U`). - *[Lexer Implemented]*
-  * `ط` (ṭāʾ): Long (e.g., `456ط` for `456L`). - *[Lexer Implemented]*
-  * `طط` (ṭāʾ-ṭāʾ): Long Long (e.g., `789طط` for `789LL`). - *[Lexer Implemented]*
-  * `ح` (ḥāʾ): Float (e.g., `3.14ح` for `3.14F`). - *[Planned]*
-  * **Combinations for Integers:** Integer suffixes `غ`, `ط`, `طط` can be combined, and their order is flexible (e.g., `غط` is equivalent to `طغ`). - *[Lexer Implemented]*
-    * `غط` for Unsigned Long (e.g., `100غط`).
-    * `غطط` for Unsigned Long Long (e.g., `200غطط`).
+  - `غ` (ghayn): Unsigned (e.g., `123غ` for `123U`). - *[Lexer Implemented]*
+  - `ط` (ṭāʾ): Long (e.g., `456ط` for `456L`). - *[Lexer Implemented]*
+  - `طط` (ṭāʾ-ṭāʾ): Long Long (e.g., `789طط` for `789LL`). - *[Lexer Implemented]*
+  - `ح` (ḥāʾ): Float (e.g., `3.14ح` for `3.14F`). - *[Planned]*
+  - **Combinations for Integers:** Integer suffixes `غ`, `ط`, `طط` can be combined, and their order is flexible (e.g., `غط` is equivalent to `طغ`). - *[Lexer Implemented]*
+    - `غط` for Unsigned Long (e.g., `100غط`).
+    - `غطط` for Unsigned Long Long (e.g., `200غطط`).
 
 ### 7. Character and String Literals (القيم الحرفية والنصية)
 
@@ -148,21 +149,22 @@ Character literals are enclosed in single quotes (`'ح'`). String literals are e
 Baa uses the backslash (`\`) as the escape character, followed by an Arabic letter or specific sequences for special characters.
 
 **Planned Arabic Escape Sequences:**
-*   Newline: `\س`
-*   Tab: `\م`
-*   Backslash: `\\`
-*   Single Quote: `\'`
-*   Double Quote: `\"`
-*   Carriage Return: `\ر`
-*   Null Character: `\ص`
-*   Unicode (4 hex digits): `\يXXXX` (e.g., `\ي0623` for 'أ')
-*   Hex Byte (2 hex digits): `\هـHH` (e.g., `\هـ41` for 'A')
+- Newline: `\س`
+- Tab: `\م`
+- Backslash: `\\`
+- Single Quote: `\'`
+- Double Quote: `\"`
+- Carriage Return: `\ر`
+- Null Character: `\ص`
+- Unicode (4 hex digits): `\يXXXX` (e.g., `\ي0623` for 'أ')
+- Hex Byte (2 hex digits): `\هـHH` (e.g., `\هـ41` for 'A')
 
 ```baa
 حرف سطر_جديد = '\س'.
 حرف علامة_جدولة = '\م'.
 نص مثال = "هذا نص يتضمن \سسطر جديد و \متاب."
 ```
+
 *(Note: Standard C escapes like `\n`, `\t` are currently implemented; transition to full Arabic escapes is planned).*
 
 ### 8. Function Parameters (معاملات الدالة)
