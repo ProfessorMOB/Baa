@@ -141,6 +141,7 @@ char *get_absolute_path(const char *file_path);
 char *get_directory_part(const char *file_path);
 // Updated error formatter to potentially accept an explicit location
 wchar_t *format_preprocessor_error_at_location(const PpSourceLocation *location, const wchar_t *format, ...);
+wchar_t *format_preprocessor_warning_at_location(const PpSourceLocation *location, const wchar_t *format, ...);
 
 // File Stack
 bool push_file_stack(BaaPreprocessor *pp, const char *abs_path);

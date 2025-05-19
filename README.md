@@ -2,7 +2,7 @@
 
 B (باء) is a programming language designed to support Arabic syntax while maintaining full compatibility with K&R C features. It allows developers to write code using Arabic keywords and identifiers while following established C programming patterns.
 
-## Current Status (v0.1.10.0)
+## Current Status (v0.1.15.0)
 
 The project now supports:
 
@@ -11,13 +11,14 @@ The project now supports:
 - **Preprocessor Directives:**
   - `#تضمين <...>` and `#تضمين "..."` (Include files)
   - `#تعريف NAME ...` (Parameterless and function-like macro definition/substitution, **including rescanning of expansion results**).
+  - `#خطأ "message"` (Error directive - stops preprocessing) - *[Implemented]*
+  - `#تحذير "message"` (Warning directive - prints to stderr, continues) - *[Implemented]*
   - `#الغاء_تعريف NAME` (Undefine macro)
-  - Conditional compilation (`#إذا_عرف`, `#إذا_لم_يعرف`, `#إذا`, `#وإلا_إذا`, `#إلا`, `#نهاية_إذا`) (using `معرف` for `defined`)
+  - Conditional compilation (`#إذا_عرف`, `#إذا_لم_يعرف`, `#إذا`, `#وإلا_إذا`, `#إلا`, `#نهاية_إذا`) with expression evaluation (using `معرف` for `defined`, supports arithmetic, comparison, logical, and **bitwise operators**, and decimal/hex/binary literals).
   - Stringification (`#`) and Token Pasting (`##`) operators in macros.
-  - Predefined Arabic macros: `__الملف__` (FILE), `__السطر__` (LINE - expands to integer), `__التاريخ__` (DATE), `__الوقت__` (TIME). (Planned: `__الدالة__` for `__func__`, `__إصدار_المعيار_باء__` for Baa version).
-  - Variadic Macros (using `وسائط_إضافية` for `...`, and `__وسائط_متغيرة__` for `__VA_ARGS__`). - *[Implemented]*
-  - Additional Predefined Macros: `__الدالة__` (expands to placeholder `L"__BAA_FUNCTION_PLACEHOLDER__"`), `__إصدار_المعيار_باء__` (expands to `10010L`). - *[Implemented]*
-  - Other Standard Directives (Planned: `#خطأ`, `#تحذير`, `#سطر`, `#براغما`, and `أمر_براغما` operator).
+    - Predefined Arabic macros: `__الملف__` (FILE), `__السطر__` (LINE - expands to integer), `__التاريخ__` (DATE), `__الوقت__` (TIME), `__الدالة__` (expands to placeholder `L"__BAA_FUNCTION_PLACEHOLDER__"`), `__إصدار_المعيار_باء__` (expands to current version, e.g., `10150L`). - *[All Implemented]*
+    - Variadic Macros (using `وسائط_إضافية` for `...`, and `__وسائط_متغيرة__` for `__VA_ARGS__`). - *[Implemented]*
+    - Other Standard Directives (Planned: `#سطر`, `#براغما`, and `أمر_براغما` operator).
 
 - **Basic Type System (نظام الأنواع الأساسي):** (K&R C compatibility with Arabic keywords)
   - `عدد_صحيح` (int) - 32-bit integer
@@ -79,14 +80,13 @@ For detailed information about Arabic support, see [Arabic Support Documentation
 #### What's Working
 
 - **Preprocessor**: Handles includes (`#تضمين`), object-like and function-like macros (`#تعريف` with parameters, including variadic macros using `وسائط_إضافية`/`__وسائط_متغيرة__`, `#`, `##`, and **rescanning**), undefines (`#الغاء_تعريف`), conditional compilation (including expression evaluation for `#إذا`/`#وإلا_إذا`), predefined Arabic macros (`__الملف__`, `__السطر__` (as integer), `__التاريخ__`, `__الوقت__`). Error reporting is unified and provides original source locations (file, line, column).
-- **Core Architecture**: Well-defined architecture with clear separation of concerns
+- **Core Architecture**: Well-defined architecture with clear separation of concerns.
 - **Type System**: Basic types including Boolean, type conversion rules, and type checking
 - **AST (Abstract Syntax Tree)**: Comprehensive node structure, program, function nodes, enhanced parameter handling
 - **Lexer**: UTF-16LE file processing (from preprocessor output). Modularized structure. Robust token recognition for keywords, identifiers (Arabic/English), types, boolean literals, all operators. Advanced numeric literal scanning (Arabic-Indic digits, binary/hex prefixes, underscores, Arabic decimal separator `٫`, scientific notation). String and character literal scanning with standard and Unicode escapes. Accurate line/column tracking and error reporting.
 - **Parser**: Recursive descent implementation, expression parsing with precedence, statement parsing
 - **Utils**: Memory management, string handling, error infrastructure
 - **Preprocessor integration with include and basic macro support.**
-- **Additional Predefined Macros**: `__الدالة__` (as placeholder) and `__إصدار_المعيار_باء__` are implemented in the preprocessor.
 
 #### What's Not Working
 
@@ -98,7 +98,7 @@ For detailed information about Arabic support, see [Arabic Support Documentation
 #### What Needs Improvement
 
 - **Arabic Support**: RTL text handling, more comprehensive error messages
-- **Error Handling**: More detailed messages, better recovery mechanisms
+- **Error Handling**: More detailed messages, better recovery mechanisms. **Preprocessor error/warning location precision for directives.**
 - **Documentation**: Generally updated and consolidated. Specific component details may need further review.
 - **Build System**: Cross-platform support, dependency management
 
@@ -107,6 +107,7 @@ For detailed information about Arabic support, see [Arabic Support Documentation
 - **Lexer Issues**: UTF-16LE handling, Arabic character recognition
 - **Parser Issues**: Expression precedence, statement termination, control flow parsing
 - **Memory Management**: Potential leaks, inconsistent allocation
+- **Preprocessor Known Issues**: Token pasting (`##`) during rescanning (complex cases), full macro expansion in conditional expressions.
 - **Integration Issues**: Component integration, compilation pipeline gaps
 
 ### Changelog

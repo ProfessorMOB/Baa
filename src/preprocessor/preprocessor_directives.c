@@ -30,6 +30,10 @@ bool handle_preprocessor_directive(BaaPreprocessor *pp_state, wchar_t *directive
     size_t endif_directive_len = wcslen(endif_directive);
     const wchar_t *if_directive = L"إذا";
     size_t if_directive_len = wcslen(if_directive);
+    const wchar_t *error_directive = L"خطأ";
+    size_t error_directive_len = wcslen(error_directive);
+    const wchar_t *warning_directive = L"تحذير";
+    size_t warning_directive_len = wcslen(warning_directive);
 
     PpSourceLocation directive_loc = get_current_original_location(pp_state); // Get location for potential errors
 
@@ -39,33 +43,39 @@ bool handle_preprocessor_directive(BaaPreprocessor *pp_state, wchar_t *directive
     {
         *is_conditional_directive = true;
         wchar_t *expr_start = directive_start + if_directive_len;
-        while (iswspace(*expr_start)) expr_start++;
+        while (iswspace(*expr_start))
+            expr_start++;
 
         // Find end of expression (before potential comment)
         wchar_t *expr_end = expr_start;
         wchar_t *comment_start = NULL;
-        while (*expr_end != L'\0') {
-            if (wcsncmp(expr_end, L"//", 2) == 0) {
+        while (*expr_end != L'\0')
+        {
+            if (wcsncmp(expr_end, L"//", 2) == 0)
+            {
                 comment_start = expr_end;
                 break;
             }
             expr_end++;
         }
         // Trim trailing whitespace from expression before comment
-        if (comment_start) {
+        if (comment_start)
+        {
             expr_end = comment_start; // Point to start of comment
         }
-        while (expr_end > expr_start && iswspace(*(expr_end - 1))) {
+        while (expr_end > expr_start && iswspace(*(expr_end - 1)))
+        {
             expr_end--;
         }
         size_t expr_len = expr_end - expr_start;
-        wchar_t* expression_only = wcsndup_internal(expr_start, expr_len); // Duplicate only the expression part
+        wchar_t *expression_only = wcsndup_internal(expr_start, expr_len); // Duplicate only the expression part
 
         if (!expression_only || expr_len == 0) // Check if expression is empty after stripping comment/whitespace
         {
             *error_message = format_preprocessor_error_at_location(&directive_loc, L"تنسيق #إذا غير صالح: التعبير مفقود.");
             success = false;
-            if (expression_only) free(expression_only); // Free if allocated but empty
+            if (expression_only)
+                free(expression_only); // Free if allocated but empty
         }
         else
         {
@@ -93,21 +103,33 @@ bool handle_preprocessor_directive(BaaPreprocessor *pp_state, wchar_t *directive
     {
         *is_conditional_directive = true;
         wchar_t *name_start = directive_start + ifdef_directive_len;
-        while (iswspace(*name_start)) name_start++;
+        while (iswspace(*name_start))
+            name_start++;
         wchar_t *name_end = name_start;
-        while (*name_end != L'\0' && !iswspace(*name_end)) name_end++;
+        while (*name_end != L'\0' && !iswspace(*name_end))
+            name_end++;
 
-        if (name_start == name_end) {
-            *error_message = format_preprocessor_error_at_location(&directive_loc, L"تنسيق #إذا_عرف غير صالح: اسم الماكرو مفقود."); success = false;
-        } else {
+        if (name_start == name_end)
+        {
+            *error_message = format_preprocessor_error_at_location(&directive_loc, L"تنسيق #إذا_عرف غير صالح: اسم الماكرو مفقود.");
+            success = false;
+        }
+        else
+        {
             size_t name_len = name_end - name_start;
             wchar_t *macro_name = wcsndup_internal(name_start, name_len);
-            if (!macro_name) {
-                *error_message = format_preprocessor_error_at_location(&directive_loc, L"فشل في تخصيص ذاكرة لاسم الماكرو في #إذا_عرف."); success = false;
-            } else {
+            if (!macro_name)
+            {
+                *error_message = format_preprocessor_error_at_location(&directive_loc, L"فشل في تخصيص ذاكرة لاسم الماكرو في #إذا_عرف.");
+                success = false;
+            }
+            else
+            {
                 bool is_defined = (find_macro(pp_state, macro_name) != NULL);
-                if (!push_conditional(pp_state, is_defined)) {
-                    *error_message = format_preprocessor_error_at_location(&directive_loc, L"فشل في دفع الحالة الشرطية لـ #إذا_عرف (نفاد الذاكرة؟)."); success = false;
+                if (!push_conditional(pp_state, is_defined))
+                {
+                    *error_message = format_preprocessor_error_at_location(&directive_loc, L"فشل في دفع الحالة الشرطية لـ #إذا_عرف (نفاد الذاكرة؟).");
+                    success = false;
                 }
                 free(macro_name);
             }
@@ -118,21 +140,33 @@ bool handle_preprocessor_directive(BaaPreprocessor *pp_state, wchar_t *directive
     {
         *is_conditional_directive = true;
         wchar_t *name_start = directive_start + ifndef_directive_len;
-        while (iswspace(*name_start)) name_start++;
+        while (iswspace(*name_start))
+            name_start++;
         wchar_t *name_end = name_start;
-        while (*name_end != L'\0' && !iswspace(*name_end)) name_end++;
+        while (*name_end != L'\0' && !iswspace(*name_end))
+            name_end++;
 
-        if (name_start == name_end) {
-            *error_message = format_preprocessor_error_at_location(&directive_loc, L"تنسيق #إذا_لم_يعرف غير صالح: اسم الماكرو مفقود."); success = false;
-        } else {
+        if (name_start == name_end)
+        {
+            *error_message = format_preprocessor_error_at_location(&directive_loc, L"تنسيق #إذا_لم_يعرف غير صالح: اسم الماكرو مفقود.");
+            success = false;
+        }
+        else
+        {
             size_t name_len = name_end - name_start;
             wchar_t *macro_name = wcsndup_internal(name_start, name_len);
-            if (!macro_name) {
-                *error_message = format_preprocessor_error_at_location(&directive_loc, L"فشل في تخصيص ذاكرة لاسم الماكرو في #إذا_لم_يعرف."); success = false;
-            } else {
+            if (!macro_name)
+            {
+                *error_message = format_preprocessor_error_at_location(&directive_loc, L"فشل في تخصيص ذاكرة لاسم الماكرو في #إذا_لم_يعرف.");
+                success = false;
+            }
+            else
+            {
                 bool is_defined = (find_macro(pp_state, macro_name) != NULL);
-                if (!push_conditional(pp_state, !is_defined)) { // Note the negation
-                    *error_message = format_preprocessor_error_at_location(&directive_loc, L"فشل في دفع الحالة الشرطية لـ #إذا_لم_يعرف (نفاد الذاكرة؟)."); success = false;
+                if (!push_conditional(pp_state, !is_defined))
+                { // Note the negation
+                    *error_message = format_preprocessor_error_at_location(&directive_loc, L"فشل في دفع الحالة الشرطية لـ #إذا_لم_يعرف (نفاد الذاكرة؟).");
+                    success = false;
                 }
                 free(macro_name);
             }
@@ -142,21 +176,30 @@ bool handle_preprocessor_directive(BaaPreprocessor *pp_state, wchar_t *directive
              (directive_start[endif_directive_len] == L'\0' || iswspace(directive_start[endif_directive_len])))
     {
         *is_conditional_directive = true;
-        if (!pop_conditional(pp_state)) {
-            *error_message = format_preprocessor_error_at_location(&directive_loc, L"#نهاية_إذا بدون #إذا/#إذا_عرف/#إذا_لم_يعرف مطابق."); success = false;
+        if (!pop_conditional(pp_state))
+        {
+            *error_message = format_preprocessor_error_at_location(&directive_loc, L"#نهاية_إذا بدون #إذا/#إذا_عرف/#إذا_لم_يعرف مطابق.");
+            success = false;
         }
     }
     else if (wcsncmp(directive_start, else_directive, else_directive_len) == 0 &&
              (directive_start[else_directive_len] == L'\0' || iswspace(directive_start[else_directive_len])))
     {
         *is_conditional_directive = true;
-        if (pp_state->conditional_stack_count == 0) {
-            *error_message = format_preprocessor_error_at_location(&directive_loc, L"#إلا بدون #إذا/#إذا_عرف/#إذا_لم_يعرف مطابق."); success = false;
-        } else {
+        if (pp_state->conditional_stack_count == 0)
+        {
+            *error_message = format_preprocessor_error_at_location(&directive_loc, L"#إلا بدون #إذا/#إذا_عرف/#إذا_لم_يعرف مطابق.");
+            success = false;
+        }
+        else
+        {
             size_t top_index = pp_state->conditional_stack_count - 1;
-            if (pp_state->conditional_branch_taken_stack[top_index]) {
+            if (pp_state->conditional_branch_taken_stack[top_index])
+            {
                 pp_state->conditional_stack[top_index] = false;
-            } else {
+            }
+            else
+            {
                 pp_state->conditional_stack[top_index] = true;
                 pp_state->conditional_branch_taken_stack[top_index] = true;
             }
@@ -167,40 +210,53 @@ bool handle_preprocessor_directive(BaaPreprocessor *pp_state, wchar_t *directive
              (directive_start[elif_directive_len] == L'\0' || iswspace(directive_start[elif_directive_len])))
     {
         *is_conditional_directive = true;
-        if (pp_state->conditional_stack_count == 0) {
-            *error_message = format_preprocessor_error_at_location(&directive_loc, L"#وإلا_إذا بدون #إذا/#إذا_عرف/#إذا_لم_يعرف مطابق."); success = false;
-        } else {
+        if (pp_state->conditional_stack_count == 0)
+        {
+            *error_message = format_preprocessor_error_at_location(&directive_loc, L"#وإلا_إذا بدون #إذا/#إذا_عرف/#إذا_لم_يعرف مطابق.");
+            success = false;
+        }
+        else
+        {
             size_t top_index = pp_state->conditional_stack_count - 1;
-            if (pp_state->conditional_branch_taken_stack[top_index]) {
+            if (pp_state->conditional_branch_taken_stack[top_index])
+            {
                 pp_state->conditional_stack[top_index] = false;
-            } else {
+            }
+            else
+            {
                 wchar_t *expr_start = directive_start + elif_directive_len;
-                while (iswspace(*expr_start)) expr_start++;
+                while (iswspace(*expr_start))
+                    expr_start++;
 
                 // Find end of expression (before potential comment)
                 wchar_t *expr_end = expr_start;
                 wchar_t *comment_start = NULL;
-                while (*expr_end != L'\0') {
-                    if (wcsncmp(expr_end, L"//", 2) == 0) {
+                while (*expr_end != L'\0')
+                {
+                    if (wcsncmp(expr_end, L"//", 2) == 0)
+                    {
                         comment_start = expr_end;
                         break;
                     }
                     expr_end++;
                 }
-                if (comment_start) {
+                if (comment_start)
+                {
                     expr_end = comment_start;
                 }
-                while (expr_end > expr_start && iswspace(*(expr_end - 1))) {
+                while (expr_end > expr_start && iswspace(*(expr_end - 1)))
+                {
                     expr_end--;
                 }
                 size_t expr_len = expr_end - expr_start;
-                wchar_t* expression_only = wcsndup_internal(expr_start, expr_len); // Duplicate only expression
+                wchar_t *expression_only = wcsndup_internal(expr_start, expr_len); // Duplicate only expression
 
                 if (!expression_only || expr_len == 0) // Check if expression is empty
                 {
                     *error_message = format_preprocessor_error_at_location(&directive_loc, L"تنسيق #وإلا_إذا غير صالح: التعبير مفقود.");
                     success = false;
-                    if (expression_only) free(expression_only); // Free if allocated but empty
+                    if (expression_only)
+                        free(expression_only); // Free if allocated but empty
                 }
                 else
                 {
@@ -213,10 +269,13 @@ bool handle_preprocessor_directive(BaaPreprocessor *pp_state, wchar_t *directive
                     }
                     else
                     {
-                        if (condition_met) {
+                        if (condition_met)
+                        {
                             pp_state->conditional_stack[top_index] = true;
                             pp_state->conditional_branch_taken_stack[top_index] = true;
-                        } else {
+                        }
+                        else
+                        {
                             pp_state->conditional_stack[top_index] = false;
                         }
                     }
@@ -236,7 +295,8 @@ bool handle_preprocessor_directive(BaaPreprocessor *pp_state, wchar_t *directive
             // Found #تضمين directive
             wchar_t *path_spec_start = directive_start + include_directive_len;
             // Column number updated by caller before calling this function
-            while (iswspace(*path_spec_start)) {
+            while (iswspace(*path_spec_start))
+            {
                 path_spec_start++;
                 // pp_state->current_column_number++; // Column tracking handled by caller/tokenizer
             }
@@ -247,79 +307,166 @@ bool handle_preprocessor_directive(BaaPreprocessor *pp_state, wchar_t *directive
             wchar_t *path_start = NULL;
             wchar_t *path_end = NULL;
 
-            if (start_char == L'"') {
-                end_char = L'"'; use_include_paths = false; path_start = path_spec_start + 1; path_end = wcschr(path_start, end_char);
-            } else if (start_char == L'<') {
-                end_char = L'>'; use_include_paths = true; path_start = path_spec_start + 1; path_end = wcschr(path_start, end_char);
-            } else {
-                *error_message = format_preprocessor_error_at_location(&directive_loc, L"تنسيق #تضمين غير صالح: يجب أن يتبع اسم الملف بـ \" أو <."); success = false;
+            if (start_char == L'"')
+            {
+                end_char = L'"';
+                use_include_paths = false;
+                path_start = path_spec_start + 1;
+                path_end = wcschr(path_start, end_char);
+            }
+            else if (start_char == L'<')
+            {
+                end_char = L'>';
+                use_include_paths = true;
+                path_start = path_spec_start + 1;
+                path_end = wcschr(path_start, end_char);
+            }
+            else
+            {
+                *error_message = format_preprocessor_error_at_location(&directive_loc, L"تنسيق #تضمين غير صالح: يجب أن يتبع اسم الملف بـ \" أو <.");
+                success = false;
             }
 
-            if (success && path_end != NULL) {
+            if (success && path_end != NULL)
+            {
                 size_t include_path_len = path_end - path_start;
-                if (include_path_len == 0) {
-                    *error_message = format_preprocessor_error_at_location(&directive_loc, L"تنسيق #تضمين غير صالح: مسار الملف فارغ."); success = false;
-                } else {
+                if (include_path_len == 0)
+                {
+                    *error_message = format_preprocessor_error_at_location(&directive_loc, L"تنسيق #تضمين غير صالح: مسار الملف فارغ.");
+                    success = false;
+                }
+                else
+                {
                     wchar_t *include_path_w = wcsndup_internal(path_start, include_path_len);
-                    if (!include_path_w) {
-                        *error_message = format_preprocessor_error_at_location(&directive_loc, L"فشل في تخصيص ذاكرة لمسار التضمين."); success = false;
-                    } else {
+                    if (!include_path_w)
+                    {
+                        *error_message = format_preprocessor_error_at_location(&directive_loc, L"فشل في تخصيص ذاكرة لمسار التضمين.");
+                        success = false;
+                    }
+                    else
+                    {
                         char *include_path_mb = NULL;
                         int required_bytes = WideCharToMultiByte(CP_UTF8, 0, include_path_w, -1, NULL, 0, NULL, NULL);
-                        if (required_bytes > 0) {
+                        if (required_bytes > 0)
+                        {
                             include_path_mb = malloc(required_bytes);
-                            if (include_path_mb) WideCharToMultiByte(CP_UTF8, 0, include_path_w, -1, include_path_mb, required_bytes, NULL, NULL);
-                            else { *error_message = format_preprocessor_error_at_location(&directive_loc, L"فشل في تخصيص ذاكرة لمسار التضمين (MB)."); success = false; }
-                        } else { *error_message = format_preprocessor_error_at_location(&directive_loc, L"فشل في تحويل مسار التضمين إلى UTF-8."); success = false; }
+                            if (include_path_mb)
+                                WideCharToMultiByte(CP_UTF8, 0, include_path_w, -1, include_path_mb, required_bytes, NULL, NULL);
+                            else
+                            {
+                                *error_message = format_preprocessor_error_at_location(&directive_loc, L"فشل في تخصيص ذاكرة لمسار التضمين (MB).");
+                                success = false;
+                            }
+                        }
+                        else
+                        {
+                            *error_message = format_preprocessor_error_at_location(&directive_loc, L"فشل في تحويل مسار التضمين إلى UTF-8.");
+                            success = false;
+                        }
 
-                        if (success && include_path_mb) {
-                            char *full_include_path = NULL; bool found = false;
-                            if (use_include_paths) {
-                                for (size_t i = 0; i < pp_state->include_path_count; ++i) {
-                                    char temp_path[MAX_PATH_LEN]; snprintf(temp_path, MAX_PATH_LEN, "%s%c%s", pp_state->include_paths[i], PATH_SEPARATOR, include_path_mb);
+                        if (success && include_path_mb)
+                        {
+                            char *full_include_path = NULL;
+                            bool found = false;
+                            if (use_include_paths)
+                            {
+                                for (size_t i = 0; i < pp_state->include_path_count; ++i)
+                                {
+                                    char temp_path[MAX_PATH_LEN];
+                                    snprintf(temp_path, MAX_PATH_LEN, "%s%c%s", pp_state->include_paths[i], PATH_SEPARATOR, include_path_mb);
                                     FILE *test_file = NULL;
-                                    #ifdef _WIN32
-                                    errno_t err = fopen_s(&test_file, temp_path, "rb"); if (test_file && err == 0)
-                                    #else
-                                    test_file = fopen(temp_path, "rb"); if (test_file)
-                                    #endif
-                                    { fclose(test_file); full_include_path = _strdup(temp_path); found = true; break; }
+#ifdef _WIN32
+                                    errno_t err = fopen_s(&test_file, temp_path, "rb");
+                                    if (test_file && err == 0)
+#else
+                                    test_file = fopen(temp_path, "rb");
+                                    if (test_file)
+#endif
+                                    {
+                                        fclose(test_file);
+                                        full_include_path = _strdup(temp_path);
+                                        found = true;
+                                        break;
+                                    }
                                 }
-                                if (!found) { *error_message = format_preprocessor_error_at_location(&directive_loc, L"تعذر العثور على ملف التضمين '<%hs>' في مسارات التضمين.", include_path_mb); success = false; }
-                            } else {
+                                if (!found)
+                                {
+                                    *error_message = format_preprocessor_error_at_location(&directive_loc, L"تعذر العثور على ملف التضمين '<%hs>' في مسارات التضمين.", include_path_mb);
+                                    success = false;
+                                }
+                            }
+                            else
+                            {
                                 char *current_dir = get_directory_part(pp_state->current_file_path);
-                                if (!current_dir) { *error_message = format_preprocessor_error_at_location(&directive_loc, L"فشل في الحصول على دليل الملف الحالي."); success = false; }
-                                else {
-                                    char temp_path[MAX_PATH_LEN]; snprintf(temp_path, MAX_PATH_LEN, "%s%c%s", current_dir, PATH_SEPARATOR, include_path_mb);
-                                    full_include_path = _strdup(temp_path); free(current_dir);
-                                    if (!full_include_path) { *error_message = format_preprocessor_error_at_location(&directive_loc, L"فشل في تخصيص ذاكرة للمسار النسبي المدمج."); success = false; }
-                                    else { found = true; }
+                                if (!current_dir)
+                                {
+                                    *error_message = format_preprocessor_error_at_location(&directive_loc, L"فشل في الحصول على دليل الملف الحالي.");
+                                    success = false;
+                                }
+                                else
+                                {
+                                    char temp_path[MAX_PATH_LEN];
+                                    snprintf(temp_path, MAX_PATH_LEN, "%s%c%s", current_dir, PATH_SEPARATOR, include_path_mb);
+                                    full_include_path = _strdup(temp_path);
+                                    free(current_dir);
+                                    if (!full_include_path)
+                                    {
+                                        *error_message = format_preprocessor_error_at_location(&directive_loc, L"فشل في تخصيص ذاكرة للمسار النسبي المدمج.");
+                                        success = false;
+                                    }
+                                    else
+                                    {
+                                        found = true;
+                                    }
                                 }
                             }
 
-                            if (success && found && full_include_path) {
+                            if (success && found && full_include_path)
+                            {
                                 PpSourceLocation include_loc = {.file_path = pp_state->current_file_path, .line = pp_state->current_line_number, .column = 1};
-                                if (!push_location(pp_state, &include_loc)) {
-                                    *error_message = format_preprocessor_error_at_location(&include_loc, L"فشل في دفع موقع التضمين (نفاد الذاكرة؟)."); success = false;
-                                } else {
+                                if (!push_location(pp_state, &include_loc))
+                                {
+                                    *error_message = format_preprocessor_error_at_location(&include_loc, L"فشل في دفع موقع التضمين (نفاد الذاكرة؟).");
+                                    success = false;
+                                }
+                                else
+                                {
                                     wchar_t *included_content = process_file(pp_state, full_include_path, error_message); // Recursive call
                                     pop_location(pp_state);
-                                    if (!included_content) { success = false; }
-                                    else {
-                                        if (!append_to_dynamic_buffer(output_buffer, included_content)) {
-                                            if (!*error_message) { PpSourceLocation current_loc = get_current_original_location(pp_state); *error_message = format_preprocessor_error_at_location(&current_loc, L"فشل في إلحاق المحتوى المضمن من '%hs'.", full_include_path); }
+                                    if (!included_content)
+                                    {
+                                        success = false;
+                                    }
+                                    else
+                                    {
+                                        if (!append_to_dynamic_buffer(output_buffer, included_content))
+                                        {
+                                            if (!*error_message)
+                                            {
+                                                PpSourceLocation current_loc = get_current_original_location(pp_state);
+                                                *error_message = format_preprocessor_error_at_location(&current_loc, L"فشل في إلحاق المحتوى المضمن من '%hs'.", full_include_path);
+                                            }
                                             success = false;
                                         }
                                         free(included_content);
                                     }
                                 }
-                            } else if (success && !found) { /* Error already set */ }
+                            }
+                            else if (success && !found)
+                            { /* Error already set */
+                            }
                             free(full_include_path);
                         }
-                        free(include_path_mb); free(include_path_w);
+                        free(include_path_mb);
+                        free(include_path_w);
                     }
                 }
-            } else if (success) { *error_message = format_preprocessor_error_at_location(&directive_loc, L"تنسيق #تضمين غير صالح: علامة الاقتباس أو القوس الختامي مفقود."); success = false; }
+            }
+            else if (success)
+            {
+                *error_message = format_preprocessor_error_at_location(&directive_loc, L"تنسيق #تضمين غير صالح: علامة الاقتباس أو القوس الختامي مفقود.");
+                success = false;
+            }
             // #تضمين processed, don't append original line
         }
         else if (wcsncmp(directive_start, define_directive, define_directive_len) == 0 &&
@@ -327,82 +474,175 @@ bool handle_preprocessor_directive(BaaPreprocessor *pp_state, wchar_t *directive
         {
             wchar_t *name_start = directive_start + define_directive_len;
             // Column number updated by caller
-            while (iswspace(*name_start)) { name_start++; /* pp_state->current_column_number++; */ }
+            while (iswspace(*name_start))
+            {
+                name_start++; /* pp_state->current_column_number++; */
+            }
             wchar_t *name_end = name_start;
-            while (*name_end != L'\0' && !iswspace(*name_end) && *name_end != L'(') name_end++;
+            while (*name_end != L'\0' && !iswspace(*name_end) && *name_end != L'(')
+                name_end++;
 
-            if (name_start == name_end) { *error_message = format_preprocessor_error_at_location(&directive_loc, L"تنسيق #تعريف غير صالح: اسم الماكرو مفقود."); success = false; }
-            else {
+            if (name_start == name_end)
+            {
+                *error_message = format_preprocessor_error_at_location(&directive_loc, L"تنسيق #تعريف غير صالح: اسم الماكرو مفقود.");
+                success = false;
+            }
+            else
+            {
                 size_t name_len = name_end - name_start;
                 wchar_t *macro_name = wcsndup_internal(name_start, name_len);
-                if (!macro_name) { *error_message = format_preprocessor_error_at_location(&directive_loc, L"فشل في تخصيص ذاكرة لاسم الماكرو في #تعريف."); success = false; }
-                else {
-                    bool is_function_like = false; bool is_variadic_macro = false; size_t param_count = 0; wchar_t **params = NULL; wchar_t *body_start = name_end;
+                if (!macro_name)
+                {
+                    *error_message = format_preprocessor_error_at_location(&directive_loc, L"فشل في تخصيص ذاكرة لاسم الماكرو في #تعريف.");
+                    success = false;
+                }
+                else
+                {
+                    bool is_function_like = false;
+                    bool is_variadic_macro = false;
+                    size_t param_count = 0;
+                    wchar_t **params = NULL;
+                    wchar_t *body_start = name_end;
                     const wchar_t *variadic_keyword = L"وسائط_إضافية";
                     size_t variadic_keyword_len = wcslen(variadic_keyword);
 
-                    if (*name_end == L'(') {
-                        is_function_like = true; wchar_t *param_ptr = name_end + 1; size_t params_capacity = 0;
-                        while (success) {
-                            while (iswspace(*param_ptr)) param_ptr++;
-                            if (*param_ptr == L')') { param_ptr++; break; } // End of parameter list
+                    if (*name_end == L'(')
+                    {
+                        is_function_like = true;
+                        wchar_t *param_ptr = name_end + 1;
+                        size_t params_capacity = 0;
+                        while (success)
+                        {
+                            while (iswspace(*param_ptr))
+                                param_ptr++;
+                            if (*param_ptr == L')')
+                            {
+                                param_ptr++;
+                                break;
+                            } // End of parameter list
 
-                            if (param_count > 0 || is_variadic_macro) { // If not the first param, or if variadic was just processed
-                                if (is_variadic_macro) { // No params allowed after variadic
-                                    *error_message = format_preprocessor_error_at_location(&directive_loc, L"تنسيق #تعريف غير صالح: لا يمكن أن يتبع 'وسائط_إضافية' معاملات أخرى."); success = false; break;
+                            if (param_count > 0 || is_variadic_macro)
+                            { // If not the first param, or if variadic was just processed
+                                if (is_variadic_macro)
+                                { // No params allowed after variadic
+                                    *error_message = format_preprocessor_error_at_location(&directive_loc, L"تنسيق #تعريف غير صالح: لا يمكن أن يتبع 'وسائط_إضافية' معاملات أخرى.");
+                                    success = false;
+                                    break;
                                 }
-                                if (*param_ptr == L',') { param_ptr++; while (iswspace(*param_ptr)) param_ptr++; }
-                                else { *error_message = format_preprocessor_error_at_location(&directive_loc, L"تنسيق #تعريف غير صالح: متوقع ',' أو ')' بين معاملات الماكرو الوظيفي."); success = false; break; }
+                                if (*param_ptr == L',')
+                                {
+                                    param_ptr++;
+                                    while (iswspace(*param_ptr))
+                                        param_ptr++;
+                                }
+                                else
+                                {
+                                    *error_message = format_preprocessor_error_at_location(&directive_loc, L"تنسيق #تعريف غير صالح: متوقع ',' أو ')' بين معاملات الماكرو الوظيفي.");
+                                    success = false;
+                                    break;
+                                }
                             }
 
                             // Check for variadic 'وسائط_إضافية'
                             if (wcsncmp(param_ptr, variadic_keyword, variadic_keyword_len) == 0 &&
-                                (iswspace(*(param_ptr + variadic_keyword_len)) || *(param_ptr + variadic_keyword_len) == L')')) {
+                                (iswspace(*(param_ptr + variadic_keyword_len)) || *(param_ptr + variadic_keyword_len) == L')'))
+                            {
                                 is_variadic_macro = true;
                                 param_ptr += variadic_keyword_len;
                                 // 'وسائط_إضافية' must be the last thing before ')' or separated by whitespace then ')'
-                                while (iswspace(*param_ptr)) param_ptr++;
-                                if (*param_ptr != L')') {
-                                    *error_message = format_preprocessor_error_at_location(&directive_loc, L"تنسيق #تعريف غير صالح: 'وسائط_إضافية' يجب أن تكون المعامل الأخير."); success = false; break;
+                                while (iswspace(*param_ptr))
+                                    param_ptr++;
+                                if (*param_ptr != L')')
+                                {
+                                    *error_message = format_preprocessor_error_at_location(&directive_loc, L"تنسيق #تعريف غير صالح: 'وسائط_إضافية' يجب أن تكون المعامل الأخير.");
+                                    success = false;
+                                    break;
                                 }
                                 // Do not add 'وسائط_إضافية' to params list, just set flag and break from param parsing loop
                                 // The ')' will be consumed by the outer loop's break condition.
                                 continue; // Continue to check for ')'
                             }
 
-                            if (!iswalpha(*param_ptr) && *param_ptr != L'_') { *error_message = format_preprocessor_error_at_location(&directive_loc, L"تنسيق #تعريف غير صالح: متوقع اسم معامل أو ')' أو 'وسائط_إضافية' بعد '('."); success = false; break; }
-                            wchar_t *param_name_start = param_ptr; while (iswalnum(*param_ptr) || *param_ptr == L'_') param_ptr++; wchar_t *param_name_end = param_ptr; size_t param_name_len = param_name_end - param_name_start;
-                            if (param_name_len == 0) { *error_message = format_preprocessor_error_at_location(&directive_loc, L"تنسيق #تعريف غير صالح: اسم معامل فارغ."); success = false; break; }
+                            if (!iswalpha(*param_ptr) && *param_ptr != L'_')
+                            {
+                                *error_message = format_preprocessor_error_at_location(&directive_loc, L"تنسيق #تعريف غير صالح: متوقع اسم معامل أو ')' أو 'وسائط_إضافية' بعد '('.");
+                                success = false;
+                                break;
+                            }
+                            wchar_t *param_name_start = param_ptr;
+                            while (iswalnum(*param_ptr) || *param_ptr == L'_')
+                                param_ptr++;
+                            wchar_t *param_name_end = param_ptr;
+                            size_t param_name_len = param_name_end - param_name_start;
+                            if (param_name_len == 0)
+                            {
+                                *error_message = format_preprocessor_error_at_location(&directive_loc, L"تنسيق #تعريف غير صالح: اسم معامل فارغ.");
+                                success = false;
+                                break;
+                            }
                             wchar_t *param_name = wcsndup_internal(param_name_start, param_name_len);
-                            if (!param_name) { *error_message = format_preprocessor_error_at_location(&directive_loc, L"فشل في تخصيص ذاكرة لاسم المعامل في #تعريف."); success = false; break; }
-                            if (param_count >= params_capacity) {
-                                size_t new_capacity = (params_capacity == 0) ? 4 : params_capacity * 2; wchar_t **new_params = realloc(params, new_capacity * sizeof(wchar_t *));
-                                if (!new_params) { free(param_name); *error_message = format_preprocessor_error_at_location(&directive_loc, L"فشل في إعادة تخصيص الذاكرة لمعاملات الماكرو في #تعريف."); success = false; break; }
-                                params = new_params; params_capacity = new_capacity;
+                            if (!param_name)
+                            {
+                                *error_message = format_preprocessor_error_at_location(&directive_loc, L"فشل في تخصيص ذاكرة لاسم المعامل في #تعريف.");
+                                success = false;
+                                break;
+                            }
+                            if (param_count >= params_capacity)
+                            {
+                                size_t new_capacity = (params_capacity == 0) ? 4 : params_capacity * 2;
+                                wchar_t **new_params = realloc(params, new_capacity * sizeof(wchar_t *));
+                                if (!new_params)
+                                {
+                                    free(param_name);
+                                    *error_message = format_preprocessor_error_at_location(&directive_loc, L"فشل في إعادة تخصيص الذاكرة لمعاملات الماكرو في #تعريف.");
+                                    success = false;
+                                    break;
+                                }
+                                params = new_params;
+                                params_capacity = new_capacity;
                             }
                             params[param_count++] = param_name;
                         }
-                        if (success) { body_start = param_ptr; }
-                        else { if (params) { for (size_t i = 0; i < param_count; ++i) free(params[i]); free(params); params = NULL; param_count = 0; } }
+                        if (success)
+                        {
+                            body_start = param_ptr;
+                        }
+                        else
+                        {
+                            if (params)
+                            {
+                                for (size_t i = 0; i < param_count; ++i)
+                                    free(params[i]);
+                                free(params);
+                                params = NULL;
+                                param_count = 0;
+                            }
+                        }
                     }
-                    if (success) {
-                        while (iswspace(*body_start)) body_start++;
+                    if (success)
+                    {
+                        while (iswspace(*body_start))
+                            body_start++;
 
                         // Strip trailing comment from macro body
                         wchar_t *actual_body_end = body_start;
                         wchar_t *comment_in_body_start = NULL;
-                        while (*actual_body_end != L'\0') {
-                            if (wcsncmp(actual_body_end, L"//", 2) == 0) {
+                        while (*actual_body_end != L'\0')
+                        {
+                            if (wcsncmp(actual_body_end, L"//", 2) == 0)
+                            {
                                 comment_in_body_start = actual_body_end;
                                 break;
                             }
                             actual_body_end++;
                         }
-                        if (comment_in_body_start) {
+                        if (comment_in_body_start)
+                        {
                             actual_body_end = comment_in_body_start; // Point to start of comment
                         }
                         // Trim trailing whitespace from body before comment
-                        while (actual_body_end > body_start && iswspace(*(actual_body_end - 1))) {
+                        while (actual_body_end > body_start && iswspace(*(actual_body_end - 1)))
+                        {
                             actual_body_end--;
                         }
                         // Null-terminate the body before the comment (if any)
@@ -411,8 +651,10 @@ bool handle_preprocessor_directive(BaaPreprocessor *pp_state, wchar_t *directive
                         // which is a wcsndup'd copy, so it's modifiable.
                         *actual_body_end = L'\0';
 
-                        if (!add_macro(pp_state, macro_name, body_start, is_function_like, is_variadic_macro, param_count, params)) {
-                            *error_message = format_preprocessor_error_at_location(&directive_loc, L"فشل في إضافة تعريف الماكرو '%ls' (نفاد الذاكرة؟).", macro_name); success = false;
+                        if (!add_macro(pp_state, macro_name, body_start, is_function_like, is_variadic_macro, param_count, params))
+                        {
+                            *error_message = format_preprocessor_error_at_location(&directive_loc, L"فشل في إضافة تعريف الماكرو '%ls' (نفاد الذاكرة؟).", macro_name);
+                            success = false;
                             // params are owned by add_macro if it fails after taking them, or freed by it.
                             // If add_macro was never called or failed before taking ownership, params might still be here.
                             // The current add_macro frees params if it fails after taking ownership.
@@ -426,21 +668,101 @@ bool handle_preprocessor_directive(BaaPreprocessor *pp_state, wchar_t *directive
             // #تعريف processed
         }
         else if (wcsncmp(directive_start, undef_directive, undef_directive_len) == 0 &&
-                 (directive_start[undef_directive_len] == L'\0' || iswspace(directive_start[undef_directive_len])))
+                 (directive_start[undef_directive_len] == L'\0' || iswspace(directive_start[undef_directive_len]))) // #الغاء_تعريف
         {
             wchar_t *name_start = directive_start + undef_directive_len;
             // Column number updated by caller
-            while (iswspace(*name_start)) { name_start++; /* pp_state->current_column_number++; */ }
+            while (iswspace(*name_start))
+            {
+                name_start++; /* pp_state->current_column_number++; */
+            }
             wchar_t *name_end = name_start;
-            while (*name_end != L'\0' && !iswspace(*name_end)) name_end++;
-            if (name_start == name_end) { *error_message = format_preprocessor_error_at_location(&directive_loc, L"تنسيق #الغاء_تعريف غير صالح: اسم الماكرو مفقود."); success = false; }
-            else {
+            while (*name_end != L'\0' && !iswspace(*name_end))
+                name_end++;
+            if (name_start == name_end)
+            {
+                *error_message = format_preprocessor_error_at_location(&directive_loc, L"تنسيق #الغاء_تعريف غير صالح: اسم الماكرو مفقود.");
+                success = false;
+            }
+            else
+            {
                 size_t name_len = name_end - name_start;
                 wchar_t *macro_name = wcsndup_internal(name_start, name_len);
-                if (!macro_name) { *error_message = format_preprocessor_error_at_location(&directive_loc, L"فشل في تخصيص ذاكرة لاسم الماكرو في #الغاء_تعريف."); success = false; }
-                else { undefine_macro(pp_state, macro_name); free(macro_name); }
+                if (!macro_name)
+                {
+                    *error_message = format_preprocessor_error_at_location(&directive_loc, L"فشل في تخصيص ذاكرة لاسم الماكرو في #الغاء_تعريف.");
+                    success = false;
+                }
+                else
+                {
+                    undefine_macro(pp_state, macro_name);
+                    free(macro_name);
+                }
             }
             // #الغاء_تعريف processed
+        }
+        else if (wcsncmp(directive_start, error_directive, error_directive_len) == 0 &&
+                 (directive_start[error_directive_len] == L'\0' || iswspace(directive_start[error_directive_len]))) // #خطأ
+        {
+            wchar_t *message_start = directive_start + error_directive_len;
+            while (iswspace(*message_start))
+                message_start++;
+
+            wchar_t *message_end = message_start;
+            wchar_t *comment_start = NULL;
+            while (*message_end != L'\0')
+            {
+                if (wcsncmp(message_end, L"//", 2) == 0)
+                {
+                    comment_start = message_end;
+                    break;
+                }
+                message_end++;
+            }
+            if (comment_start)
+                message_end = comment_start;
+            while (message_end > message_start && iswspace(*(message_end - 1)))
+                message_end--;
+            size_t message_len = message_end - message_start;
+            wchar_t *actual_message_content = wcsndup_internal(message_start, message_len);
+
+            *error_message = format_preprocessor_error_at_location(&directive_loc, L"%ls", actual_message_content ? actual_message_content : L"");
+            free(actual_message_content);
+            success = false; // Fatal error
+        }
+        else if (wcsncmp(directive_start, warning_directive, warning_directive_len) == 0 &&
+                 (directive_start[warning_directive_len] == L'\0' || iswspace(directive_start[warning_directive_len]))) // #تحذير
+        {
+            wchar_t *message_start = directive_start + warning_directive_len;
+            while (iswspace(*message_start))
+                message_start++;
+
+            wchar_t *message_end = message_start;
+            wchar_t *comment_start = NULL;
+            while (*message_end != L'\0')
+            {
+                if (wcsncmp(message_end, L"//", 2) == 0)
+                {
+                    comment_start = message_end;
+                    break;
+                }
+                message_end++;
+            }
+            if (comment_start)
+                message_end = comment_start;
+            while (message_end > message_start && iswspace(*(message_end - 1)))
+                message_end--;
+            size_t message_len = message_end - message_start;
+            wchar_t *actual_message_content = wcsndup_internal(message_start, message_len);
+
+            wchar_t *formatted_warning = format_preprocessor_warning_at_location(&directive_loc, L"%ls", actual_message_content ? actual_message_content : L"");
+            if (formatted_warning)
+            {
+                fwprintf(stderr, L"%ls\n", formatted_warning); // Print to stderr
+                free(formatted_warning);
+            }
+            free(actual_message_content);
+            // success remains true, preprocessing continues
         }
         else
         {

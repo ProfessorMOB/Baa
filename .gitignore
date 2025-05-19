@@ -1,6 +1,6 @@
 # Baa source files
-*.baa
-*.ب
+#*.baa
+#*.ب
 
 # Build directories
 build/

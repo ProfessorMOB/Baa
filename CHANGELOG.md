@@ -4,6 +4,25 @@ All notable changes to the B (باء) compiler project will be documented in thi
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.15.0] - YYYY-MM-DD
+
+### Added
+
+- **Preprocessor:** Implemented `#خطأ "message"` (error) directive. This directive halts preprocessing and reports the specified message as a fatal error. (Files affected: `src/preprocessor/preprocessor_directives.c`, `src/preprocessor/preprocessor_utils.c`, `src/preprocessor/preprocessor_internal.h`).
+- **Preprocessor:** Implemented `#تحذير "message"` (warning) directive. This directive prints the specified message to `stderr` and preprocessing continues. (Files affected: `src/preprocessor/preprocessor_directives.c`, `src/preprocessor/preprocessor_utils.c`, `src/preprocessor/preprocessor_internal.h`).
+- **Preprocessor:** Conditional expression evaluator (`#إذا`, `#وإلا_إذا`) now supports hexadecimal (`0x...`) and binary (`0b...`) integer literals. (File affected: `src/preprocessor/preprocessor_expr_eval.c`).
+
+### Changed
+
+- **Preprocessor:** Updated the value of the predefined macro `__إصدار_المعيار_باء__` to reflect current development (e.g., to `10150L` - adjust as per your versioning scheme). (File affected: `src/preprocessor/preprocessor.c`).
+- **Documentation:** Updated `README.md`, `docs/language.md`, and `docs/PREPROCESSOR_ROADMAP.md` to reflect new preprocessor features and current status.
+
+### Known Issues (Preprocessor)
+
+- **Error/Warning Location Precision:** Line and column numbers reported for errors/warnings originating from within directives (e.g., `#إذا`, `#تحذير`) may not always point to the precise location in the original source file.
+- **Full Macro Expansion in Conditional Expressions:** Full expansion of function-like macros and their rescanned results *within* `#إذا`/`#وإلا_إذا` expressions before evaluation is not yet complete.
+- **Token Pasting (`##`) during Rescanning:** Complex interactions of `##` when it appears as part of a macro expansion output, or when its operands are complex macros, may not be fully robust.
+
 ## [0.1.14.0] - 2025-05-14
 
 ### Added
