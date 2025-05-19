@@ -129,9 +129,9 @@ wchar_t *baa_preprocess(const BaaPpSource *source, const char **include_paths, w
         return NULL;
     }
 
-    // Define __إصدار_المعيار_باء__ as 10010L (for version 0.1.10, as per language.md example)
+    // Define __إصدار_المعيار_باء__ as 10150L (for version 0.1.15, as per language.md example)
     // This expands to an integer constant.
-    if (!add_macro(&pp_state, L"__إصدار_المعيار_باء__", L"10010L", false, false, 0, NULL))
+    if (!add_macro(&pp_state, L"__إصدار_المعيار_باء__", L"10150L", false, false, 0, NULL))
     {
         *error_message = format_preprocessor_error_at_location(&initial_loc, L"فشل في تعريف الماكرو المدمج __إصدار_المعيار_باء__.");
         // Cleanup other predefined macros
