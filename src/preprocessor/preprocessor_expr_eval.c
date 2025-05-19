@@ -15,8 +15,8 @@ static PpExprToken make_error_token(PpExprTokenizer *tz, const wchar_t *message)
             PpSourceLocation error_loc = {
                 .file_path = original_loc.file_path,
                 .line = original_loc.line,
-                .column = tz->current_token_start_column > 0 ? tz->current_token_start_column : 1 // Use captured column, default to 1
-            };
+                // Calculate absolute column: offset of expression string + (1-based column within expression string) - 1
+                .column = (tz->expr_string_column_offset + (tz->current_token_start_column > 0 ? tz->current_token_start_column : 1) - 1)};
             // If the message is a format string, we need to handle potential varargs.
             // For simplicity in this refactor, assuming 'message' is a simple string or we pass it as a single arg.
             // A more robust solution might involve changing make_error_token to accept varargs.
@@ -67,13 +67,12 @@ static PpExprToken make_identifier_token(PpExprTokenizer *tz)
 }
 
 // Skips whitespace and updates column number
+// This now updates a local column counter within the expression string.
 static void skip_whitespace(PpExprTokenizer *tz)
 {
     while (iswspace(*tz->current))
     {
         tz->current++;
-        if (tz->pp_state)
-            tz->pp_state->current_column_number++; // Update column
     }
 }
 
@@ -81,16 +80,15 @@ static void skip_whitespace(PpExprTokenizer *tz)
 static PpExprToken get_next_pp_expr_token(PpExprTokenizer *tz)
 {
     skip_whitespace(tz);
-    tz->start = tz->current;
-    // Store the starting column of the potential token
-    tz->current_token_start_column = tz->pp_state ? tz->pp_state->current_column_number : 0;
+    tz->start = tz->current; // Mark start of lexeme
+
+    // Calculate 1-based column within the expression string where this token starts
+    tz->current_token_start_column = (tz->current - tz->expression_string_start) + 1;
 
     if (*tz->current == L'\0')
         return make_token(PP_EXPR_TOKEN_EOF);
 
-    // Check for operators and parentheses first
-    // Store start column before consuming token
-    size_t start_col = tz->pp_state ? tz->pp_state->current_column_number : 0;
+    // The stored tz->current_token_start_column is now the relative start column for this token.
     switch (*tz->current)
     {
     case L'(':
@@ -271,10 +269,9 @@ static PpExprToken get_next_pp_expr_token(PpExprTokenizer *tz)
         }
         size_t num_len = endptr - tz->start;
         tz->current = endptr; // Advance tokenizer past the number
-                              // Column update needs to be careful if tz->start wasn't tz->current before this block
-                              // Assuming tz->start was already set to the beginning of the number token.
-        if (tz->pp_state)
-            tz->pp_state->current_column_number += num_len;
+        // tz->current is advanced. current_token_start_column refers to the start.
+        // No global column update needed here; it's relative to the expression string.
+
         return make_int_token(value);
     }
 
@@ -286,8 +283,7 @@ static PpExprToken get_next_pp_expr_token(PpExprTokenizer *tz)
             tz->current++;
         }
         size_t id_len = tz->current - tz->start;
-        if (tz->pp_state)
-            tz->pp_state->current_column_number += id_len; // Update column by identifier length
+        // tz->current is advanced. No global column update needed here.
         return make_identifier_token(tz);
     }
 
@@ -407,6 +403,11 @@ static wchar_t *fully_expand_expression_string(BaaPreprocessor *pp_state,
 
 bool evaluate_preprocessor_expression(BaaPreprocessor *pp_state, const wchar_t *raw_expression, bool *value, wchar_t **error_message, const char *abs_path_unused)
 {
+    // The caller (handle_preprocessor_directive) must ensure that
+    // pp_state->current_column_number is set to the column where the `expression` string
+    // *starts on the original source line* before this function is called.
+    // This value will be used to initialize tz.expr_string_column_offset.
+
     *error_message = NULL;
     *value = false; // Default to false
 
@@ -420,14 +421,16 @@ bool evaluate_preprocessor_expression(BaaPreprocessor *pp_state, const wchar_t *
     }
     fwprintf(stderr, L"DEBUG #if Fully Expanded Expr: [%ls]\n", expanded_expression_str); // Uncomment for debugging
     PpExprTokenizer tz = {
-        .current = expanded_expression_str, // Use the fully expanded string
+        .current = expanded_expression_str,                           // Use the fully expanded string
+        .expression_string_start = raw_expression,                    // Store the beginning of the expression string
+        .expr_string_column_offset = pp_state->current_column_number, // Column where this expression starts on the original line
         .start = expanded_expression_str,
         .pp_state = pp_state,                    // Pass the state for context
         .abs_path = pp_state->current_file_path, // Use current file from pp_state for context
         .error_message = error_message,
         .current_token_start_column = 1 // Reset column for the start of tokenizing the expanded string
     };
-
+    // tz.current_token_start_column will be calculated by get_next_pp_expr_token relative to expression_string_start
     long result_value = 0;
     if (!parse_and_evaluate_pp_expr(&tz, &result_value))
     {

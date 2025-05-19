@@ -120,11 +120,13 @@ typedef struct
 typedef struct
 {
     const wchar_t *current;
+    const wchar_t *expression_string_start; // Pointer to the beginning of the full expression string
+    size_t expr_string_column_offset;       // Starting column of the expression string on the original line.
     const wchar_t *start;
     BaaPreprocessor *pp_state; // Now points to the struct, not the typedef
     const char *abs_path;
     wchar_t **error_message;
-    size_t current_token_start_column; // Column where the current token started
+    size_t current_token_start_column; // 1-based column *within the expression string* where the current token started
 } PpExprTokenizer;
 
 // --- Function Declarations (Internal Interface) ---

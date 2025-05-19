@@ -43,12 +43,19 @@ bool handle_preprocessor_directive(BaaPreprocessor *pp_state, wchar_t *directive
     {
         *is_conditional_directive = true;
         wchar_t *expr_start = directive_start + if_directive_len;
+
+        // Calculate the column where the expression part starts on the original line
+        size_t expr_col_offset_on_line = directive_loc.column + if_directive_len; // Column of '#' + length of "#if"
         while (iswspace(*expr_start))
+        {
             expr_start++;
+            expr_col_offset_on_line++; // Account for leading whitespace before expression
+        }
 
         // Find end of expression (before potential comment)
         wchar_t *expr_end = expr_start;
         wchar_t *comment_start = NULL;
+
         while (*expr_end != L'\0')
         {
             if (wcsncmp(expr_end, L"//", 2) == 0)
@@ -80,8 +87,12 @@ bool handle_preprocessor_directive(BaaPreprocessor *pp_state, wchar_t *directive
         else
         {
             bool expr_value = false;
-            // Pass directive_loc for potential errors during evaluation
-            if (!evaluate_preprocessor_expression(pp_state, expression_only, &expr_value, error_message, abs_path)) // Use expression_only
+
+            // Temporarily set pp_state's column to the start of the expression for accurate evaluation errors
+            size_t original_directive_col_for_expr_eval = pp_state->current_column_number;
+            pp_state->current_column_number = expr_col_offset_on_line;
+
+            if (!evaluate_preprocessor_expression(pp_state, expression_only, &expr_value, error_message, abs_path))
             {
                 if (!*error_message) // Check if evaluator set a specific error
                     *error_message = format_preprocessor_error_at_location(&directive_loc, L"خطأ في تقييم تعبير #إذا.");
@@ -95,7 +106,8 @@ bool handle_preprocessor_directive(BaaPreprocessor *pp_state, wchar_t *directive
                     success = false;
                 }
             }
-            free(expression_only); // Free the duplicated expression string
+            pp_state->current_column_number = original_directive_col_for_expr_eval; // Restore column
+            free(expression_only);                                                  // Free the duplicated expression string
         }
     }
     else if (wcsncmp(directive_start, ifdef_directive, ifdef_directive_len) == 0 &&
@@ -225,8 +237,15 @@ bool handle_preprocessor_directive(BaaPreprocessor *pp_state, wchar_t *directive
             else
             {
                 wchar_t *expr_start = directive_start + elif_directive_len;
+
+                size_t elif_expr_col_offset_on_line = directive_loc.column + elif_directive_len;
                 while (iswspace(*expr_start))
+                {
                     expr_start++;
+                    elif_expr_col_offset_on_line++;
+                }
+                size_t original_directive_col_for_elif_eval = pp_state->current_column_number;
+                pp_state->current_column_number = elif_expr_col_offset_on_line;
 
                 // Find end of expression (before potential comment)
                 wchar_t *expr_end = expr_start;
@@ -261,7 +280,7 @@ bool handle_preprocessor_directive(BaaPreprocessor *pp_state, wchar_t *directive
                 else
                 {
                     bool condition_met = false;
-                    if (!evaluate_preprocessor_expression(pp_state, expression_only, &condition_met, error_message, abs_path)) // Use expression_only
+                    if (!evaluate_preprocessor_expression(pp_state, expression_only, &condition_met, error_message, abs_path))
                     {
                         if (!*error_message) // Check if evaluator set a specific error
                             *error_message = format_preprocessor_error_at_location(&directive_loc, L"خطأ في تقييم تعبير #وإلا_إذا.");
@@ -279,7 +298,8 @@ bool handle_preprocessor_directive(BaaPreprocessor *pp_state, wchar_t *directive
                             pp_state->conditional_stack[top_index] = false;
                         }
                     }
-                    free(expression_only); // Free the duplicated expression string
+                    pp_state->current_column_number = original_directive_col_for_elif_eval; // Restore column
+                    free(expression_only);                                                  // Free the duplicated expression string
                 }
             }
             update_skipping_state(pp_state);
