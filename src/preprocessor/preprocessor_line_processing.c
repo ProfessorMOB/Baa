@@ -7,7 +7,8 @@
 // - overall_success: Pointer to a boolean that will be set to false on critical errors.
 // - error_message: Pointer to the error message string.
 // Returns true if at least one macro expansion occurred during this pass, false otherwise.
-static bool scan_and_substitute_macros_one_pass(
+// Made non-static to be callable from preprocessor_expr_eval.c
+bool scan_and_substitute_macros_one_pass(
     BaaPreprocessor *pp_state,
     const wchar_t *input_line_content,
     size_t original_line_number_for_errors, // Keep this for context of the original line

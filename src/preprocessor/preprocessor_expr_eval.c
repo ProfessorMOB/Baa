@@ -304,22 +304,134 @@ static bool parse_unary_pp_expr(PpExprTokenizer *tz, long *result);
 static bool parse_binary_expression_rhs(PpExprTokenizer *tz, int min_prec, long *lhs, long *result);
 static int get_token_precedence(PpExprTokenType type);
 
-// Evaluates preprocessor constant expressions.
-bool evaluate_preprocessor_expression(BaaPreprocessor *pp_state, const wchar_t *expression, bool *value, wchar_t **error_message, const char *abs_path)
+// New static helper function to fully expand macros in an expression string
+static wchar_t *fully_expand_expression_string(BaaPreprocessor *pp_state,
+                                               const wchar_t *expression_str,
+                                               size_t original_line_number_for_errors, // Line of the #if directive
+                                               wchar_t **error_message)
+{
+    DynamicWcharBuffer current_input_buffer;
+    DynamicWcharBuffer current_output_buffer;
+    wchar_t *final_expanded_string = NULL;
+    if (!init_dynamic_buffer(&current_input_buffer, wcslen(expression_str) + 128))
+    {
+        PpSourceLocation error_loc = get_current_original_location(pp_state);
+        error_loc.line = original_line_number_for_errors;
+        error_loc.column = 1;
+        *error_message = format_preprocessor_error_at_location(&error_loc, L"فشل تهيئة مخزن الإدخال لتوسيع تعبير #إذا.");
+        return NULL;
+    }
+    if (!append_to_dynamic_buffer(&current_input_buffer, expression_str))
+    {
+        PpSourceLocation error_loc = get_current_original_location(pp_state);
+        error_loc.line = original_line_number_for_errors;
+        error_loc.column = 1;
+        *error_message = format_preprocessor_error_at_location(&error_loc, L"فشل نسخ التعبير إلى مخزن الإدخال لتوسيع تعبير #إذا.");
+        free_dynamic_buffer(&current_input_buffer);
+        return NULL;
+    }
+    bool overall_success = true;
+    int pass_count = 0;
+    const int MAX_RESCAN_PASSES = 256;
+    bool expansion_made_this_pass;
+    do
+    {
+        if (!init_dynamic_buffer(&current_output_buffer, current_input_buffer.length + 128))
+        {
+            overall_success = false;
+            PpSourceLocation error_loc = get_current_original_location(pp_state);
+            error_loc.line = original_line_number_for_errors;
+            error_loc.column = 1;
+            *error_message = format_preprocessor_error_at_location(&error_loc, L"فشل تهيئة مخزن الإخراج لتوسيع تعبير #إذا.");
+            break;
+        }
+        expansion_made_this_pass = scan_and_substitute_macros_one_pass(
+            pp_state,
+            current_input_buffer.buffer,
+            original_line_number_for_errors,
+            &current_output_buffer,
+            &overall_success,
+            error_message);
+        free_dynamic_buffer(&current_input_buffer);
+        if (!init_dynamic_buffer(&current_input_buffer, current_output_buffer.length + 128))
+        {
+            overall_success = false;
+            PpSourceLocation error_loc = get_current_original_location(pp_state);
+            error_loc.line = original_line_number_for_errors;
+            error_loc.column = 1;
+            *error_message = format_preprocessor_error_at_location(&error_loc, L"فشل إعادة تهيئة مخزن الإدخال لتوسيع تعبير #إذا.");
+            free_dynamic_buffer(&current_output_buffer);
+            break;
+        }
+        if (current_output_buffer.length > 0)
+        {
+            if (!append_to_dynamic_buffer(&current_input_buffer, current_output_buffer.buffer))
+            {
+                overall_success = false;
+                PpSourceLocation error_loc = get_current_original_location(pp_state);
+                error_loc.line = original_line_number_for_errors;
+                error_loc.column = 1;
+                *error_message = format_preprocessor_error_at_location(&error_loc, L"فشل نسخ إلى مخزن الإدخال لتوسيع تعبير #إذا.");
+                free_dynamic_buffer(&current_output_buffer);
+                break;
+            }
+        }
+        free_dynamic_buffer(&current_output_buffer);
+        if (!overall_success)
+            break;
+        pass_count++;
+        if (pass_count > MAX_RESCAN_PASSES)
+        {
+            PpSourceLocation error_loc = get_current_original_location(pp_state);
+            error_loc.line = original_line_number_for_errors;
+            error_loc.column = 1;
+            *error_message = format_preprocessor_error_at_location(&error_loc, L"تم تجاوز الحد الأقصى لمرات إعادة فحص الماكرو لتعبير #إذا (%d).", MAX_RESCAN_PASSES);
+            overall_success = false;
+            break;
+        }
+    } while (expansion_made_this_pass && overall_success);
+    if (overall_success)
+    {
+        final_expanded_string = _wcsdup(current_input_buffer.buffer);
+        if (!final_expanded_string)
+        {
+            PpSourceLocation error_loc = get_current_original_location(pp_state);
+            error_loc.line = original_line_number_for_errors;
+            error_loc.column = 1;
+            *error_message = format_preprocessor_error_at_location(&error_loc, L"فشل في تخصيص الذاكرة للسلسلة النهائية لتعبير #إذا.");
+        }
+    }
+    free_dynamic_buffer(&current_input_buffer);
+    return final_expanded_string;
+}
+
+bool evaluate_preprocessor_expression(BaaPreprocessor *pp_state, const wchar_t *raw_expression, bool *value, wchar_t **error_message, const char *abs_path_unused)
 {
     *error_message = NULL;
     *value = false; // Default to false
 
+    // Store the original line number of the #if directive for error reporting and __LINE__ expansion
+    size_t directive_line_number = pp_state->current_line_number;
+    wchar_t *expanded_expression_str = fully_expand_expression_string(pp_state, raw_expression, directive_line_number, error_message);
+    if (!expanded_expression_str)
+    {
+        // error_message already set by fully_expand_expression_string
+        return false;
+    }
+    fwprintf(stderr, L"DEBUG #if Fully Expanded Expr: [%ls]\n", expanded_expression_str); // Uncomment for debugging
     PpExprTokenizer tz = {
-        .current = expression,
-        .start = expression,
-        .pp_state = pp_state, // Pass the state for context
-        .abs_path = abs_path, // abs_path is not strictly needed if pp_state has current_file_path
-        .error_message = error_message};
+        .current = expanded_expression_str, // Use the fully expanded string
+        .start = expanded_expression_str,
+        .pp_state = pp_state,                    // Pass the state for context
+        .abs_path = pp_state->current_file_path, // Use current file from pp_state for context
+        .error_message = error_message,
+        .current_token_start_column = 1 // Reset column for the start of tokenizing the expanded string
+    };
 
     long result_value = 0;
     if (!parse_and_evaluate_pp_expr(&tz, &result_value))
     {
+        free(expanded_expression_str);
         // Error message should be set by the parser/evaluator
         return false;
     }
@@ -327,15 +439,19 @@ bool evaluate_preprocessor_expression(BaaPreprocessor *pp_state, const wchar_t *
     // Check if the entire expression was consumed
     PpExprToken eof_token = get_next_pp_expr_token(&tz);
     if (eof_token.type != PP_EXPR_TOKEN_EOF)
-    {
+    { // Check for EOF on the expanded string
         if (eof_token.type != PP_EXPR_TOKEN_ERROR)
-        { // Avoid overwriting tokenizer error
+        {
+            // When making this error, use directive_line_number and tz.current_token_start_column
+            // (or an approximation of column within the expanded_expression_str)
             make_error_token(&tz, L"رموز زائدة في نهاية التعبير الشرطي.");
         }
+        free(expanded_expression_str);
         return false;
     }
 
     *value = (result_value != 0); // Final result: 0 is false, non-zero is true
+    free(expanded_expression_str);
     return true;
 }
 

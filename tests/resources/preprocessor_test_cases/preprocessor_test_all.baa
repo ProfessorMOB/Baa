@@ -229,3 +229,22 @@ WRAP(INNER) // START INNER_VAL END
 
 // إذا تم الوصول إلى هنا، فهذا يعني أن #خطأ لم يتم تفعيله (أو تم التعليق عليه)
 تم إكمال جميع الاختبارات غير المسببة للخطأ.
+
+#تعريف OP_PLUS +
+#تعريف VAL1 10
+#تعريف VAL2 20
+#إذا VAL1 OP_PLUS VAL2 == 30
+  OP_PLUS_WORKS
+#نهاية_إذا
+
+#تعريف IS_ZERO(x) ((x) == 0)
+#تعريف ADD(a,b) a+b
+#إذا IS_ZERO(ADD(5, -5))
+  FUNC_MACRO_IN_IF_WORKS
+#نهاية_إذا
+
+#تعريف GET_VAL VAL_A
+#تعريف VAL_A 5
+#إذا GET_VAL > 0
+  RESCAN_IN_IF_WORKS
+#نهاية_إذا
