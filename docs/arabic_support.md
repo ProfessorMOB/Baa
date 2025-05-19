@@ -149,6 +149,7 @@ Character literals are enclosed in single quotes (`'ح'`). String literals are e
 Baa uses the backslash (`\`) as the escape character, followed by an Arabic letter or specific sequences for special characters.
 
 **Planned Arabic Escape Sequences:**
+
 - Newline: `\س`
 - Tab: `\م`
 - Backslash: `\\`

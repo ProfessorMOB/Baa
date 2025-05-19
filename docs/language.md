@@ -356,9 +356,9 @@ Literals represent fixed values in the source code.
   * **Decimal Representation:** Consist of an integer part, a decimal point, and a fractional part. Digits can be Western or Arabic-Indic.
     * The decimal point can be a period `.` (U+002E) or an Arabic Decimal Separator `٫` (U+066B).
     * Examples: `3.14`, `0.5`, `١٢٫٣٤`, `٠.٥`, `123.0` - *[Implemented]*
-    * Note: Literals like `.5` or `123.` are tokenized by the lexer as separate tokens (e.g., `DOT`, `INT_LIT`); their validity as floats is a parser concern.
-  * **Scientific Notation:** Introduced by `e` or `E`, followed by an optional sign (`+` or `-`), and then one or more decimal digits (Western or Arabic-Indic). Can be applied to numbers with or without a decimal point.
-    * Examples: `1.23e4`, `5E-2`, `42e+0`, `1e10`, `٣٫١٤E-٠٢` - *[Implemented]*
+    * Note: Literals like `.5` or `123.` are tokenized by the lexer as separate tokens (e.g., `DOT`, `INT_LIT`); their validity as floats is a parser concern. - *[Implemented by Lexer]*
+  * **Scientific Notation:** Introduced by `e` or `E` (Arabic `أ` exponent marker is *[Planned]*), followed by an optional sign (`+` or `-`), and then one or more decimal digits (Western or Arabic-Indic). Can be applied to numbers with or without a decimal point.
+    * * Examples: `1.23e4`, `5E-2`, `42e+0`, `1e10`, `٣٫١٤E-٠٢`. Example with planned `أ`: `1.23أ4` - *[Current Lexer Implements e/E; `أ` is Planned]*
   * **Underscores for Readability:** Single underscores (`_`) can be used as separators in the integer, fractional, and exponent parts of float literals, with the same restrictions as for integers.
     * Examples: `1_234.567_890`, `3.141_592e+1_0` - *[Implemented]*
   * **Hexadecimal Floating-Point Constants (C99):** Must start with `0x` or `0X`, include a hexadecimal significand, a `p` or `P` exponent indicator, and a binary exponent. - *[Planned]*
@@ -366,6 +366,7 @@ Literals represent fixed values in the source code.
 * **Boolean Literals (`منطقي`):**
   * `صحيح` (true) - *[Implemented]*
   * `خطأ` (false) - *[Implemented]*
+* **Arabic Suffix for Type:** `ح` (Hah) for float (e.g., `3.14ح`). - *[Lexer Planned]*
 * **Character Literals (`حرف`):** Represent single characters enclosed in single quotes (`'`). Baa uses `\` as the escape character followed by an Arabic letter or specific sequences.
   * `'a'`, `'أ'`, `'#'`, `'١'` - *[Implemented]*
   * Escape Sequences: - *[Planned for Arabic Escapes]*
@@ -417,7 +418,7 @@ Baa has a static type system based on C, with Arabic names for built-in types.
 | ----------- | -------------- | ---------------------- | ------ | ----------- |
 | `عدد_صحيح`  | `int`          | Signed Integer         | 32-bit | Implemented |
 | `عدد_صحيح_طويل_جدا` | `long long int` | Signed Long Long Integer | 64-bit | Planned     |
-| `عدد_حقيقي` | `float`        | Floating-point         | 32-bit | Implemented |
+| `عدد_حقيقي` | `float`        | Floating-point (suffix `ح` planned for literals)         | 32-bit | Implemented |
 | `حرف`       | `char`         | Character / String     | 16-bit | Implemented |
 | `منطقي`     | `bool`         | Boolean (`صحيح`/`خطأ`) | 8-bit? | Implemented |
 | `فراغ`      | `void`         | Represents no value    | N/A    | Implemented |
@@ -488,7 +489,7 @@ Functions define reusable blocks of code.
 
 // Function with parameters and explicit return type
 عدد_صحيح أضف(عدد_صحيح a, عدد_صحيح b) {
-    إرجع a + b.
+    إرجع a + b. // Keyword `مستقر` for static functions is planned.
 }
 ```
 
@@ -503,6 +504,7 @@ Support for `typedef` (`نوع_مستخدم`), `struct` (`بنية`), `union` (`
 
 Type qualifiers modify the properties of types. Baa plans to support C99 qualifiers.
 
+* **`مستقر` (`static`):** For static storage duration / internal linkage. - *[Planned for Lexer/Parser]*
 * **`ثابت` (`const`):** Indicates that the object's value cannot be changed after initialization. Constants *must* be initialized.
   `ثابت type identifier = initializer_expression '.'` - *[Lexer Implemented, Semantic enforcement needed]*
 * **`مقيد` (`restrict`):** Can only be applied to pointers to an object type. It indicates that for the lifetime of the pointer, only that pointer itself or values derived directly from it (such as `pointer + 1`) will be used to access the object it points to. This is a hint for compiler optimizations and does not change the program's semantics if correctly used. - *[Lexer Implemented, Semantic enforcement needed]*
