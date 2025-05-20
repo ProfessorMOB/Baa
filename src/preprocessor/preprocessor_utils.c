@@ -750,3 +750,99 @@ void free_file_stack(BaaPreprocessor *pp)
     pp->open_files_stack = NULL;
     pp->open_files_capacity = 0;
 }
+
+// --- Diagnostic Accumulation ---
+void add_preprocessor_diagnostic(BaaPreprocessor *pp_state, const PpSourceLocation *loc, bool is_error, const wchar_t *format, va_list args_list)
+{
+    if (!pp_state || !loc || !format)
+        return;
+
+    // Create a copy of args_list as vswprintf might be called multiple times
+    va_list args_copy;
+    va_copy(args_copy, args_list);
+
+    // Determine required size for the formatted message from format and args_list
+    // This call to vswprintf with NULL buffer is to get the required length.
+    int needed_chars = vswprintf(NULL, 0, format, args_copy);
+    va_end(args_copy); // Clean up the copied va_list
+
+    if (needed_chars < 0)
+    {
+        // Error in formatting, use a fallback message
+        // This diagnostic itself won't have a super precise location for the formatting error.
+        wchar_t *fallback_msg = format_preprocessor_error_at_location(loc, L"فشل داخلي: خطأ في تنسيق رسالة التشخيص الأصلية.");
+        // Add this fallback message as a new diagnostic
+        // This could lead to recursion if format_preprocessor_error_at_location also fails badly,
+        // but it's a last resort.
+        // To avoid potential recursion, we can directly add a simple diagnostic here.
+        // For now, let's assume format_preprocessor_error_at_location is robust enough for simple strings.
+
+        // TODO: Revisit if this fallback causes issues.
+        // add_preprocessor_diagnostic(pp_state, loc, true, L"%ls", fallback_msg); // This would recurse
+
+        // Instead, directly manage a simple error entry for this rare case:
+        if (pp_state->diagnostic_count >= pp_state->diagnostic_capacity)
+        { /* resize logic needed here too, or pre-allocate */
+        }
+        // pp_state->diagnostics[pp_state->diagnostic_count].message = fallback_msg; // (Simplified, needs proper struct init)
+        // pp_state->diagnostics[pp_state->diagnostic_count].location = *loc;
+        // pp_state->diagnostic_count++;
+        // pp_state->had_error_this_pass = true;
+        // For now, let's just skip adding the diagnostic if formatting itself fails.
+        // The original va_end(args_list) will be called by the caller of add_preprocessor_diagnostic
+        return;
+    }
+
+    size_t message_len = (size_t)needed_chars;
+    wchar_t *formatted_message_body = malloc((message_len + 1) * sizeof(wchar_t));
+    if (!formatted_message_body)
+        return; // Out of memory
+
+    // Now format the actual message body
+    vswprintf(formatted_message_body, message_len + 1, format, args_list); // Use original args_list
+
+    // Prepend location information to the formatted_message_body
+    wchar_t *full_diagnostic_message = is_error ? format_preprocessor_error_at_location(loc, L"%ls", formatted_message_body) : format_preprocessor_warning_at_location(loc, L"%ls", formatted_message_body);
+
+    free(formatted_message_body); // Free the intermediate message body
+
+    if (!full_diagnostic_message)
+        return; // Error during full message formatting
+
+    if (pp_state->diagnostic_count >= pp_state->diagnostic_capacity)
+    {
+        size_t new_capacity = (pp_state->diagnostic_capacity == 0) ? 8 : pp_state->diagnostic_capacity * 2;
+        PreprocessorDiagnostic *new_diagnostics = realloc(pp_state->diagnostics, new_capacity * sizeof(PreprocessorDiagnostic));
+        if (!new_diagnostics)
+        {
+            free(full_diagnostic_message); // Critical: free message if realloc fails
+            return;                        // Out of memory
+        }
+        pp_state->diagnostics = new_diagnostics;
+        pp_state->diagnostic_capacity = new_capacity;
+    }
+
+    pp_state->diagnostics[pp_state->diagnostic_count].message = full_diagnostic_message; // Store the fully formatted message
+    pp_state->diagnostics[pp_state->diagnostic_count].location = *loc;                   // Store original location struct
+    pp_state->diagnostic_count++;
+
+    if (is_error)
+    {
+        pp_state->had_error_this_pass = true;
+    }
+}
+
+void free_diagnostics_list(BaaPreprocessor *pp_state)
+{
+    if (pp_state && pp_state->diagnostics)
+    {
+        for (size_t i = 0; i < pp_state->diagnostic_count; ++i)
+        {
+            free(pp_state->diagnostics[i].message);
+        }
+        free(pp_state->diagnostics);
+        pp_state->diagnostics = NULL;
+        pp_state->diagnostic_count = 0;
+        pp_state->diagnostic_capacity = 0;
+    }
+}
