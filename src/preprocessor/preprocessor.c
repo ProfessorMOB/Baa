@@ -34,8 +34,12 @@ wchar_t *baa_preprocess(const BaaPpSource *source, const char **include_paths, w
         return NULL;
     }
 
-    *error_message = NULL; // Initialize error message to NULL
-
+    // Initialize error message pointer passed by caller.
+    // This will be populated at the end if any diagnostics were recorded.
+    if (error_message)
+    {
+        *error_message = NULL; // Initialize to NULL
+    }
     // --- Initialize Preprocessor State ---
     BaaPreprocessor pp_state = {0}; // Zero-initialize the structure
 
@@ -73,6 +77,10 @@ wchar_t *baa_preprocess(const BaaPpSource *source, const char **include_paths, w
     // pp_state.location_stack = NULL;      // Zero-initialized
     // pp_state.location_stack_count = 0;   // Zero-initialized
     // pp_state.location_stack_capacity = 0;// Zero-initialized
+    // pp_state.diagnostics = NULL;         // Zero-initialized
+    // pp_state.diagnostic_count = 0;       // Zero-initialized
+    // pp_state.diagnostic_capacity = 0;    // Zero-initialized
+    // pp_state.had_error_this_pass = false; // Zero-initialized
 
     // --- Push initial location (needed early for potential errors during macro init) ---
     PpSourceLocation initial_loc = {
@@ -108,14 +116,21 @@ wchar_t *baa_preprocess(const BaaPpSource *source, const char **include_paths, w
     if (!add_macro(&pp_state, L"__التاريخ__", date_str, false, false, 0, NULL))
     {
         // Error handling if add_macro fails
-        *error_message = format_preprocessor_error_at_location(&initial_loc, L"فشل في تعريف الماكرو المدمج __التاريخ__.");
+        // For internal setup errors like this, we might still use the old direct error_message
+        // or call add_preprocessor_diagnostic and then process it.
+        // Let's assume add_macro will use add_preprocessor_diagnostic internally if it can.
+        // For now, if add_macro returns false, we set the main error message.
+        if (error_message)
+            *error_message = format_preprocessor_error_at_location(&initial_loc, L"فشل في تعريف الماكرو المدمج __التاريخ__.");
+
         // Cleanup any partially initialized state if necessary before returning
         return NULL;
     }
     if (!add_macro(&pp_state, L"__الوقت__", time_str, false, false, 0, NULL))
     {
         // Error handling if add_macro fails
-        *error_message = format_preprocessor_error_at_location(&initial_loc, L"فشل في تعريف الماكرو المدمج __الوقت__.");
+        if (error_message)
+            *error_message = format_preprocessor_error_at_location(&initial_loc, L"فشل في تعريف الماكرو المدمج __الوقت__.");
         // Cleanup...
         return NULL;
     }
@@ -123,7 +138,8 @@ wchar_t *baa_preprocess(const BaaPpSource *source, const char **include_paths, w
     // The actual function name replacement would happen in later compiler stages.
     if (!add_macro(&pp_state, L"__الدالة__", L"\"__BAA_FUNCTION_PLACEHOLDER__\"", false, false, 0, NULL))
     {
-        *error_message = format_preprocessor_error_at_location(&initial_loc, L"فشل في تعريف الماكرو المدمج __الدالة__.");
+        if (error_message)
+            *error_message = format_preprocessor_error_at_location(&initial_loc, L"فشل في تعريف الماكرو المدمج __الدالة__.");
         // Cleanup other predefined macros if necessary
         free_macros(&pp_state); // Will free __التاريخ__ and __الوقت__ if they were added
         return NULL;
@@ -133,7 +149,8 @@ wchar_t *baa_preprocess(const BaaPpSource *source, const char **include_paths, w
     // This expands to an integer constant.
     if (!add_macro(&pp_state, L"__إصدار_المعيار_باء__", L"10150L", false, false, 0, NULL))
     {
-        *error_message = format_preprocessor_error_at_location(&initial_loc, L"فشل في تعريف الماكرو المدمج __إصدار_المعيار_باء__.");
+        if (error_message)
+            *error_message = format_preprocessor_error_at_location(&initial_loc, L"فشل في تعريف الماكرو المدمج __إصدار_المعيار_باء__.");
         // Cleanup other predefined macros
         free_macros(&pp_state); // Will free previous ones
         return NULL;
@@ -153,8 +170,12 @@ wchar_t *baa_preprocess(const BaaPpSource *source, const char **include_paths, w
             .column = 1};
         if (!push_location(&pp_state, &file_start_loc))
         {
-            *error_message = format_preprocessor_error_at_location(&file_start_loc, L"فشل في دفع الموقع الأولي للملف (نفاد الذاكرة؟).");
-            // Cleanup initialized state before returning
+            // This is a critical setup error, probably still use direct error_message
+            if (error_message)
+            {
+                *error_message = format_preprocessor_error_at_location(&file_start_loc, L"فشل في دفع الموقع الأولي للملف (نفاد الذاكرة؟).");
+            }
+            // Cleanup initialized state before returning`
             free_macros(&pp_state);
             return NULL;
         }
@@ -163,6 +184,9 @@ wchar_t *baa_preprocess(const BaaPpSource *source, const char **include_paths, w
         // Start recursive processing by calling the core function for files
         final_output = process_file(&pp_state, source->data.file_path, error_message);
     }
+    // The error_message passed to process_file will be handled by add_preprocessor_diagnostic internally.
+    // So, the error_message parameter for baa_preprocess itself will be populated at the end.
+
     else if (source->type == BAA_PP_SOURCE_STRING)
     {
         // --- Push starting location for string processing ---
@@ -172,14 +196,23 @@ wchar_t *baa_preprocess(const BaaPpSource *source, const char **include_paths, w
             .column = 1};
         if (!push_location(&pp_state, &string_start_loc))
         {
-            *error_message = format_preprocessor_error_at_location(&string_start_loc, L"فشل في دفع الموقع الأولي للسلسلة (نفاد الذاكرة؟).");
+            if (error_message)
+            {
+                *error_message = format_preprocessor_error_at_location(&string_start_loc, L"فشل في دفع الموقع الأولي للسلسلة (نفاد الذاكرة؟).");
+            }
             free_macros(&pp_state);
             return NULL;
         }
         // --- End Push initial location ---
 
         // Directly process the string content using the new function
-        final_output = process_string(&pp_state, source->data.source_string, error_message);
+        // Pass a temporary local error_message_holder to process_string,
+        // as errors from process_string will be added to pp_state.diagnostics
+        wchar_t *temp_err_holder = NULL;
+        final_output = process_string(&pp_state, source->data.source_string, &temp_err_holder);
+        if (temp_err_holder)
+            free(temp_err_holder); // Discard, we use pp_state.diagnostics
+
         // Pop the location stack after processing the string
         pop_location(&pp_state);
     }
@@ -190,22 +223,57 @@ wchar_t *baa_preprocess(const BaaPpSource *source, const char **include_paths, w
     free_macros(&pp_state);
     free_conditional_stack(&pp_state);
     free_macro_expansion_stack(&pp_state);
-    free_location_stack(&pp_state); // Free the location stack
+    // Location stack is freed *after* potential final error reporting below
     // Note: pp_state.current_file_path is managed within process_file and its callers
 
     // Check for unterminated conditional block after processing is complete
     // This check needs to happen *after* cleanup of stacks but *before* returning potentially bad output
-    if (pp_state.conditional_stack_count > 0 && final_output && !*error_message)
+    if (pp_state.conditional_stack_count > 0 && !pp_state.had_error_this_pass) // Only if no other error already reported
     {
         // If an error already occurred, keep that primary error message
         // Otherwise, report the unterminated block error.
-        free(*error_message); // Free previous non-error message if any
         PpSourceLocation error_loc = get_current_original_location(&pp_state);
-        *error_message = format_preprocessor_error_at_location(&error_loc, L"كتلة شرطية غير منتهية في نهاية المعالجة (مفقود #نهاية_إذا).");
-        free(final_output); // Free the potentially partially generated output
-        final_output = NULL;
+        // Use a va_list for add_preprocessor_diagnostic
+        // This is a bit clunky for a single string, but keeps add_preprocessor_diagnostic consistent
+        // A helper wrapper for single string diagnostics might be useful.
+        // For now, we create a dummy va_list by calling a function that takes varargs.
+        void report_unterminated_conditional(BaaPreprocessor * st, const PpSourceLocation *loc)
+        {
+            // This is a trick to get a va_list for a single string argument
+            // We'll call a helper that then calls add_preprocessor_diagnostic
+            void report_simple_diag(BaaPreprocessor * s, const PpSourceLocation *l, bool is_err, const wchar_t *fmt, ...)
+            {
+                va_list args;
+                va_start(args, fmt);
+                add_preprocessor_diagnostic(s, l, is_err, fmt, args);
+                va_end(args);
+            }
+            report_simple_diag(st, loc, true, L"%ls", L"كتلة شرطية غير منتهية في نهاية المعالجة (مفقود #نهاية_إذا).");
+        }
+        report_unterminated_conditional(&pp_state, &error_loc);
     }
 
-    // Return the fully processed string (or NULL if an error occurred)
-    return final_output;
+    // If errors occurred, populate the output error_message parameter
+    if (pp_state.had_error_this_pass && error_message)
+    {
+        DynamicWcharBuffer combined_errors_buffer;
+        init_dynamic_buffer(&combined_errors_buffer, 256 * pp_state.diagnostic_count);
+        for (size_t i = 0; i < pp_state.diagnostic_count; ++i)
+        {
+            append_to_dynamic_buffer(&combined_errors_buffer, pp_state.diagnostics[i].message);
+            if (i < pp_state.diagnostic_count - 1)
+            {
+                append_to_dynamic_buffer(&combined_errors_buffer, L"\n");
+            }
+        }
+        *error_message = combined_errors_buffer.buffer; // Transfer ownership
+        if (final_output)
+            free(final_output); // Free potentially partial output if errors
+
+        final_output = NULL;
+    }
+    free_diagnostics_list(&pp_state); // Clean up the internal diagnostics list
+    free_location_stack(&pp_state);   // Now free the location stack
+
+    return final_output; // Return processed source (NULL if errors and we chose to nullify)
 }
