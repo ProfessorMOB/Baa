@@ -158,6 +158,9 @@ char *get_directory_part(const char *file_path);
 // Updated error formatter to potentially accept an explicit location
 wchar_t *format_preprocessor_error_at_location(const PpSourceLocation *location, const wchar_t *format, ...);
 wchar_t *format_preprocessor_warning_at_location(const PpSourceLocation *location, const wchar_t *format, ...);
+// New function to add a diagnostic (error or warning) to the preprocessor state
+void add_preprocessor_diagnostic(BaaPreprocessor *pp_state, const PpSourceLocation *loc, bool is_error, const wchar_t *format, va_list args_list);
+void free_diagnostics_list(BaaPreprocessor *pp_state);
 
 // File Stack
 bool push_file_stack(BaaPreprocessor *pp, const char *abs_path);
