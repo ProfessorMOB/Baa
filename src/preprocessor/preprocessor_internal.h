@@ -36,6 +36,14 @@ typedef struct
     size_t column;
 } PpSourceLocation;
 
+// Structure to store a single error/warning entry
+typedef struct
+{
+    wchar_t *message;          // The formatted error/warning message
+    PpSourceLocation location; // The original source location of the error/warning
+    // bool is_warning;      // Could add this later to distinguish warnings
+} PreprocessorDiagnostic;
+
 // Structure to hold preprocessor state
 // Define the struct fully here for internal use. The public header only has a forward declaration.
 struct BaaPreprocessor
@@ -64,6 +72,12 @@ struct BaaPreprocessor
     PpSourceLocation *location_stack; // Stack to track original source locations
     size_t location_stack_count;
     size_t location_stack_capacity;
+
+    // For accumulating multiple errors/diagnostics
+    PreprocessorDiagnostic *diagnostics;
+    size_t diagnostic_count;
+    size_t diagnostic_capacity;
+    bool had_error_this_pass; // True if any error (not warning) was reported
 }; // Note: No typedef name here
 
 // Dynamic Buffer for Output
