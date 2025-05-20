@@ -59,6 +59,8 @@ This roadmap outlines the planned improvements and current status of the Baa lan
 ## Known Issues / Areas for Refinement
 
 - **Error/Warning Location Precision**: Line and column numbers reported for errors/warnings originating from within directives (e.g., `#إذا`, `#تحذير`) may not always point to the precise location in the original source file, sometimes defaulting to `1:1` or the start of an included file.
+- **`معرف` Operator Argument Expansion**: The argument to the `معرف` (defined) operator within `#إذا`/`#وإلا_إذا` expressions is currently being macro-expanded before `معرف` evaluates it, which is incorrect. Standard behavior is for `معرف` to operate on the raw identifier. **[Identified - Fix Pending]**
+-
 
 ## Testing and Validation
 

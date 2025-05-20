@@ -4,6 +4,20 @@ All notable changes to the B (باء) compiler project will be documented in thi
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.16.0] - YYYY-MM-DD
+
+### Changed
+
+- **Preprocessor Internals:** Refactored aspects of the conditional expression evaluator (`#إذا`, `#وإلا_إذا`) to improve the precision of column number tracking for tokens within the expression string. This is a step towards more accurate error reporting for syntax errors occurring inside conditional expressions. (Files affected: `src/preprocessor/preprocessor_internal.h`, `src/preprocessor/preprocessor_expr_eval.c`, `src/preprocessor/preprocessor_directives.c`).
+- **Preprocessor Testing:** Updated `tests/resources/preprocessor_test_cases/preprocessor_test_all.baa` with more structured sections and added (commented-out) test cases for detailed error location precision checking in conditional expressions, directive arguments, and macro invocation arguments.
+
+### Known Issues (Preprocessor)
+
+- **`معرف` Operator Argument Expansion:** The argument to the `معرف` (defined) operator within `#إذا`/`#وإلا_إذا` expressions is currently being macro-expanded before `معرف` evaluates it, which is incorrect according to C standards. This can lead to evaluation errors if the expanded macro is not an identifier.
+- **Error/Warning Location Precision (Directive Arguments & Macro Calls):** While improvements were made for conditional expressions, precise column reporting for errors within directive arguments (e.g., `#تعريف NAME BODY`) and during macro call argument parsing is still an area for ongoing refinement.
+- **Full Macro Expansion in Conditional Expressions:** Full expansion of function-like macros and their rescanned results *within* `#إذا`/`#وإلا_إذا` expressions before evaluation is not yet complete.
+- **Token Pasting (`##`) during Rescanning:** Complex interactions of `##` when it appears as part of a macro expansion output, or when its operands are complex macros, may not be fully robust.
+
 ## [0.1.15.0] - 2025-05-19
 
 ### Added

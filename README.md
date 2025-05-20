@@ -97,7 +97,7 @@ For detailed information about Arabic support, see [Arabic Support Documentation
 #### What Needs Improvement
 
 - **Arabic Support**: RTL text handling, more comprehensive error messages
-- **Error Handling**: More detailed messages, better recovery mechanisms. **Preprocessor error/warning location precision for directives.**
+- **Error Handling**: More detailed messages, better recovery mechanisms. **Preprocessor error/warning location precision for directives [Ongoing Improvement].**
 - **Documentation**: Generally updated and consolidated. Parser and AST documentation reflect their "New Design" status. High-level docs (like this README and architecture.md) are being updated to reflect current Parser/AST status.
 - **Build System**: Cross-platform support, dependency management
 
@@ -105,7 +105,11 @@ For detailed information about Arabic support, see [Arabic Support Documentation
 
 - **Lexer Issues**: Ongoing review for full UTF-16LE handling and complete Arabic character/literal feature set.
 - **Memory Management**: Potential leaks, inconsistent allocation
-- **Preprocessor Known Issues**: Token pasting (`##`) during rescanning (complex cases), full macro expansion in conditional expressions.
+- **Preprocessor Known Issues**:
+- Token pasting (`##`) during rescanning (complex cases).
+- Full macro expansion in conditional expressions.
+- `معرف` operator argument expansion in conditional expressions (argument expands before `معرف` evaluation).
+
 - **Integration Issues**: Component integration, compilation pipeline gaps
 
 ### Roadmap
