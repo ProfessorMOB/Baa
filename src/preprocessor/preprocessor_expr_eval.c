@@ -388,7 +388,7 @@ static wchar_t *fully_expand_expression_string(BaaPreprocessor *pp_state,
     } while (expansion_made_this_pass && overall_success);
     if (overall_success)
     {
-        final_expanded_string = _wcsdup(current_input_buffer.buffer);
+        final_expanded_string = baa_strdup(current_input_buffer.buffer);
         if (!final_expanded_string)
         {
             PpSourceLocation error_loc = get_current_original_location(pp_state);

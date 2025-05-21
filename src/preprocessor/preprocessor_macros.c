@@ -64,7 +64,7 @@ bool add_macro(BaaPreprocessor *pp_state, const wchar_t *name, const wchar_t *bo
                 free(pp_state->macros[i].param_names);
             }
 
-            pp_state->macros[i].body = _wcsdup(body);
+            pp_state->macros[i].body = baa_strdup(body);
             pp_state->macros[i].is_function_like = is_function_like;
             pp_state->macros[i].is_variadic = is_function_like ? is_variadic : false; // Variadic only if function-like
             pp_state->macros[i].param_count = param_count;
@@ -98,8 +98,10 @@ bool add_macro(BaaPreprocessor *pp_state, const wchar_t *name, const wchar_t *bo
         if (!new_macros)
         {
             // Free params if reallocation fails, as ownership wasn't transferred
-             if (is_function_like && param_names) {
-                for (size_t j = 0; j < param_count; ++j) free(param_names[j]);
+            if (is_function_like && param_names)
+            {
+                for (size_t j = 0; j < param_count; ++j)
+                    free(param_names[j]);
                 free(param_names);
             }
             return false; // Reallocation failed
@@ -110,8 +112,8 @@ bool add_macro(BaaPreprocessor *pp_state, const wchar_t *name, const wchar_t *bo
 
     // Add the new macro
     BaaMacro *new_entry = &pp_state->macros[pp_state->macro_count];
-    new_entry->name = _wcsdup(name);
-    new_entry->body = _wcsdup(body);
+    new_entry->name = baa_strdup(name);
+    new_entry->body = baa_strdup(body);
     new_entry->is_function_like = is_function_like;
     new_entry->is_variadic = is_function_like ? is_variadic : false; // Variadic only if function-like
     new_entry->param_count = param_count;
@@ -121,8 +123,8 @@ bool add_macro(BaaPreprocessor *pp_state, const wchar_t *name, const wchar_t *bo
     if (!new_entry->name || !new_entry->body)
     {
         // Clean up everything allocated for this new entry on failure
-        free(new_entry->name); // Safe even if NULL
-        free(new_entry->body); // Safe even if NULL
+        free(new_entry->name);                                           // Safe even if NULL
+        free(new_entry->body);                                           // Safe even if NULL
         if ((is_function_like || new_entry->is_variadic) && param_names) // Use new_entry->is_variadic here
         {
             for (size_t j = 0; j < param_count; ++j)

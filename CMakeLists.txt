@@ -1,69 +1,47 @@
 cmake_minimum_required(VERSION 3.20)
+
+if(POLICY CMP0074)
+  cmake_policy(SET CMP0074 NEW) # INTERFACE_LINK_LIBRARIES defines the link interface
+endif()
+if(POLICY CMP0067)
+  cmake_policy(SET CMP0067 NEW) # Honor visibility properties for target_compile_definitions
+endif()
+if(POLICY CMP0042)
+  cmake_policy(SET CMP0042 NEW) # MACOSX_RPATH is enabled by default
+endif()
+# Add other policies as you discover needs, e.g., CMP0077 for overriding exported targets.
+
 project(baa
-    VERSION 0.1.12.0
+    VERSION 0.1.17.0
     DESCRIPTION "لغة باء - The Baa Programming Language"
     LANGUAGES C
 )
 
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+include(BaaCompilerSettings)
+
+if(${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_BINARY_DIR})
+    message(FATAL_ERROR "In-source builds are not allowed. Please create a separate build directory (e.g., mkdir build && cd build) and run CMake from there.")
+endif()
+
 # إعداد معيار لغة C
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
-
-# Option to skip parser compilation for development (No longer directly applicable this way)
-# option(SKIP_PARSER "Skip compiling the parser components" OFF)
-
-add_definitions(-DUNICODE -D_UNICODE -D_CRT_SECURE_NO_WARNINGS)
 set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /IGNORE:4006 /IGNORE:4099") # Ignore certain linker warnings if needed
 
-# إضافة مجلد التضمين الرئيسي
-include_directories(${CMAKE_SOURCE_DIR}/include)
+add_subdirectory(src)
 
 # --- البرنامج الرئيسي ---
 add_executable(baa
-    # Core executable files
     src/main.c
-    src/compiler.c
-
-    # Utility files
-    src/utils/utils.c
-
-    # Type system files
-    src/types/types.c
-
-    # Operator files
-    src/operators/operators.c
-
-    # Lexer files
-    src/lexer/lexer.c
-    src/lexer/number_parser.c
-    src/lexer/lexer_char_utils.c
-    src/lexer/token_scanners.c   # Added token scanners source
-
-    # Preprocessor files
-    src/preprocessor/preprocessor.c
-    src/preprocessor/preprocessor_utils.c
-    src/preprocessor/preprocessor_macros.c
-    src/preprocessor/preprocessor_expansion.c
-    src/preprocessor/preprocessor_conditionals.c
-    src/preprocessor/preprocessor_expr_eval.c
-    src/preprocessor/preprocessor_core.c
-    src/preprocessor/preprocessor_directives.c
-    src/preprocessor/preprocessor_line_processing.c
-
-    # Analysis files
-    src/analysis/flow_analysis.c
-    src/analysis/flow_errors.c
-
-    # Codegen core file (always needed)
-    src/codegen/codegen.c
 )
 
-# Include directories for the executable
-target_include_directories(baa
-    PRIVATE
-        ${CMAKE_SOURCE_DIR}/include
-        ${CMAKE_SOURCE_DIR}/src       # Allow includes like "lexer/lexer_char_utils.h" or relative from within src
-        # ${CMAKE_SOURCE_DIR}/src/preprocessor # Already covered by ../src
+# Link component libraries to the main executable
+target_link_libraries(baa PRIVATE baa_compiler_lib BaaCommonSettings) # main.c links only the compiler library
+# Include directories and compile definitions for the 'baa' executable
+target_include_directories(baa PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+    ${CMAKE_SOURCE_DIR}/src       # Allow includes like "lexer/lexer_char_utils.h" or relative from within src
 )
 
 # --- Conditional LLVM Handling ---
@@ -73,89 +51,54 @@ option(USE_LLVM "Enable LLVM backend" OFF) # Example option
 
 if(USE_LLVM)
     # Attempt to find LLVM (adjust paths/version as needed)
-    find_package(LLVM REQUIRED CONFIG) # Or adjust version/components
+    find_package(LLVM CONFIG) # Make it non-REQUIRED, handle LLVM_FOUND explicitly
 
     if(LLVM_FOUND)
         message(STATUS "LLVM Found: ${LLVM_PACKAGE_VERSION}")
         message(STATUS "LLVM Include Dirs: ${LLVM_INCLUDE_DIRS}")
         message(STATUS "LLVM Library Dirs: ${LLVM_LIBRARY_DIRS}")
 
-        # Add LLVM source file
-        target_sources(baa PRIVATE src/codegen/llvm_codegen.c)
-
-        # Add LLVM include directories
-        target_include_directories(baa PRIVATE ${LLVM_INCLUDE_DIRS})
-
-        # Add LLVM compile definitions
-        target_compile_definitions(baa PRIVATE LLVM_AVAILABLE=1)
-
-        # Link LLVM libraries
-        # list(APPEND CMAKE_MODULE_PATH "${LLVM_CMAKE_DIR}") # Usually handled by find_package
-        # include(AddLLVM) # Usually handled by find_package
-        llvm_map_components_to_libnames(llvm_libs
-            core support irreader analysis target mcjit native executionengine
-            # Add other necessary components
-        )
-        message(STATUS "Linking LLVM Libraries: ${llvm_libs}")
-        target_link_libraries(baa PRIVATE ${llvm_libs})
-
+    # LLVM is found, baa_codegen will use it.
+    # The LLVM_AVAILABLE definition will be set for baa_codegen in its CMakeLists.txt
     else()
         message(WARNING "USE_LLVM is ON but LLVM was not found. Using stub backend.")
-        target_sources(baa PRIVATE src/codegen/llvm_stub.c)
-        target_compile_definitions(baa PRIVATE LLVM_AVAILABLE=0)
+        # LLVM_FOUND will be false, baa_codegen will use stub.
     endif()
 else()
     message(STATUS "LLVM backend disabled. Using stub backend.")
-    # Add stub source file
-    target_sources(baa PRIVATE src/codegen/llvm_stub.c)
-    # Add compile definition
-    target_compile_definitions(baa PRIVATE LLVM_AVAILABLE=0)
+    # LLVM_FOUND will be false (as find_package wasn't called), baa_codegen will use stub.
 endif()
 
 # --- Standalone Preprocessor Tester ---
 add_executable(baa_preprocessor_tester
     tools/baa_preprocessor_tester.c
-
-    # Preprocessor files (needed by the tester)
-    src/preprocessor/preprocessor.c
-    src/preprocessor/preprocessor_utils.c
-    src/preprocessor/preprocessor_macros.c
-    src/preprocessor/preprocessor_expansion.c
-    src/preprocessor/preprocessor_conditionals.c
-    src/preprocessor/preprocessor_expr_eval.c
-    src/preprocessor/preprocessor_core.c
-    src/preprocessor/preprocessor_directives.c
-    src/preprocessor/preprocessor_line_processing.c
-
-    # Utility files (needed by the preprocessor)
-    src/utils/utils.c
 )
 
-# Include directories for the tester
+# Link dependencies for the preprocessor tester
+target_link_libraries(baa_preprocessor_tester PRIVATE
+    baa_preprocessor
+    baa_utils
+    BaaCommonSettings
+)
+
+# Include directories for the preprocessor tester
 target_include_directories(baa_preprocessor_tester
     PRIVATE
         ${CMAKE_SOURCE_DIR}/include       # For baa/preprocessor/preprocessor.h
         ${CMAKE_SOURCE_DIR}/src/preprocessor # For preprocessor_internal.h
 )
 
-# Set output directory for the tester executable (optional, but good practice)
-set_target_properties(baa_preprocessor_tester PROPERTIES
-    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
-)
 
 # --- Standalone Lexer Tester ---
 add_executable(baa_lexer_tester
     tools/baa_lexer_tester.c
+)
 
-    # Lexer files (needed by the tester)
-    src/lexer/lexer.c
-    src/lexer/number_parser.c
-    src/lexer/lexer_char_utils.c
-    src/lexer/token_scanners.c
-
-    # Utility files (needed by the lexer and tester)
-    src/utils/utils.c
-    # src/utils/errors.c # If errors.c exists and is needed
+# Link dependencies for the lexer tester
+target_link_libraries(baa_lexer_tester PRIVATE
+    baa_lexer
+    baa_utils
+    BaaCommonSettings
 )
 
 # Include directories for the lexer tester
@@ -164,12 +107,6 @@ target_include_directories(baa_lexer_tester
         ${CMAKE_SOURCE_DIR}/include  # For baa/lexer/lexer.h and baa/utils/*.h
         ${CMAKE_SOURCE_DIR}/src/lexer # For lexer_internal.h if needed by included lexer files
 )
-
-# Set output directory for the lexer tester executable
-set_target_properties(baa_lexer_tester PROPERTIES
-    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
-)
-
 
 # تفعيل الاختبارات (معطل مؤقتاً)
 # enable_testing()

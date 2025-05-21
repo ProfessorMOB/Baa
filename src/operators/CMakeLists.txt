@@ -9,9 +9,6 @@ target_include_directories(baa_operators
     ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
-# Removed redundant linking of utils, types as they are linked in the main executable
-# target_link_libraries(baa_operators
-#     PRIVATE
-#     baa_utils
-#     baa_types
-# )
+# baa_operators depends on baa_types
+target_link_libraries(baa_operators PRIVATE baa_types INTERFACE BaaCommonSettings)
+# It does not seem to directly depend on baa_utils, but baa_types does.

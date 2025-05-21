@@ -8,3 +8,5 @@ target_include_directories(baa_utils
     PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}
 )
+# Common settings are inherited by linking Baa::CommonSettings
+target_link_libraries(baa_utils INTERFACE BaaCommonSettings)
