@@ -11,7 +11,7 @@ set(CMAKE_C_STANDARD_REQUIRED ON)
 
 # Option to skip parser compilation for development (No longer directly applicable this way)
 # option(SKIP_PARSER "Skip compiling the parser components" OFF)
-
+add_compile_definitions(UNICODE _UNICODE _CRT_SECURE_NO_WARNINGS)
 set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /IGNORE:4006 /IGNORE:4099") # Ignore certain linker warnings if needed
 
 # إضافة مجلد التضمين الرئيسي
@@ -110,6 +110,12 @@ target_include_directories(baa_preprocessor_tester
         ${CMAKE_SOURCE_DIR}/src/preprocessor # For preprocessor_internal.h
 )
 
+target_compile_definitions(baa_preprocessor_tester PRIVATE
+    UNICODE
+    _UNICODE
+    _CRT_SECURE_NO_WARNINGS
+)
+
 # --- Standalone Lexer Tester ---
 add_executable(baa_lexer_tester
     tools/baa_lexer_tester.c
@@ -126,6 +132,12 @@ target_include_directories(baa_lexer_tester
     PRIVATE
         ${CMAKE_SOURCE_DIR}/include  # For baa/lexer/lexer.h and baa/utils/*.h
         ${CMAKE_SOURCE_DIR}/src/lexer # For lexer_internal.h if needed by included lexer files
+)
+
+target_compile_definitions(baa_lexer_tester PRIVATE
+    UNICODE
+    _UNICODE
+    _CRT_SECURE_NO_WARNINGS
 )
 
 # تفعيل الاختبارات (معطل مؤقتاً)

@@ -9,7 +9,7 @@ if(LLVM_AVAILABLE)
     )
 
     target_compile_definitions(baa_codegen PRIVATE
-        -DLLVM_AVAILABLE=1
+    LLVM_AVAILABLE=0
     )
 
     # Make sure LLVM CMake modules are included
@@ -63,16 +63,19 @@ endif()
 
 target_include_directories(baa_codegen
     PUBLIC
-        ${CMAKE_SOURCE_DIR}/include
+    ${PROJECT_SOURCE_DIR}/include  # For baa/codegen/codegen.h and baa/codegen/llvm_codegen.h
     PRIVATE
-        ${CMAKE_SOURCE_DIR}/src/include
-        ${LLVM_INCLUDE_DIRS}
+    # ${CMAKE_SOURCE_DIR}/src/include # This path seems incorrect for this component's private headers.
+    # If codegen.c or llvm_codegen.c need private headers from src/codegen, use ${CMAKE_CURRENT_SOURCE_DIR}
+    ${LLVM_INCLUDE_DIRS} # Only if LLVM_AVAILABLE
 )
 
-# Removed redundant linking of utils, types, ast as they are linked in the main executable
-# target_link_libraries(baa_codegen
-#     PRIVATE
-#         baa_utils
-#         baa_types
-#         baa_ast
-# )
+target_compile_definitions(baa_codegen PUBLIC # Propagate if public headers depend on them
+    UNICODE
+    _UNICODE
+    _CRT_SECURE_NO_WARNINGS
+)
+
+# baa_codegen depends on baa_utils and baa_types
+# (assuming AST dependencies in llvm_codegen.c are handled/removed for now)
+target_link_libraries(baa_codegen PRIVATE baa_utils baa_types)
