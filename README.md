@@ -97,7 +97,7 @@ For detailed information about Arabic support, see [Arabic Support Documentation
 #### What Needs Improvement
 
 - **Arabic Support**: RTL text handling, more comprehensive error messages
-- **Error Handling**: More detailed messages, better recovery mechanisms. **Preprocessor error/warning location precision for directives [Ongoing Improvement].**
+- **Error Handling**: More detailed messages. Preprocessor error recovery mechanisms (reporting multiple errors) and location precision are under ongoing improvement.
 - **Documentation**: Generally updated and consolidated. Parser and AST documentation reflect their "New Design" status. High-level docs (like this README and architecture.md) are being updated to reflect current Parser/AST status.
 - **Build System**: Cross-platform support, dependency management
 

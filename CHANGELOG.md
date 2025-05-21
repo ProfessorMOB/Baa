@@ -4,7 +4,41 @@ All notable changes to the B (باء) compiler project will be documented in thi
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.1.16.0] - YYYY-MM-DD
+## [0.1.17.0] - 2025-05-21
+
+### Added
+
+- **Preprocessor Error Recovery Foundation:**
+  - Implemented internal mechanisms to support accumulating multiple preprocessor errors and warnings instead of halting on the first one. (Files affected: `src/preprocessor/preprocessor_internal.h`, `src/preprocessor/preprocessor.c`, `src/preprocessor/preprocessor_utils.c`).
+  - Added `PreprocessorDiagnostic` struct to store individual diagnostic details (message, location).
+  - Added `add_preprocessor_diagnostic()` function to accumulate diagnostics within the `BaaPreprocessor` state.
+  - The main `baa_preprocess()` function now collects all reported diagnostics and can return them (currently concatenated into the output `error_message` parameter if errors occurred).
+
+### Changed
+
+- **Preprocessor Error Reporting:**
+  - Modified the core structure of error reporting within the preprocessor to use the new diagnostic accumulation system. This is a foundational step for allowing the preprocessor to continue and report multiple errors.
+  - Enhanced column number calculation for errors originating within `#تعريف` directive argument parsing (e.g., for missing macro name or malformed parameters) to improve location precision. (Files affected: `src/preprocessor/preprocessor_directives.c`).
+  - Improved column number calculation for errors occurring during the parsing of function-like macro invocation arguments (e.g., mismatched parentheses, missing commas within the argument list). (Files affected: `src/preprocessor/preprocessor_expansion.c`).
+- **Preprocessor Testing:** Added (commented-out) test cases to `tests/resources/preprocessor_test_cases/preprocessor_test_all.baa` for testing error location precision for directive arguments and macro invocation arguments.
+
+### Known Issues (Preprocessor)
+
+- **Full Error Recovery Implementation:** While the foundation for accumulating multiple errors is in place, most error-handling sites in the preprocessor still need to be updated to fully utilize this by attempting synchronization and continuation instead of immediately halting their specific task or causing the whole preprocessor to stop. This is an ongoing task detailed in `docs/PREPROCESSOR_ROADMAP.md`.
+- **`معرف` Operator Argument Expansion:** The argument to the `معرف` (defined) operator within `#إذا`/`#وإلا_إذا` expressions is still (pending further specific fix and verification) being macro-expanded before `معرف` evaluates it.
+- **Error/Warning Location Precision (Remaining Areas):** Further refinement for precise column reporting is an ongoing effort.
+- **Full Macro Expansion in Conditional Expressions:** Still pending.
+- **Token Pasting (`##`) during Rescanning (Complex Cases):** Still pending.
+
+### Planned (Next Steps for Preprocessor Error Recovery)
+
+- Systematically refactor error handling in:
+  - Directive parsing (`preprocessor_directives.c` for `#تضمين`, `#تعريف` body, etc.).
+  - Macro expansion logic (`preprocessor_expansion.c`, `preprocessor_line_processing.c`).
+  - Conditional expression evaluation (`preprocessor_expr_eval.c`) to robustly handle evaluation failures while maintaining conditional stack integrity.
+- Implement clear synchronization strategies (e.g., skip to end of directive line, attempt to find matching `#نهاية_إذا`) after reporting a recoverable error.
+
+## [0.1.16.0] - 2025-05-20
 
 ### Changed
 

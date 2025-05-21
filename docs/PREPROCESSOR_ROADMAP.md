@@ -48,19 +48,29 @@ This roadmap outlines the planned improvements and current status of the Baa lan
 - [ ] **Macro Redefinition Warnings/Errors**: Implement checks for macro redefinitions. Issue warnings or errors for incompatible redefinitions, as per C99 standard behavior.
 - [x] **Predefined `__func__`**: Implement the C99 `__func__` predefined identifier (Baa: `__الدالة__`).
 - [x] **Predefined `__STDC_VERSION__` equivalent**: Implement Baa's version macro `__إصدار_المعيار_باء__`.
+- [ ] **Error Recovery Mechanisms**: Allow continuation after most errors to find more issues in a single pass.
+- [x] Foundational: `BaaPreprocessor` state updated to store a list of diagnostics (`PreprocessorDiagnostic`).
+- [x] Foundational: `add_preprocessor_diagnostic` function implemented to accumulate errors/warnings.
+- [x] Foundational: Main `baa_preprocess` function updated to collect and return multiple diagnostics.
+- [ ] Task: Systematically update all error reporting sites in directive parsing (`preprocessor_directives.c`) to use `add_preprocessor_diagnostic` and implement line-level synchronization (continue to next line).
+- [ ] Task: Systematically update error reporting in macro expansion (`preprocessor_expansion.c`, `preprocessor_line_processing.c`) to use `add_preprocessor_diagnostic` and attempt to continue line processing (e.g., by outputting unexpanded macro).
+- [ ] Task: Refine conditional expression error handling (`preprocessor_expr_eval.c`) to use `add_preprocessor_diagnostic` and ensure conditional stack is safely managed (e.g., by assuming false on evaluation error).
+- [ ] Task: Handle critical/unrecoverable errors (e.g., out of memory, cannot open initial file) appropriately, possibly halting immediately while still using the diagnostic accumulation for prior errors.
 
   - **Other Standard Directives:**
     - [x] `#خطأ message` (Baa: `#خطأ "رسالة الخطأ"`) - Implemented
     - [x] `#تحذير message` (Baa: `#تحذير "رسالة التحذير"`) - Implemented
-    - [ ] `#سطر number "filename"` (Baa: `#سطر ١٠٠ "ملف.ب"`)
+    - [ ] `#سطر رقم "اسم_الملف"` (Baa: `#سطر ١٠٠ "ملف.ب"`)
     - [ ] **C99 Support**: Implement `أمر_براغما` operator (Baa: `أمر_براغما("توجيه")`).
     - [ ] `#براغما directive` (Baa: `#براغما توجيه_خاص`) (Investigate C99 standard pragmas like `STDC FP_CONTRACT`, `STDC FENV_ACCESS`, `STDC CX_LIMITED_RANGE`, and common Baa-specific pragmas like `مرة_واحدة` for `#pragma once`).
 
 ## Known Issues / Areas for Refinement
 
-- **Error/Warning Location Precision**: Line and column numbers reported for errors/warnings originating from within directives (e.g., `#إذا`, `#تحذير`) may not always point to the precise location in the original source file, sometimes defaulting to `1:1` or the start of an included file.
-- **`معرف` Operator Argument Expansion**: The argument to the `معرف` (defined) operator within `#إذا`/`#وإلا_إذا` expressions is currently being macro-expanded before `معرف` evaluates it, which is incorrect. Standard behavior is for `معرف` to operate on the raw identifier. **[Identified - Fix Pending]**
--
+- **Error/Warning Location Precision**:
+  - [x] Conditional Expressions: Column tracking within conditional expressions enhanced.
+  - [ ] Directive Arguments: Further refinement needed for precise column reporting for errors in arguments of directives like `#تعريف`, `#تضمين`. (Partially addressed by passing more specific locations to `add_preprocessor_diagnostic`).
+  - [ ] Macro Call Arguments: Further refinement needed for precise column reporting for errors during parsing of macro call arguments. (Partially addressed by passing more specific locations to `add_preprocessor_diagnostic`).
+- **`معرف` Operator Argument Expansion**: The argument to the `معرف` (defined) operator within `#إذا`/`#وإلا_إذا` expressions is currently (potentially, pending final fix verification) being macro-expanded before `معرف` evaluates it, which is incorrect. Standard behavior is for `معرف` to operate on the raw identifier. **[Fix Attempted - Verification Needed]**
 
 ## Testing and Validation
 
@@ -73,11 +83,11 @@ This roadmap outlines the planned improvements and current status of the Baa lan
 
 ## Implementation Priorities (Excluding Testing for now)
 
-1. **Robustness & Advanced Features:**
+1. **Core Functionality & Robustness:**
     - [x] Support for UTF-8 input files.
     - [x] Input source abstraction (file, string). (*stdin not yet implemented*)
     - [x] Support for bitwise operators (`&`, `|`, `^`, `~`, `<<`, `>>`) and hex/binary literals in conditional expressions.
     - [x] Predefined macros (`__الملف__`, `__السطر__` (as int), `__التاريخ__`, `__الوقت__`, `__الدالة__` (placeholder), `__إصدار_المعيار_باء__`).
     - [ ] Improve error recovery mechanisms (allow continuation after some errors to find more issues).
 2. **Macro Edge Cases:**
-        - Address complex edge cases in macro substitution and argument parsing.
+    - Address complex edge cases in macro substitution and argument parsing.

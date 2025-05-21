@@ -2,6 +2,24 @@
 #include "preprocessor_internal.h"         // Internal definitions and function declarations
 #include <time.h>                          // For __التاريخ__ and __الوقت__
 
+// Helper function to report a simple diagnostic with a single string argument
+// This is a trick to get a va_list for a single string argument
+// We'll call add_preprocessor_diagnostic internally
+static void report_simple_diag(BaaPreprocessor * s, const PpSourceLocation *l, bool is_err, const wchar_t *fmt, ...)
+{
+    va_list args;
+    va_start(args, fmt);
+    add_preprocessor_diagnostic(s, l, is_err, fmt, args);
+    va_end(args);
+}
+
+// Helper function to report an unterminated conditional block
+void report_unterminated_conditional(BaaPreprocessor * st, const PpSourceLocation *loc)
+{
+    report_simple_diag(st, loc, true, L"%ls", L"كتلة شرطية غير منتهية في نهاية المعالجة (مفقود #نهاية_إذا).");
+}
+
+
 // --- Public Preprocessor Function ---
 
 wchar_t *baa_preprocess(const BaaPpSource *source, const char **include_paths, wchar_t **error_message)
@@ -235,21 +253,6 @@ wchar_t *baa_preprocess(const BaaPpSource *source, const char **include_paths, w
         PpSourceLocation error_loc = get_current_original_location(&pp_state);
         // Use a va_list for add_preprocessor_diagnostic
         // This is a bit clunky for a single string, but keeps add_preprocessor_diagnostic consistent
-        // A helper wrapper for single string diagnostics might be useful.
-        // For now, we create a dummy va_list by calling a function that takes varargs.
-        void report_unterminated_conditional(BaaPreprocessor * st, const PpSourceLocation *loc)
-        {
-            // This is a trick to get a va_list for a single string argument
-            // We'll call a helper that then calls add_preprocessor_diagnostic
-            void report_simple_diag(BaaPreprocessor * s, const PpSourceLocation *l, bool is_err, const wchar_t *fmt, ...)
-            {
-                va_list args;
-                va_start(args, fmt);
-                add_preprocessor_diagnostic(s, l, is_err, fmt, args);
-                va_end(args);
-            }
-            report_simple_diag(st, loc, true, L"%ls", L"كتلة شرطية غير منتهية في نهاية المعالجة (مفقود #نهاية_إذا).");
-        }
         report_unterminated_conditional(&pp_state, &error_loc);
     }
 

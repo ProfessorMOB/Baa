@@ -80,7 +80,7 @@ The Baa preprocessor defines the following macros automatically. These names are
   - Macro errors (recursion, argument count mismatch, invalid ## usage).
   - Conditional expression evaluation errors (syntax errors, division by zero).
   - Memory allocation failures.
-- Error messages are provided in Arabic and consistently include the original file path, line number, and column number where the error originated, even through includes and macro expansions (e.g., `original_file:line:col: خطأ: ...`). This is achieved using an internal location stack and a unified error formatting function.
+- Error messages are provided in Arabic and consistently include the original file path, line number, and column number where the error originated, even through includes and macro expansions (e.g., `original_file:line:col: خطأ: ...`). The system is being enhanced to report multiple errors per pass and further improve location precision. This is achieved using an internal location stack, diagnostic accumulation, and unified error formatting.
 
 ## Preprocessor Structure (بنية المعالج المسبق)
 

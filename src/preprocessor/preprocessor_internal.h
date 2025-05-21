@@ -215,4 +215,7 @@ bool scan_and_substitute_macros_one_pass(
 wchar_t *process_file(BaaPreprocessor *pp_state, const char *file_path, wchar_t **error_message);
 wchar_t *process_string(BaaPreprocessor *pp_state, const wchar_t *source_string, wchar_t **error_message); // New function for string input
 
+// From preprocessor.c (internal helper)
+void report_unterminated_conditional(BaaPreprocessor * st, const PpSourceLocation *loc);
+
 #endif // BAA_PREPROCESSOR_INTERNAL_H
