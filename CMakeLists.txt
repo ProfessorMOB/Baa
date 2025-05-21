@@ -8,20 +8,17 @@ project(baa
 # إعداد معيار لغة C
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
-
-# Option to skip parser compilation for development (No longer directly applicable this way)
-# option(SKIP_PARSER "Skip compiling the parser components" OFF)
-add_compile_definitions(UNICODE _UNICODE _CRT_SECURE_NO_WARNINGS)
 set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /IGNORE:4006 /IGNORE:4099") # Ignore certain linker warnings if needed
 
-# إضافة مجلد التضمين الرئيسي
-include_directories(${CMAKE_SOURCE_DIR}/include)
+add_subdirectory(src)
 
 # --- البرنامج الرئيسي ---
 add_executable(baa
     src/main.c
     src/compiler.c
 )
+
+
 
 # Link component libraries to the main executable
 target_link_libraries(baa PRIVATE
