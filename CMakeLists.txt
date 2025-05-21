@@ -1,9 +1,23 @@
 cmake_minimum_required(VERSION 3.20)
+if(POLICY CMP0074)
+  cmake_policy(SET CMP0074 NEW) # INTERFACE_LINK_LIBRARIES defines the link interface
+endif()
+if(POLICY CMP0067)
+  cmake_policy(SET CMP0067 NEW) # Honor visibility properties for target_compile_definitions
+endif()
+if(POLICY CMP0042)
+  cmake_policy(SET CMP0042 NEW) # MACOSX_RPATH is enabled by default
+endif()
+# Add other policies as you discover needs, e.g., CMP0077 for overriding exported targets.
 project(baa
     VERSION 0.1.17.0
     DESCRIPTION "لغة باء - The Baa Programming Language"
     LANGUAGES C
 )
+
+if(${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_BINARY_DIR})
+    message(FATAL_ERROR "In-source builds are not allowed. Please create a separate build directory (e.g., mkdir build && cd build) and run CMake from there.")
+endif()
 
 # إعداد معيار لغة C
 set(CMAKE_C_STANDARD 11)
@@ -15,22 +29,10 @@ add_subdirectory(src)
 # --- البرنامج الرئيسي ---
 add_executable(baa
     src/main.c
-    src/compiler.c
 )
-
-
 
 # Link component libraries to the main executable
-target_link_libraries(baa PRIVATE
-    baa_utils
-    baa_types
-    baa_operators
-    baa_lexer
-    baa_preprocessor
-    baa_flow_analysis # This library name is defined in src/analysis/CMakeLists.txt
-    baa_codegen
-)
-
+target_link_libraries(baa PRIVATE baa_compiler_lib) # main.c links only the compiler library
 # Include directories and compile definitions for the 'baa' executable
 target_include_directories(baa PRIVATE
     ${CMAKE_SOURCE_DIR}/include
