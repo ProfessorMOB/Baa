@@ -52,43 +52,22 @@ option(USE_LLVM "Enable LLVM backend" OFF) # Example option
 
 if(USE_LLVM)
     # Attempt to find LLVM (adjust paths/version as needed)
-    find_package(LLVM REQUIRED CONFIG) # Or adjust version/components
+    find_package(LLVM CONFIG) # Make it non-REQUIRED, handle LLVM_FOUND explicitly
 
     if(LLVM_FOUND)
         message(STATUS "LLVM Found: ${LLVM_PACKAGE_VERSION}")
         message(STATUS "LLVM Include Dirs: ${LLVM_INCLUDE_DIRS}")
         message(STATUS "LLVM Library Dirs: ${LLVM_LIBRARY_DIRS}")
 
-        # Add LLVM source file
-        target_sources(baa PRIVATE src/codegen/llvm_codegen.c)
-
-        # Add LLVM include directories
-        target_include_directories(baa PRIVATE ${LLVM_INCLUDE_DIRS})
-
-        # Add LLVM compile definitions
-        target_compile_definitions(baa PRIVATE LLVM_AVAILABLE=1)
-
-        # Link LLVM libraries
-        # list(APPEND CMAKE_MODULE_PATH "${LLVM_CMAKE_DIR}") # Usually handled by find_package
-        # include(AddLLVM) # Usually handled by find_package
-        llvm_map_components_to_libnames(llvm_libs
-            core support irreader analysis target mcjit native executionengine
-            # Add other necessary components
-        )
-        message(STATUS "Linking LLVM Libraries: ${llvm_libs}")
-        target_link_libraries(baa PRIVATE ${llvm_libs})
-
+    # LLVM is found, baa_codegen will use it.
+    # The LLVM_AVAILABLE definition will be set for baa_codegen in its CMakeLists.txt
     else()
         message(WARNING "USE_LLVM is ON but LLVM was not found. Using stub backend.")
-        target_sources(baa PRIVATE src/codegen/llvm_stub.c)
-        target_compile_definitions(baa PRIVATE LLVM_AVAILABLE=0)
+        # LLVM_FOUND will be false, baa_codegen will use stub.
     endif()
 else()
     message(STATUS "LLVM backend disabled. Using stub backend.")
-    # Add stub source file
-    target_sources(baa PRIVATE src/codegen/llvm_stub.c)
-    # Add compile definition
-    target_compile_definitions(baa PRIVATE LLVM_AVAILABLE=0)
+    # LLVM_FOUND will be false (as find_package wasn't called), baa_codegen will use stub.
 endif()
 
 # --- Standalone Preprocessor Tester ---
