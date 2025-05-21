@@ -59,12 +59,6 @@ target_include_directories(baa_codegen
     ${PROJECT_SOURCE_DIR}/include  # For baa/codegen/codegen.h and baa/codegen/llvm_codegen.h
 )
 
-target_compile_definitions(baa_codegen PUBLIC # Propagate if public headers depend on them
-    UNICODE
-    _UNICODE
-    _CRT_SECURE_NO_WARNINGS
-)
-
 # baa_codegen depends on baa_utils and baa_types
 # (assuming AST dependencies in llvm_codegen.c are handled/removed for now)
-target_link_libraries(baa_codegen PRIVATE baa_utils baa_types)
+target_link_libraries(baa_codegen PRIVATE baa_utils baa_types INTERFACE BaaCommonSettings)

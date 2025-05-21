@@ -21,9 +21,4 @@ target_include_directories(baa_preprocessor
     ${CMAKE_CURRENT_SOURCE_DIR}   # For preprocessor_internal.h
 )
 
-target_compile_definitions(baa_preprocessor PUBLIC # Or PRIVATE
-    UNICODE
-    _UNICODE
-    _CRT_SECURE_NO_WARNINGS
-)
-target_link_libraries(baa_preprocessor PRIVATE baa_utils)
+target_link_libraries(baa_preprocessor PRIVATE baa_utils INTERFACE BaaCommonSettings)

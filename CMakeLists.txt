@@ -1,4 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
+
 if(POLICY CMP0074)
   cmake_policy(SET CMP0074 NEW) # INTERFACE_LINK_LIBRARIES defines the link interface
 endif()
@@ -9,11 +10,15 @@ if(POLICY CMP0042)
   cmake_policy(SET CMP0042 NEW) # MACOSX_RPATH is enabled by default
 endif()
 # Add other policies as you discover needs, e.g., CMP0077 for overriding exported targets.
+
 project(baa
     VERSION 0.1.17.0
     DESCRIPTION "لغة باء - The Baa Programming Language"
     LANGUAGES C
 )
+
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+include(BaaCompilerSettings)
 
 if(${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_BINARY_DIR})
     message(FATAL_ERROR "In-source builds are not allowed. Please create a separate build directory (e.g., mkdir build && cd build) and run CMake from there.")
@@ -32,17 +37,11 @@ add_executable(baa
 )
 
 # Link component libraries to the main executable
-target_link_libraries(baa PRIVATE baa_compiler_lib) # main.c links only the compiler library
+target_link_libraries(baa PRIVATE baa_compiler_lib BaaCommonSettings) # main.c links only the compiler library
 # Include directories and compile definitions for the 'baa' executable
 target_include_directories(baa PRIVATE
     ${CMAKE_SOURCE_DIR}/include
     ${CMAKE_SOURCE_DIR}/src       # Allow includes like "lexer/lexer_char_utils.h" or relative from within src
-)
-
-target_compile_definitions(baa PRIVATE
-    UNICODE
-    _UNICODE
-    _CRT_SECURE_NO_WARNINGS
 )
 
 # --- Conditional LLVM Handling ---
@@ -79,6 +78,7 @@ add_executable(baa_preprocessor_tester
 target_link_libraries(baa_preprocessor_tester PRIVATE
     baa_preprocessor
     baa_utils
+    BaaCommonSettings
 )
 
 # Include directories for the preprocessor tester
@@ -88,11 +88,6 @@ target_include_directories(baa_preprocessor_tester
         ${CMAKE_SOURCE_DIR}/src/preprocessor # For preprocessor_internal.h
 )
 
-target_compile_definitions(baa_preprocessor_tester PRIVATE
-    UNICODE
-    _UNICODE
-    _CRT_SECURE_NO_WARNINGS
-)
 
 # --- Standalone Lexer Tester ---
 add_executable(baa_lexer_tester
@@ -103,6 +98,7 @@ add_executable(baa_lexer_tester
 target_link_libraries(baa_lexer_tester PRIVATE
     baa_lexer
     baa_utils
+    BaaCommonSettings
 )
 
 # Include directories for the lexer tester
@@ -110,12 +106,6 @@ target_include_directories(baa_lexer_tester
     PRIVATE
         ${CMAKE_SOURCE_DIR}/include  # For baa/lexer/lexer.h and baa/utils/*.h
         ${CMAKE_SOURCE_DIR}/src/lexer # For lexer_internal.h if needed by included lexer files
-)
-
-target_compile_definitions(baa_lexer_tester PRIVATE
-    UNICODE
-    _UNICODE
-    _CRT_SECURE_NO_WARNINGS
 )
 
 # تفعيل الاختبارات (معطل مؤقتاً)

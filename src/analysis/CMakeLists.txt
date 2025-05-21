@@ -10,11 +10,5 @@ target_include_directories(baa_flow_analysis
         ${PROJECT_SOURCE_DIR}/include # Access to baa/analysis/ headers
 )
 
-target_compile_definitions(baa_flow_analysis PUBLIC # Or PRIVATE
-    UNICODE
-    _UNICODE
-    _CRT_SECURE_NO_WARNINGS
-)
-
 # baa_flow_analysis depends on baa_types and baa_utils
-target_link_libraries(baa_flow_analysis PRIVATE baa_types baa_utils)
+target_link_libraries(baa_flow_analysis PRIVATE baa_types baa_utils INTERFACE BaaCommonSettings)

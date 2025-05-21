@@ -16,11 +16,6 @@ add_library(baa_compiler_lib STATIC
 target_include_directories(baa_compiler_lib PRIVATE # Compiler logic likely needs access to all component headers`
     ${PROJECT_SOURCE_DIR}/include
 )
-target_compile_definitions(baa_compiler_lib PRIVATE # Specific definitions for compiler.c
-    UNICODE
-    _UNICODE
-    _CRT_SECURE_NO_WARNINGS
-)
 target_link_libraries(baa_compiler_lib PRIVATE # Compiler logic uses these
     baa_utils
     baa_types
@@ -29,4 +24,5 @@ target_link_libraries(baa_compiler_lib PRIVATE # Compiler logic uses these
     baa_preprocessor
     baa_flow_analysis
     baa_codegen
+    BaaCommonSettings
 )

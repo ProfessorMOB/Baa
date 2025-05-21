@@ -12,9 +12,5 @@ target_include_directories(baa_lexer
     ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
-target_compile_definitions(baa_lexer PUBLIC # Or PRIVATE
-    UNICODE
-    _UNICODE
-    _CRT_SECURE_NO_WARNINGS
-)
+target_link_libraries(baa_lexer INTERFACE BaaCommonSettings)
 # No direct baa_* library dependencies observed for baa_lexer itself.
