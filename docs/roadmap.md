@@ -1,42 +1,180 @@
 # Baa Language Roadmap (خارطة الطريق)
 
-## Current Version: 0.1.10.0 (Working towards 0.2.0)
+## Current Version State (Mid-May 2025)
 
-This roadmap outlines the high-level plan for the Baa language project. For detailed status and plans for specific components (Lexer, Parser, AST, Preprocessor), please refer to their respective roadmap documents (`LEXER_ROADMAP.md`, `PARSER_ROADMAP.md`, `AST_ROADMAP.md`, etc.).
+* **Build System:** Refactored to v0.1.18.0 (Modular, Target-Centric CMake)
+* **Preprocessor:** Features up to v0.1.17.0 (C99 alignment, Arabic directives, error recovery foundation)
+* **Lexer:** Functionality largely aligned with v0.1.13.0+ (Arabic numerals, advanced literals, doc comments)
+* **Core (Types, Operators, Utils):** Foundational elements implemented.
+* **Parser & AST:** Previous versions removed; currently **under redesign and re-implementation.**
+* **Analysis:** Basic flow analysis structure exists; full semantic analysis pending new AST.
+* **Codegen:** Basic LLVM integration stubs and conditional build logic in place; actual IR generation pending new AST/Semantic Analysis.
 
-**Note:** The compilation process now includes an explicit **Preprocessor** stage that handles directives (`#تضمين`, `#تعريف`) before the Lexer stage.
+This roadmap outlines the high-level plan for the Baa language project. For detailed status and plans for specific components, please refer to their respective roadmap documents (`LEXER_ROADMAP.md`, `PREPROCESSOR_ROADMAP.md`, `PARSER_ROADMAP.md`, `AST_ROADMAP.md`, `SEMANTIC_ANALYSIS_ROADMAP.md`, `LLVM_CODEGEN_ROADMAP.md`, etc.).
 
-### Immediate Goals (0.2.0)
+---
 
-1.  **Preprocessor Enhancements:** Continue Preprocessor Enhancements: Implement remaining C99 features (Variadic Macros, `__func__`, `#error`, `#pragma`, etc. with Arabic syntax), and full macro expansion in conditional expressions. (Macro rescanning and basic conditionals are now implemented). (See `PREPROCESSOR_ROADMAP.md` for details).
-2.  **Parser Enhancements:** Complete core control flow parsing, restore decimal number parsing, implement full operator precedence, enhance UTF-8 support, add robust error recovery, and implement comprehensive source position tracking. (See `PARSER_ROADMAP.md` for details).
-3.  **Code Generation (Priority):** Complete LLVM integration, implement the basic code emission pipeline (expressions, statements, control flow), add debug information support, and optimize generated code for Arabic text handling.
-4.  **Lexer Enhancements:**
-    - **Completed:** Significantly improved numeric literal scanning (Arabic-Indic digits, binary/hex prefixes, underscores, Arabic decimal separator `٫`). String/char escape handling is robust (`\uXXXX`, standard C escapes; `\'` in strings is an error). Comment skipping (`//`, `/* */`, `#`) is functional. Error message for invalid string escapes clarified. Lexer modularization is complete.
-    - **Ongoing/Next:** Implement planned Arabic syntax for literals (escape sequences, suffixes, float exponent `أ`). Focus on comprehensive testing of all token types, edge case robustness, and ensuring consistent error reporting quality. Review and refine `LEXER_ROADMAP.md`.
-5.  **AST Improvements:** Enhance scope management, improve modularity, implement comprehensive control flow node handling (including `تعداد` for enum), and add robust error state tracking. (See `AST_ROADMAP.md` for details).
+## Phase 1: Core Compiler Infrastructure & Language Basics (Largely Completed/Ongoing Refinement)
 
-### Mid-term Goals (0.3.0)
+### 1.1 Build System & Core Utilities (Status: Refactored & Stable)
 
-1.  **Advanced Language Features:** Modules, custom types (structs/records with `::`/`->` access), exception handling, function overloading.
-2.  **AST and Type System Improvements:** Type inference, generics/templates, user-defined types (unions, enums), improved memory management (ref counting/GC).
-3.  **Lexer and Parser Enhancements:** Improved Unicode/RTL support, enhanced error recovery, better source location tracking.
-4.  **Arabic Language Support:** Complete Arabization of planned language syntax elements (keywords, operators, literals), full RTL support, enhanced Arabic error messages, standard library documentation, formatting tools.
-5.  **Development Tools:** IDE plugins, code completion, real-time syntax checking, debugging tools.
+* [x] Modern CMake build system (target-centric, modular). (v0.1.18.0)
+* [x] Core utilities: Memory management (`baa_malloc`, `baa_strdup`), basic string ops, file I/O.
+* [x] Basic error reporting infrastructure.
 
-### Long-term Goals (0.4.0)
+### 1.2 Preprocessor (Status: Actively Developed, Most C99 Features Implemented)
 
-1.  **Standard Library:** Comprehensive I/O, string manipulation, file system operations, networking, concurrency features.
-2.  **Testing Infrastructure:** Comprehensive test suite, automated pipeline, benchmarking, coverage reporting, specific tests for errors/Unicode/memory.
-3.  **Code Generation and Optimization:** Optimization passes, target-specific optimizations, inline assembly/intrinsics, register allocation, vectorization/SIMD.
-4.  **Error Handling and Diagnostics:** Improved error messages (context/suggestions), warning system, visual error highlighting, error categorization.
-5.  **Documentation and Examples:** Comprehensive language specification, bilingual docs, more examples, tutorials, best practices.
-6.  **Compiler Features:** Incremental compilation, plugin system, enhanced diagnostics, cross-platform support.
+* [x] File inclusion (`#تضمين`) with relative/standard paths, circular include detection.
+* [x] Macro definition (`#تعريف`): object-like, function-like.
+* [x] Macro expansion: Argument substitution, stringification (`#`), token pasting (`##`), variadic macros (`وسائط_إضافية`, `__وسائط_متغيرة__`), **full rescanning**.
+* [x] Macro undefinition (`#الغاء_تعريف`).
+* [x] Conditional compilation (`#إذا`, `#إذا_عرف`, `#إذا_لم_يعرف`, `#وإلا_إذا`, `#إلا`, `#نهاية_إذا`).
+* [x] Expression evaluation in conditionals (arithmetic, comparison, logical, bitwise, `معرف`, numeric literals).
+* [x] Predefined macros (`__الملف__`, `__السطر__` (int), `__التاريخ__`, `__الوقت__`, `__الدالة__` (placeholder), `__إصدار_المعيار_باء__`).
+* [x] `#خطأ` and `#تحذير` directives implemented.
+* [x] Input encoding detection (UTF-8 default, UTF-16LE with BOM).
+* [x] Foundation for multi-error reporting.
+* **Next/Ongoing:**
+  * Complete error recovery mechanisms (systematic updates for robust continuation).
+  * Finalize known issues (e.g., `معرف` argument expansion, complex `##` in rescans).
+  * Implement remaining standard directives (`#سطر`, `#براغما`, `أمر_براغما`).
+  * Full macro expansion (including function-like) *within* conditional expressions.
+  * *See `docs/PREPROCESSOR_ROADMAP.md`.*
 
-### Future Considerations (1.0.0)
+### 1.3 Lexer (Status: Actively Developed, Most Core Features Implemented)
 
-1.  **Language Evolution:** Metaprogramming, generics, pattern matching, concurrency, functional programming features, contract programming.
-2.  **Ecosystem Development:** Package manager, standard library repository, dependency management, community guidelines, build system integration.
-3.  **Tools and Infrastructure:** Online playground, cloud IDE, CI/CD templates, documentation generator, Language Server Protocol (LSP) implementation.
+* [x] Tokenization of preprocessed UTF-16LE stream.
+* [x] Arabic/English identifiers, Arabic-Indic digits, Arabic keywords.
+* [x] Numeric literals: decimal, hex (`0x`), binary (`0b`), underscores, Arabic decimal separator (`٫`), basic scientific notation (`e`/`E`).
+* [x] Integer literal suffixes (`غ`, `ط`, `طط` and combinations) tokenized.
+* [x] String literals (`"..."`, `"""..."""` multiline, `خ"..."` raw).
+* [x] Character literals (`'...'`).
+* [x] Standard C & Unicode (`\uXXXX`) escape sequence processing.
+* [x] Documentation comment token (`/** ... */`).
+* [x] Accurate line/column tracking.
+* **Next/Ongoing:**
+  * Implement Baa-specific Arabic syntax for literals:
+    * Float suffix `ح`.
+    * Float exponent marker `أ`.
+    * Arabic escape sequences (`\س`, `\م`, etc.).
+  * Ensure `number_parser.c` fully interprets all lexed numeric forms with suffixes.
+  * Enhance error handling (specific error tokens/messages, robust synchronization).
+  * Expand unit and fuzz testing.
+  * *See `docs/LEXER_ROADMAP.md`.*
 
-This roadmap is subject to change based on community feedback and project needs. Regular updates will be made to reflect new requirements and priorities.
+### 1.4 Core Language Primitives (Status: Foundational Implementation)
+
+* [x] Basic Type System (`src/types/`): `عدد_صحيح`, `عدد_حقيقي`, `حرف`, `منطقي`, `فراغ`. Array type structure.
+* [x] Operator System (`src/operators/`): Definitions, precedence, basic validation stubs.
+
+---
+
+## Phase 2: Syntactic Analysis - Parser & AST (Current Major Focus: Redesign & Re-implementation)
+
+* **Goal:** Develop a new, robust Parser and Abstract Syntax Tree (AST) representation.
+* **Status:** Previous implementations removed. New design phase is complete, implementation starting.
+
+### 2.1 Abstract Syntax Tree (AST) - New Design
+
+* **(In Progress/Planned)** Define all AST node types (expressions, statements, declarations, types, program structure) as per `docs/AST.md`.
+* **(In Progress/Planned)** Implement standardized node structures, memory management (creation/freeing functions).
+* **(Planned)** Implement AST traversal mechanisms (e.g., Visitor pattern).
+* *See `docs/AST.md` and `docs/AST_ROADMAP.md`.*
+
+### 2.2 Parser - New Design
+
+* **(In Progress/Planned)** Implement core parser infrastructure (recursive descent, token handling, error reporting/recovery).
+* **(In Progress/Planned)** Develop parsing functions for:
+  * Primary expressions (literals, identifiers, grouping).
+  * Unary and binary expressions with correct precedence and associativity.
+  * Assignment expressions.
+  * Basic statements (expression statements, blocks).
+  * Variable declarations (with type annotations and initializers).
+  * Control flow statements (`إذا`, `وإلا`, `طالما`, `لكل`, `إرجع`, `توقف`, `أكمل`, `اختر`).
+  * Function declarations (C-style: name, parameters, return type, body).
+  * Function call expressions.
+  * Type parsing (basic annotations, array types).
+* **(Planned)** Integration with the new AST generation.
+* *See `docs/PARSER.md` and `docs/PARSER_ROADMAP.md`.*
+
+---
+
+## Phase 3: Semantic Analysis (Depends on New Parser & AST)
+
+* **Goal:** Implement semantic checks, name resolution, and type checking. Annotate AST for code generation.
+* **Status:** Basic flow analysis structure in `src/analysis/` exists but needs integration with new AST. Full semantic analysis is planned.
+
+### 3.1 Symbol Table & Name Resolution
+
+* **(Planned)** Design and implement symbol table(s) and scope management (global, function, block).
+* **(Planned)** Implement name resolution for identifiers, handling shadowing.
+* **(Planned)** Report errors for undeclared/ambiguous identifiers.
+
+### 3.2 Type Checking
+
+* **(Planned)** Implement type checking for all expressions, statements, and declarations.
+* **(Planned)** Validate operator usage based on operand types.
+* **(Planned)** Enforce type compatibility for assignments, function calls, return statements.
+* **(Planned)** Define and implement implicit/explicit type conversion rules.
+
+### 3.3 Control Flow Analysis
+
+* **(Planned)** Integrate and adapt existing `flow_analysis.c` for the new AST.
+* **(Planned)** Verify "all paths return" for non-void functions.
+* **(Planned)** Check for unreachable code, valid `break`/`continue` usage.
+
+### 3.4 AST Annotation
+
+* **(Planned)** Annotate AST nodes with resolved types, links to symbol table entries, etc.
+* **(Planned)** Consider AST transformations (e.g., inserting explicit cast nodes).
+* *See `docs/SEMANTIC_ANALYSIS.md` and `docs/SEMANTIC_ANALYSIS_ROADMAP.md`.*
+
+---
+
+## Phase 4: Code Generation (Depends on New Semantically-Analyzed AST)
+
+* **Goal:** Translate the validated and annotated AST into LLVM IR, and subsequently to machine code.
+* **Status:** Basic LLVM integration and stub backend exist. Actual IR generation from AST is pending.
+
+### 4.1 LLVM IR Generation
+
+* **(Planned)** Implement `BaaLLVMCodeGenerator` context.
+* **(Planned)** Develop functions to generate LLVM IR for each AST node type (expressions, statements, functions, control flow).
+* **(Planned)** Map Baa types to LLVM types.
+* **(Planned)** Handle variable allocation (global, local/stack), loads, and stores.
+* **(Planned)** Generate LLVM IR for operators and function calls.
+* *See `docs/LLVM_CODEGEN.md` and `docs/LLVM_CODEGEN_ROADMAP.md`.*
+
+### 4.2 Optimization & Output
+
+* **(Planned)** Integrate LLVM optimization passes.
+* **(Planned)** Implement emission of object files and assembly for target platforms (e.g., x86-64, ARM64, Wasm).
+* **(Planned)** Basic debug information generation.
+
+---
+
+## Phase 5: Language Maturity & Ecosystem (Longer Term)
+
+### 5.1 Advanced Language Features
+
+* **(Future)** User-defined types: `بنية` (structs), `اتحاد` (unions), `تعداد` (enums) with full semantic and codegen support.
+* **(Future)** Pointers (`مؤشر`).
+* **(Future)** Module system.
+* **(Future)** Advanced function features (optional/named parameters, rest parameters).
+* **(Future)** More comprehensive standard library.
+
+### 5.2 Tooling & Developer Experience
+
+* **(Future)** Enhanced debugging support (mapping IR to Baa source).
+* **(Future)** Language Server Protocol (LSP) implementation for IDE integration (autocompletion, diagnostics).
+* **(Future)** Code formatter, linter.
+* **(Future)** Package manager.
+
+### 5.3 Testing & Documentation
+
+* **(Ongoing)** Expand unit and integration test coverage for all components.
+* **(Ongoing)** Develop comprehensive language specification and user tutorials in Arabic and English.
+
+---
+
+This roadmap is a living document and will be updated as the project progresses and priorities evolve. Community feedback is highly encouraged.

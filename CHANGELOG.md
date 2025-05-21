@@ -8,6 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **CMake Build System:**
+  - Introduced `cmake/BaaCompilerSettings.cmake` module to centralize common compile definitions (`UNICODE`, `_UNICODE`, `_CRT_SECURE_NO_WARNINGS`) via an interface library `BaaCommonSettings`.
+  - Added CMake policies (CMP0074, CMP0067, CMP0042) to the root `CMakeLists.txt` for modern CMake behavior.
+  - Added enforcement for out-of-source builds in the root `CMakeLists.txt`.
+
 - **Preprocessor Error Recovery Foundation:**
   - Implemented internal mechanisms to support accumulating multiple preprocessor errors and warnings instead of halting on the first one. (Files affected: `src/preprocessor/preprocessor_internal.h`, `src/preprocessor/preprocessor.c`, `src/preprocessor/preprocessor_utils.c`).
   - Added `PreprocessorDiagnostic` struct to store individual diagnostic details (message, location).
@@ -15,6 +20,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - The main `baa_preprocess()` function now collects all reported diagnostics and can return them (currently concatenated into the output `error_message` parameter if errors occurred).
 
 ### Changed
+
+- **CMake Build System Refactoring (Major):**
+  - **Target-Centric Approach:**
+    - Removed global `include_directories()` and `add_definitions()` from the root `CMakeLists.txt`.
+    - Compile definitions and include directories are now applied per-target using `target_compile_definitions()` and `target_include_directories()`.
+  - **Executable Linking:**
+    - Main `baa` executable and tool executables (`baa_lexer_tester`, `baa_preprocessor_tester`) now link against component static libraries (e.g., `baa_utils`, `baa_lexer`, `baa_preprocessor`) instead of compiling all sources directly.
+    - Created `baa_compiler_lib` static library from `src/compiler.c`. The main `baa` executable now links `baa_compiler_lib`, which in turn links other necessary component libraries.
+  - **Component Library Dependencies:**
+    - Each component library (in `src/<component>/CMakeLists.txt`) now explicitly declares its dependencies on other `baa_*` libraries using `target_link_libraries()`.
+    - Component libraries now link the `BaaCommonSettings` interface library to inherit common compile definitions.
+  - **LLVM Handling in CMake:**
+    - LLVM-specific source compilation, include directories, compile definitions (`LLVM_AVAILABLE`), and linking of LLVM libraries are now handled within `src/codegen/CMakeLists.txt` for the `baa_codegen` target, based on `USE_LLVM` option and `LLVM_FOUND` status from the root `CMakeLists.txt`.
+  - **src/CMakeLists.txt:**
+    - Ensured `add_subdirectory()` is present for all components, including `preprocessor`.
+    - Adjusted order of `add_subdirectory()` calls for better clarity.
+    - Added definition for `baa_compiler_lib`.
 
 - **Preprocessor Error Reporting:**
   - Modified the core structure of error reporting within the preprocessor to use the new diagnostic accumulation system. This is a foundational step for allowing the preprocessor to continue and report multiple errors.

@@ -1,24 +1,55 @@
 # B (باء) Compiler Development Guide
 
+This guide provides information for developers contributing to the Baa (باء) compiler project. It covers environment setup, project organization, coding standards, and guidelines for implementing various components.
+
 ## Development Environment Setup
 
 ### Prerequisites
-- CMake 3.20 or higher
-- K&R C compliant compiler
-- Git for version control
-- LLVM development libraries
-- Unicode support libraries
+
+* **CMake**: Version 3.20 or higher.
+* **C Compiler**: A C11 compliant compiler (e.g., Clang, GCC, MSVC). Clang-cl is used for Windows development in this project.
+* **Git**: For version control.
+* **LLVM Development Libraries (Optional)**: Required if you want to enable and work on the LLVM code generation backend. If not present, the compiler will use a stub backend.
+* **Ninja (Recommended)**: For faster builds, especially with CMake.
 
 ### Building from Source
-```bash
-git clone <repository-url>
-cd baa
-mkdir build && cd build
-cmake ..
-cmake --build .
-```
+
+The project uses CMake for building. It is **strongly recommended to perform out-of-source builds**.
+
+1. **Clone the repository:**
+
+    ```bash
+    git clone https://github.com/OmarAglan/Baa.git
+    cd baa
+    ```
+
+2. **Create a build directory and configure:**
+
+    ```bash
+    mkdir build
+    cd build
+    # For Windows with Clang-cl (adjust paths to your Clang installation)
+    cmake -G "Ninja" -DCMAKE_C_COMPILER="C:/Program Files/LLVM/bin/clang-cl.exe" -DCMAKE_CXX_COMPILER="C:/Program Files/LLVM/bin/clang-cl.exe" ..
+    # For Linux/macOS with system Clang or GCC
+    # cmake -G "Ninja" ..
+    ```
+
+    * You can add `-DUSE_LLVM=ON` to the cmake command if you have LLVM installed and want to enable the LLVM backend. You might need to provide `LLVM_DIR` if CMake doesn't find it automatically (e.g., `-DLLVM_DIR=/path/to/llvm/cmake`).
+
+3. **Build the project:**
+
+    ```bash
+    cmake --build .
+    # Or directly use ninja:
+    # ninja
+    ```
+
+    The executables (`baa`, `baa_lexer_tester`, `baa_preprocessor_tester`) will be placed in the `build/` directory (or `build/bin/` if `RUNTIME_OUTPUT_DIRECTORY` is set for tools). Libraries (`.lib` or `.a`) will also be in the build directory, typically under subdirectories corresponding to their source location (e.g., `build/src/utils/baa_utils.lib`).
 
 ### Running Tests
+
+(Assuming tests are configured and enabled in `tests/CMakeLists.txt`)
+
 ```bash
 cd build
 ctest --output-on-failure
@@ -26,364 +57,204 @@ ctest --output-on-failure
 
 ## Project Organization
 
-### Source Code Structure
+The project is organized into several main directories:
+
 ```
-src/
-├── lexer/          # Lexical analysis
-│   ├── lexer.c     # Main lexer implementation
-│   ├── token.c     # Token handling
-│   └── utf16.c     # UTF-16 support
-├── parser/         # Syntax analysis
-│   ├── parser.c    # Main parser
-│   ├── grammar.c   # Grammar rules
-│   └── ast.c       # AST construction
-├── types/          # Type system
-│   ├── types.c     # Type definitions
-│   ├── check.c     # Type checking
-│   └── convert.c   # Type conversion
-├── codegen/        # Code generation
-│   ├── gen.c       # LLVM IR generation
-│   ├── opt.c       # Optimizations
-│   └── debug.c     # Debug info
-└── runtime/        # Runtime support
-    ├── memory.c    # Memory management
-    └── error.c     # Error handling
+baa/
+├── cmake/                  # Custom CMake modules (e.g., BaaCompilerSettings.cmake)
+├── docs/                   # Project documentation
+├── include/                # Public header files for the Baa libraries
+│   └── baa/
+│       ├── analysis/
+│       ├── codegen/
+│       ├── compiler.h
+│       ├── diagnostics/    # (Currently AST-dependent, may need rework)
+│       ├── lexer/
+│       ├── operators/
+│       ├── preprocessor/
+│       ├── types/
+│       └── utils/
+├── src/                    # Source code for Baa libraries and compiler
+│   ├── CMakeLists.txt      # CMake file that adds all component subdirectories
+│   ├── analysis/
+│   ├── codegen/
+│   ├── compiler.c          # Core compilation logic (part of baa_compiler_lib)
+│   ├── lexer/
+│   ├── main.c              # Entry point for the 'baa' executable
+│   ├── operators/
+│   ├── preprocessor/
+│   ├── types/
+│   └── utils/
+├── tests/                  # Unit and integration tests
+│   ├── CMakeLists.txt
+│   ├── framework/          # Simple test framework
+│   ├── unit/
+│   ├── integration/
+│   └── resources/          # Test input files
+└── tools/                  # Standalone tester executables
+    ├── baa_lexer_tester.c
+    ├── baa_parser_tester.c # (Currently depends on non-existent parser)
+    └── baa_preprocessor_tester.c
 ```
+
+Key Files:
+
+* **Root `CMakeLists.txt`**: Main project configuration, defines executables, includes `cmake/` modules and `src/` subdirectory.
+* **`src/CMakeLists.txt`**: Adds all component subdirectories (utils, types, lexer, etc.) and defines `baa_compiler_lib`.
+* **`src/<component>/CMakeLists.txt`**: Defines the static library for each component (e.g., `baa_utils`, `baa_lexer`).
+* **`cmake/BaaCompilerSettings.cmake`**: Defines an interface library `BaaCommonSettings` to propagate common compile definitions.
 
 ## Coding Standards
 
 ### C Code Style
-- Follow K&R style
-- 4 spaces for indentation
-- Maximum line length: 80 characters
-- Clear function and variable names
-- Comments in both English and Arabic
 
-### Header Files
-```c
-#pragma once
+* **Indentation**: 4 spaces.
+* **Line Length**: Aim for a maximum of 80-100 characters for readability.
+* **Naming**:
+  * Functions: `baa_component_action()` (e.g., `baa_lexer_next_token()`). Internal static functions can use `helper_action()`.
+  * Structs/Enums/Typedefs: `BaaComponentType` (e.g., `BaaLexer`, `BaaTokenType`).
+  * Macros/Constants: `BAA_UPPER_CASE` (e.g., `BAA_TOKEN_EOF`).
+* **Comments**: Use `//` for single-line and `/* ... */` for multi-line. Doxygen-style comments are encouraged for public APIs.
+  * Provide comments in English. Arabic comments can be added for clarification where beneficial.
 
-// Include guards (alternative)
-#ifndef BAA_COMPONENT_H
-#define BAA_COMPONENT_H
+    ```c
+    /**
+     * @brief Brief English description.
+     * @arabic الوصف بالعربية هنا إذا لزم الأمر.
+     * @param param_name Description of parameter.
+     * @return Description of return value.
+     */
+    // BaaError baa_util_some_function(BaaSomeType* param);
+    ```
 
-// Includes
-#include <stddef.h>
-#include <stdint.h>
+* **Headers**: Use `#pragma once` or standard include guards.
 
-// Type definitions
-typedef struct {
-    // ...
-} ComponentType;
+    ```c
+    #ifndef BAA_COMPONENT_MY_HEADER_H
+    #define BAA_COMPONENT_MY_HEADER_H
 
-// Function declarations
-void baa_component_function(void);
+    // ... content ...
 
-#endif // BAA_COMPONENT_H
-```
+    #endif // BAA_COMPONENT_MY_HEADER_H
+    ```
 
-### Source Files
-```c
-#include "baa/component.h"
-#include <string.h>
+* **Braces**: K&R style (opening brace on the same line for functions and control structures).
 
-// Private functions
-static void helper_function(void) {
-    // Implementation
-}
+    ```c
+    void function_name(int arg) {
+        if (arg > 0) {
+            // ...
+        } else {
+            // ...
+        }
+    }
+    ```
 
-// Public functions
-void baa_component_function(void) {
-    // Implementation
-}
-```
+## Build System (CMake)
 
-## Implementation Guidelines
+The project uses a modular, target-centric CMake build system:
 
-### Lexer Implementation
-1. UTF-16LE handling
-   ```c
-   // Read UTF-16LE characters
-   wchar_t baa_next_char(void);
-   
-   // Handle UTF-16LE strings
-   wchar_t *baa_read_string(void);
-   ```
+* Each component in `src/` (lexer, types, utils, etc.) is built as a **static library** (e.g., `baa_lexer`, `baa_utils`).
+* Each component library defines its own sources, include directories (`target_include_directories`), compile definitions (`target_compile_definitions`), and dependencies on other Baa libraries (`target_link_libraries`).
+* Public headers are placed in `include/baa/<component>/` and made available using `target_include_directories(... PUBLIC ${PROJECT_SOURCE_DIR}/include)`.
+* Internal headers are co-located with sources or in a private include directory for that component, specified with `target_include_directories(... PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})`.
+* The main `baa` executable (from `src/main.c`) links against `baa_compiler_lib`.
+* `baa_compiler_lib` (from `src/compiler.c`) links against all other necessary component libraries (`baa_lexer`, `baa_preprocessor`, `baa_codegen`, `baa_types`, `baa_utils`, etc.).
+* Common compile definitions (like `UNICODE`, `_UNICODE`, `_CRT_SECURE_NO_WARNINGS`) are managed by an interface library `BaaCommonSettings` defined in `cmake/BaaCompilerSettings.cmake`. All targets link this interface library to inherit these properties.
 
-2. Token handling
-   ```c
-   // Token structure
-   typedef struct {
-       BaaTokenType type;
-       const wchar_t *lexeme;
-       size_t length;
-       size_t line;
-       size_t column;
-   } BaaToken;
-   
-   // Token scanning
-   BaaToken baa_scan_token(BaaLexer* lexer);
-   ```
+## Implementation Guidelines by Component
 
-3. Boolean and advanced operator support
-   ```c
-   // Boolean literals
-   // صحيح (True) and خطأ (False)
-   if (baa_identifier_equals(lexer, L"صحيح")) {
-       return baa_make_token(lexer, BAA_TOKEN_BOOL_LIT);
-   } else if (baa_identifier_equals(lexer, L"خطأ")) {
-       return baa_make_token(lexer, BAA_TOKEN_BOOL_LIT);
-   }
-   
-   // Compound assignment operators
-   case L'+':
-       if (baa_match(lexer, L'+')) {
-           return baa_make_token(lexer, BAA_TOKEN_INCREMENT);
-       } else if (baa_match(lexer, L'=')) {
-           return baa_make_token(lexer, BAA_TOKEN_PLUS_EQUAL);
-       }
-       return baa_make_token(lexer, BAA_TOKEN_PLUS);
-   ```
+### Utils (`src/utils/`)
 
-### Parser Implementation
-1. Grammar rules
-   ```c
-   // Parse declarations
-   BaaStmt* baa_parse_var_declaration(BaaParser* parser);
-   BaaStmt* baa_parse_function(BaaParser* parser);
-   
-   // Parse statements
-   BaaStmt* baa_parse_statement(BaaParser* parser);
-   BaaStmt* baa_parse_if_statement(BaaParser* parser);
-   BaaStmt* baa_parse_while_statement(BaaParser* parser);
-   
-   // Parse expressions
-   BaaExpr* baa_parse_expression(BaaParser* parser);
-   BaaExpr* baa_parse_assignment(BaaParser* parser);
-   ```
+* Provides common utility functions (memory allocation wrappers `baa_malloc`, `baa_free`, `baa_realloc`; string duplication `baa_strdup`, `baa_strdup_char`; file I/O `baa_file_content`, `baa_read_file`).
+* Defines common error handling mechanisms (`BaaError` enum, `baa_set_error`, etc.).
 
-2. AST construction
-   ```c
-   // Create AST nodes
-   BaaExpr* baa_create_binary_expr(BaaBinaryOpKind op, BaaExpr* left, BaaExpr* right, BaaSourceLocation loc);
-   BaaExpr* baa_create_unary_expr(BaaUnaryOpKind op, BaaExpr* operand, BaaSourceLocation loc);
-   ```
+### Types (`src/types/`)
 
-### AST Implementation
-1. Function parameter handling
-   ```c
-   // Create parameters
-   BaaParameter* baa_create_parameter(const wchar_t* name, size_t name_length, BaaType* type);
-   BaaParameter* baa_create_optional_parameter(const wchar_t* name, size_t name_length, BaaType* type, BaaExpr* default_value);
-   BaaParameter* baa_create_rest_parameter(const wchar_t* name, size_t name_length, BaaType* element_type);
-   
-   // Add parameters to function
-   bool baa_add_parameter_to_function(BaaFunction* function, BaaParameter* parameter);
-   
-   // Function validation
-   bool baa_validate_function_signature(BaaFunction* function);
-   ```
+* Defines the Baa language's type system (`BaaType` struct, `BaaTypeKind` enum).
+* Initializes and provides access to global predefined types (e.g., `baa_type_int`, `baa_type_float`).
+* Implements type comparison and basic convertibility checks.
 
-2. Control Flow Statements
-   ```c
-   // Create control flow statements
-   BaaStmt* baa_create_if_stmt(BaaExpr* condition, BaaStmt* then_branch, BaaStmt* else_branch);
-   BaaStmt* baa_create_while_stmt(BaaExpr* condition, BaaStmt* body);
-   BaaStmt* baa_create_for_stmt(BaaStmt* initializer, BaaExpr* condition, BaaExpr* increment, BaaStmt* body);
-   BaaStmt* baa_create_switch_stmt(BaaExpr* value, BaaStmt** cases, size_t case_count);
-   BaaStmt* baa_create_break_stmt(int loop_depth, bool is_switch_break);
-   BaaStmt* baa_create_continue_stmt(int loop_depth);
-   ```
+### Operators (`src/operators/`)
 
-### Type System
-1. Type checking
-   ```c
-   // Check types
-   Type *check_binary_operation(Type *left, Type *right, TokenType op);
-   Type *check_unary_operation(Type *operand, TokenType op);
-   ```
+* Defines Baa operators, their symbols, precedence, and associativity (`BaaOperatorInfo`, `BaaOperatorType`, `BaaOperatorPrecedence`).
+* Provides functions for validating operator usage with given operand types (e.g., `baa_validate_binary_op`).
 
-2. Type conversion
-   ```c
-   // Convert types
-   Type *convert_type(Type *from, Type *to);
-   bool is_convertible(Type *from, Type *to);
-   ```
+### Preprocessor (`src/preprocessor/`)
 
-### Code Generation
-1. LLVM IR generation
-   ```c
-   // Generate LLVM IR
-   LLVMValueRef gen_expression(Node *node);
-   LLVMValueRef gen_function(Node *node);
-   ```
+* Handles directives (`#تضمين`, `#تعريف`, conditionals like `#إذا_عرف`, `#إذا`, etc.).
+* Performs macro expansion (object-like, function-like, variadic, stringification, token pasting) with rescanning.
+* Manages include paths, file encoding detection (UTF-8/UTF-16LE), and circular include detection.
+* Outputs a single preprocessed `wchar_t*` stream for the lexer.
+* Uses an internal location stack (`PpSourceLocation`) to provide accurate error reporting from original source files.
 
-2. Optimization
-   ```c
-   // Optimize code
-   void optimize_function(LLVMValueRef function);
-   void optimize_module(LLVMModuleRef module);
-   ```
+### Lexer (`src/lexer/`)
+
+* Tokenizes the preprocessed `wchar_t*` stream.
+* Supports Arabic identifiers, keywords, and numeric literals (including Arabic-Indic digits, hex/binary prefixes, underscores).
+* Handles string/character literals with standard escapes. Planned: Baa-specific Arabic escapes.
+* Recognizes documentation comments (`/** ... */`).
+* Modular structure:
+  * `lexer.c`: Core dispatch logic, keyword table.
+  * `token_scanners.c`: Functions for scanning specific token categories (identifiers, numbers, strings).
+  * `lexer_char_utils.c`: Character classification utilities.
+  * `number_parser.c`: (Utility often called by lexer or parser) Converts numeric lexemes to values.
+
+### Parser (`src/parser/`) - **Currently under Redesign/Removal**
+
+* **(Planned)** Transforms token stream from Lexer into an Abstract Syntax Tree (AST).
+* **(Planned)** Will use a recursive descent approach.
+* **(Planned)** Modules for expressions, statements, declarations.
+* **(Planned)** Primary responsibility: syntactic validation and AST construction. Semantic checks deferred.
+* *Refer to `docs/PARSER.md` and `docs/PARSER_ROADMAP.md` for the new design plans.*
+
+### AST (Abstract Syntax Tree) - **Currently under Redesign/Removal**
+
+* **(Planned)** Defines the structure of the AST nodes (`BaaNode`, `BaaExpr`, `BaaStmt`, specific node data structs).
+* **(Planned)** Manages memory for AST nodes.
+* **(Planned)** Provides functions for creating and freeing AST nodes.
+* *Refer to `docs/AST.md` and `docs/AST_ROADMAP.md` for the new design plans.*
+
+### Analysis (`src/analysis/`)
+
+* Contains semantic analysis passes.
+* `flow_analysis.c`: Control flow checks (e.g., break/continue validity, return path analysis).
+  * *(Currently contains stubs as it was AST-dependent; needs integration with new AST/semantic analysis framework).*
+* **(Planned)** Symbol table management, name resolution, type checking, and other semantic validations.
+
+### Code Generation (`src/codegen/`)
+
+* Transforms the (semantically analyzed) AST into target code.
+* `codegen.c`: Main codegen dispatch logic.
+* `llvm_codegen.c`: LLVM IR generation implementation (used if `USE_LLVM=ON` and LLVM is found).
+  * *(Currently contains stubs or AST-dependent code that needs refactoring to work with the new/planned AST or intermediate representation).*
+* `llvm_stub.c`: Stub implementation used when LLVM is not available/enabled.
+
+### Compiler (`src/compiler.c` - part of `baa_compiler_lib`)
+
+* Orchestrates the compilation pipeline: Preprocessing -> Lexing -> (Future: Parsing -> Semantic Analysis) -> Code Generation.
+* `compile_baa_file()` is the main entry point.
+
+### Main Executable (`src/main.c` - builds `baa.exe`)
+
+* Handles command-line argument parsing.
+* Calls `compile_baa_file()`.
 
 ## Error Handling
 
-### Error Types
-```c
-typedef enum {
-    ERROR_LEXICAL,
-    ERROR_SYNTAX,
-    ERROR_TYPE,
-    ERROR_SEMANTIC
-} ErrorType;
-
-// Report errors
-void report_error(ErrorType type, const wchar_t *message);
-```
-
-### Error Recovery
-```c
-// Synchronize parser
-void synchronize(void);
-
-// Skip to next statement
-void skip_to_statement(void);
-```
+* Utilize `baa_set_error()` from `baa/utils/errors.h` for general errors.
+* Lexer reports errors by returning a `BAA_TOKEN_ERROR` token with the message in `lexeme`.
+* Preprocessor accumulates diagnostics in its internal state and reports them.
+* Parser (when re-implemented) will have its own error reporting and recovery.
+* Aim for clear, actionable error messages, preferably in Arabic or bilingual.
 
 ## Testing
 
-### Running Tests
-```bash
-# Build and run type system tests
-gcc -o test_types tests/test_types.c src/types/types.c -I./src
-./test_types
+* Unit tests are located in `tests/unit/<component>/`.
+* Integration tests (planned) in `tests/integration/`.
+* Test resources (input files) are in `tests/resources/`.
+* The `tests/framework/` provides a simple assertion-based test framework.
+* Tests are added to CMake in their respective `CMakeLists.txt` files and run via `ctest`.
+* Strive for high test coverage for all components.
 
-# Build and run operator tests
-gcc -o test_operators tests/test_operators.c src/operators/operators.c src/types/types.c -I./src
-./test_operators
-```
-
-### Test Organization
-```
-tests/
-├── test_types.c     # Type system tests
-└── test_operators.c # Operator tests
-```
-
-### Writing Tests
-1. Create test file in `tests/` directory
-2. Include necessary headers
-3. Write test functions for each feature
-4. Add assertions for expected behavior
-5. Add the test to the build system
-
-### Test Coverage
-- Basic type creation and properties
-- Type system initialization
-- Type comparison and conversion
-- Operator validation
-- Error handling
-- Arabic string handling
-
-### Example Test
-```c
-void test_type_conversion(void) {
-    printf("Testing type conversion...\n");
-    
-    // Valid conversions
-    assert(baa_can_convert(type_int, type_float) == true);
-    assert(baa_can_convert(type_float, type_int) == true);
-    assert(baa_can_convert(type_char, type_int) == true);
-    
-    // Invalid conversions
-    assert(baa_can_convert(type_void, type_int) == false);
-    assert(baa_can_convert(type_error, type_int) == false);
-    
-    printf("Type conversion tests passed.\n");
-}
-```
-
-## Documentation
-
-### Code Documentation
-```c
-/**
- * @brief Function description in English
- * @arabic وصف الدالة بالعربية
- *
- * @param param1 Parameter description
- * @return Return value description
- */
-Type function_name(Type param1);
-```
-
-### User Documentation
-1. README.md
-2. Installation guide
-3. Language reference
-4. Examples
-
-## Build System
-
-### CMake Configuration
-```cmake
-# Component libraries
-add_library(baa_lexer
-    src/lexer/lexer.c
-    src/lexer/token.c
-    src/lexer/utf16.c
-)
-
-# Main executable
-add_executable(baa src/main.c)
-target_link_libraries(baa
-    baa_lexer
-    baa_parser
-    baa_codegen
-)
-```
-
-## Debugging
-
-### Tools
-1. GDB/LLDB
-2. Address Sanitizer
-3. Memory Sanitizer
-4. Undefined Behavior Sanitizer
-
-### Debug Information
-```c
-// Debug logging
-void debug_log(const wchar_t *format, ...);
-
-// Memory tracking
-void *debug_malloc(size_t size, const char *file, int line);
-void debug_free(void *ptr, const char *file, int line);
-```
-
-## Performance Considerations
-
-### Optimization Levels
-1. -O0: No optimization
-2. -O1: Basic optimization
-3. -O2: Full optimization
-4. -O3: Aggressive optimization
-
-### Memory Management
-1. Stack allocation preferred
-2. Minimize heap allocations
-3. Use memory pools
-4. Cache-friendly data structures
-
-## Security
-
-### Guidelines
-1. Input validation
-2. Buffer overflow prevention
-3. Memory safety
-4. Error handling
-
-### Best Practices
-1. Use safe functions
-2. Check return values
-3. Validate array bounds
-4. Handle Unicode safely
+Remember to consult the specific roadmap documents for each component (`LEXER_ROADMAP.md`, `PREPROCESSOR_ROADMAP.md`, etc.) for detailed plans and status.
