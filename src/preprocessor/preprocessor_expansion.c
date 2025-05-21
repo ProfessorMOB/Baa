@@ -385,7 +385,7 @@ wchar_t **parse_macro_arguments(BaaPreprocessor *pp_state, const wchar_t **invoc
             args = new_args;
             args_capacity = new_capacity;
         }
-        args[*actual_arg_count] = _wcsdup(L"");
+        args[*actual_arg_count] = baa_strdup(L"");
         if (!args[*actual_arg_count])
         {
             PpSourceLocation va_dup_loc = get_current_original_location(pp_state);
@@ -521,11 +521,11 @@ bool substitute_macro_body(BaaPreprocessor *pp_state, DynamicWcharBuffer *output
             {
                 if (arg_count > macro->param_count)
                 {
-                    rhs_value_to_paste = _wcsdup(arguments[macro->param_count]);
+                    rhs_value_to_paste = baa_strdup(arguments[macro->param_count]);
                 }
                 else
                 {
-                    rhs_value_to_paste = _wcsdup(L"");
+                    rhs_value_to_paste = baa_strdup(L"");
                 }
             }
             else
@@ -535,13 +535,13 @@ bool substitute_macro_body(BaaPreprocessor *pp_state, DynamicWcharBuffer *output
                 {
                     if (wcscmp(rhs_token_str, macro->param_names[i]) == 0)
                     {
-                        rhs_value_to_paste = (arguments[i][0] == L'\0') ? _wcsdup(L"") : _wcsdup(arguments[i]);
+                        rhs_value_to_paste = (arguments[i][0] == L'\0') ? baa_strdup(L"") : baa_strdup(arguments[i]);
                         rhs_is_param = true;
                         break;
                     }
                 }
                 if (!rhs_is_param)
-                    rhs_value_to_paste = _wcsdup(rhs_token_str);
+                    rhs_value_to_paste = baa_strdup(rhs_token_str);
             }
             free(rhs_token_str);
             if (!rhs_value_to_paste)

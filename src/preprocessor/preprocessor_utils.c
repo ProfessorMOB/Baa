@@ -77,14 +77,14 @@ wchar_t *format_preprocessor_error_at_location(const PpSourceLocation *location,
         if (needed_fallback < 0)
         {
             va_end(args_fallback);
-            return _wcsdup(L"فشل في تنسيق رسالة الخطأ (وفشل تخصيص البادئة).");
+            return baa_strdup(L"فشل في تنسيق رسالة الخطأ (وفشل تخصيص البادئة).");
         }
         size_t buffer_size_fallback = (size_t)needed_fallback + 1;
         wchar_t *buffer_fallback = malloc(buffer_size_fallback * sizeof(wchar_t));
         if (!buffer_fallback)
         {
             va_end(args_fallback);
-            return _wcsdup(L"فشل في تنسيق رسالة الخطأ (وفشل تخصيص البادئة والمخزن المؤقت).");
+            return baa_strdup(L"فشل في تنسيق رسالة الخطأ (وفشل تخصيص البادئة والمخزن المؤقت).");
         }
         vswprintf(buffer_fallback, buffer_size_fallback, format, args_fallback);
         va_end(args_fallback);
@@ -122,14 +122,14 @@ wchar_t *format_preprocessor_error_at_location(const PpSourceLocation *location,
         if (needed_fallback < 0)
         {
             va_end(args_fallback);
-            return _wcsdup(L"فشل في تنسيق رسالة الخطأ (وفشل تحويل البادئة).");
+            return baa_strdup(L"فشل في تنسيق رسالة الخطأ (وفشل تحويل البادئة).");
         }
         size_t buffer_size_fallback = (size_t)needed_fallback + 1;
         wchar_t *buffer_fallback = malloc(buffer_size_fallback * sizeof(wchar_t));
         if (!buffer_fallback)
         {
             va_end(args_fallback);
-            return _wcsdup(L"فشل في تنسيق رسالة الخطأ (وفشل تحويل البادئة والمخزن المؤقت).");
+            return baa_strdup(L"فشل في تنسيق رسالة الخطأ (وفشل تحويل البادئة والمخزن المؤقت).");
         }
         vswprintf(buffer_fallback, buffer_size_fallback, format, args_fallback);
         va_end(args_fallback);
@@ -148,7 +148,7 @@ wchar_t *format_preprocessor_error_at_location(const PpSourceLocation *location,
     {
         va_end(args);
         free(prefix_w);
-        return _wcsdup(L"فشل في تنسيق جزء الرسالة من خطأ المعالج المسبق.");
+        return baa_strdup(L"فشل في تنسيق جزء الرسالة من خطأ المعالج المسبق.");
     }
 
     // Combine prefix and message (same logic as before)
@@ -161,7 +161,7 @@ wchar_t *format_preprocessor_error_at_location(const PpSourceLocation *location,
     {
         va_end(args);
         free(prefix_w);
-        return _wcsdup(L"فشل في تخصيص الذاكرة لرسالة خطأ المعالج المسبق الكاملة.");
+        return baa_strdup(L"فشل في تخصيص الذاكرة لرسالة خطأ المعالج المسبق الكاملة.");
     }
 
     wcscpy(final_buffer, prefix_w);
@@ -192,14 +192,14 @@ wchar_t *format_preprocessor_warning_at_location(const PpSourceLocation *locatio
         if (needed_fallback < 0)
         {
             va_end(args_fallback);
-            return _wcsdup(L"فشل في تنسيق رسالة التحذير (وفشل تخصيص البادئة).");
+            return baa_strdup(L"فشل في تنسيق رسالة التحذير (وفشل تخصيص البادئة).");
         }
         size_t buffer_size_fallback = (size_t)needed_fallback + 1;
         wchar_t *buffer_fallback = malloc(buffer_size_fallback * sizeof(wchar_t));
         if (!buffer_fallback)
         {
             va_end(args_fallback);
-            return _wcsdup(L"فشل في تنسيق رسالة التحذير (وفشل تخصيص البادئة والمخزن المؤقت).");
+            return baa_strdup(L"فشل في تنسيق رسالة التحذير (وفشل تخصيص البادئة والمخزن المؤقت).");
         }
         vswprintf(buffer_fallback, buffer_size_fallback, format, args_fallback);
         va_end(args_fallback);
@@ -237,14 +237,14 @@ wchar_t *format_preprocessor_warning_at_location(const PpSourceLocation *locatio
         if (needed_fallback < 0)
         {
             va_end(args_fallback);
-            return _wcsdup(L"فشل في تنسيق رسالة التحذير (وفشل تحويل البادئة).");
+            return baa_strdup(L"فشل في تنسيق رسالة التحذير (وفشل تحويل البادئة).");
         }
         size_t buffer_size_fallback = (size_t)needed_fallback + 1;
         wchar_t *buffer_fallback = malloc(buffer_size_fallback * sizeof(wchar_t));
         if (!buffer_fallback)
         {
             va_end(args_fallback);
-            return _wcsdup(L"فشل في تنسيق رسالة التحذير (وفشل تحويل البادئة والمخزن المؤقت).");
+            return baa_strdup(L"فشل في تنسيق رسالة التحذير (وفشل تحويل البادئة والمخزن المؤقت).");
         }
         vswprintf(buffer_fallback, buffer_size_fallback, format, args_fallback);
         va_end(args_fallback);
@@ -263,7 +263,7 @@ wchar_t *format_preprocessor_warning_at_location(const PpSourceLocation *locatio
     {
         va_end(args);
         free(prefix_w);
-        return _wcsdup(L"فشل في تنسيق جزء الرسالة من تحذير المعالج المسبق.");
+        return baa_strdup(L"فشل في تنسيق جزء الرسالة من تحذير المعالج المسبق.");
     }
 
     // Combine prefix and message
@@ -276,7 +276,7 @@ wchar_t *format_preprocessor_warning_at_location(const PpSourceLocation *locatio
     {
         va_end(args);
         free(prefix_w);
-        return _wcsdup(L"فشل في تخصيص الذاكرة لرسالة تحذير المعالج المسبق الكاملة.");
+        return baa_strdup(L"فشل في تخصيص الذاكرة لرسالة تحذير المعالج المسبق الكاملة.");
     }
 
 #ifdef _WIN32
@@ -658,9 +658,9 @@ char *get_absolute_path(const char *file_path)
 char *get_directory_part(const char *file_path)
 {
 #ifdef _WIN32
-    char *path_copy = _strdup(file_path);
+    char *path_copy = baa_strdup_char(file_path);
 #else
-    char *path_copy = _strdup(file_path); // Use _strdup here too
+    char *path_copy = baa_strdup_char(file_path); // Use _strdup here too
 #endif
     if (!path_copy)
         return NULL;
@@ -695,7 +695,7 @@ char *get_directory_part(const char *file_path)
     return dir_part;
 #else
     char *dir_name_result = dirname(path_copy);
-    char *dir_part = _strdup(dir_name_result); // Use _strdup here too
+    char *dir_part = baa_strdup_char(dir_name_result); // Use _strdup here too
     free(path_copy);
     return dir_part;
 #endif
@@ -723,7 +723,7 @@ bool push_file_stack(BaaPreprocessor *pp, const char *abs_path)
         pp->open_files_capacity = new_capacity;
     }
 
-    char *path_copy = _strdup(abs_path); // Use _strdup here
+    char *path_copy = baa_strdup_char(abs_path); // Use _strdup here
     if (!path_copy)
         return false;
     pp->open_files_stack[pp->open_files_count++] = path_copy;

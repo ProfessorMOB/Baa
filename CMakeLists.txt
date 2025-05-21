@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.20)
 project(baa
-    VERSION 0.1.12.0
+    VERSION 0.1.17.0
     DESCRIPTION "لغة باء - The Baa Programming Language"
     LANGUAGES C
 )
@@ -12,7 +12,6 @@ set(CMAKE_C_STANDARD_REQUIRED ON)
 # Option to skip parser compilation for development (No longer directly applicable this way)
 # option(SKIP_PARSER "Skip compiling the parser components" OFF)
 
-add_definitions(-DUNICODE -D_UNICODE -D_CRT_SECURE_NO_WARNINGS)
 set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /IGNORE:4006 /IGNORE:4099") # Ignore certain linker warnings if needed
 
 # إضافة مجلد التضمين الرئيسي
@@ -20,50 +19,31 @@ include_directories(${CMAKE_SOURCE_DIR}/include)
 
 # --- البرنامج الرئيسي ---
 add_executable(baa
-    # Core executable files
     src/main.c
     src/compiler.c
-
-    # Utility files
-    src/utils/utils.c
-
-    # Type system files
-    src/types/types.c
-
-    # Operator files
-    src/operators/operators.c
-
-    # Lexer files
-    src/lexer/lexer.c
-    src/lexer/number_parser.c
-    src/lexer/lexer_char_utils.c
-    src/lexer/token_scanners.c   # Added token scanners source
-
-    # Preprocessor files
-    src/preprocessor/preprocessor.c
-    src/preprocessor/preprocessor_utils.c
-    src/preprocessor/preprocessor_macros.c
-    src/preprocessor/preprocessor_expansion.c
-    src/preprocessor/preprocessor_conditionals.c
-    src/preprocessor/preprocessor_expr_eval.c
-    src/preprocessor/preprocessor_core.c
-    src/preprocessor/preprocessor_directives.c
-    src/preprocessor/preprocessor_line_processing.c
-
-    # Analysis files
-    src/analysis/flow_analysis.c
-    src/analysis/flow_errors.c
-
-    # Codegen core file (always needed)
-    src/codegen/codegen.c
 )
 
-# Include directories for the executable
-target_include_directories(baa
-    PRIVATE
-        ${CMAKE_SOURCE_DIR}/include
-        ${CMAKE_SOURCE_DIR}/src       # Allow includes like "lexer/lexer_char_utils.h" or relative from within src
-        # ${CMAKE_SOURCE_DIR}/src/preprocessor # Already covered by ../src
+# Link component libraries to the main executable
+target_link_libraries(baa PRIVATE
+    baa_utils
+    baa_types
+    baa_operators
+    baa_lexer
+    baa_preprocessor
+    baa_flow_analysis # This library name is defined in src/analysis/CMakeLists.txt
+    baa_codegen
+)
+
+# Include directories and compile definitions for the 'baa' executable
+target_include_directories(baa PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+    ${CMAKE_SOURCE_DIR}/src       # Allow includes like "lexer/lexer_char_utils.h" or relative from within src
+)
+
+target_compile_definitions(baa PRIVATE
+    UNICODE
+    _UNICODE
+    _CRT_SECURE_NO_WARNINGS
 )
 
 # --- Conditional LLVM Handling ---
@@ -115,47 +95,30 @@ endif()
 # --- Standalone Preprocessor Tester ---
 add_executable(baa_preprocessor_tester
     tools/baa_preprocessor_tester.c
-
-    # Preprocessor files (needed by the tester)
-    src/preprocessor/preprocessor.c
-    src/preprocessor/preprocessor_utils.c
-    src/preprocessor/preprocessor_macros.c
-    src/preprocessor/preprocessor_expansion.c
-    src/preprocessor/preprocessor_conditionals.c
-    src/preprocessor/preprocessor_expr_eval.c
-    src/preprocessor/preprocessor_core.c
-    src/preprocessor/preprocessor_directives.c
-    src/preprocessor/preprocessor_line_processing.c
-
-    # Utility files (needed by the preprocessor)
-    src/utils/utils.c
 )
 
-# Include directories for the tester
+# Link dependencies for the preprocessor tester
+target_link_libraries(baa_preprocessor_tester PRIVATE
+    baa_preprocessor
+    baa_utils
+)
+
+# Include directories for the preprocessor tester
 target_include_directories(baa_preprocessor_tester
     PRIVATE
         ${CMAKE_SOURCE_DIR}/include       # For baa/preprocessor/preprocessor.h
         ${CMAKE_SOURCE_DIR}/src/preprocessor # For preprocessor_internal.h
 )
 
-# Set output directory for the tester executable (optional, but good practice)
-set_target_properties(baa_preprocessor_tester PROPERTIES
-    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
-)
-
 # --- Standalone Lexer Tester ---
 add_executable(baa_lexer_tester
     tools/baa_lexer_tester.c
+)
 
-    # Lexer files (needed by the tester)
-    src/lexer/lexer.c
-    src/lexer/number_parser.c
-    src/lexer/lexer_char_utils.c
-    src/lexer/token_scanners.c
-
-    # Utility files (needed by the lexer and tester)
-    src/utils/utils.c
-    # src/utils/errors.c # If errors.c exists and is needed
+# Link dependencies for the lexer tester
+target_link_libraries(baa_lexer_tester PRIVATE
+    baa_lexer
+    baa_utils
 )
 
 # Include directories for the lexer tester
@@ -164,12 +127,6 @@ target_include_directories(baa_lexer_tester
         ${CMAKE_SOURCE_DIR}/include  # For baa/lexer/lexer.h and baa/utils/*.h
         ${CMAKE_SOURCE_DIR}/src/lexer # For lexer_internal.h if needed by included lexer files
 )
-
-# Set output directory for the lexer tester executable
-set_target_properties(baa_lexer_tester PROPERTIES
-    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
-)
-
 
 # تفعيل الاختبارات (معطل مؤقتاً)
 # enable_testing()

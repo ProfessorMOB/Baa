@@ -16,5 +16,14 @@ add_library(baa_preprocessor STATIC
 # Ensure the library can find the main include directory
 target_include_directories(baa_preprocessor
     PUBLIC
-        ${PROJECT_SOURCE_DIR}/include # Assuming main headers are in root/include
+    ${PROJECT_SOURCE_DIR}/include # For baa/preprocessor/preprocessor.h
+    PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}   # For preprocessor_internal.h
 )
+
+target_compile_definitions(baa_preprocessor PUBLIC # Or PRIVATE
+    UNICODE
+    _UNICODE
+    _CRT_SECURE_NO_WARNINGS
+)
+target_link_libraries(baa_preprocessor PRIVATE baa_utils)
