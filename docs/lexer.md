@@ -2,404 +2,140 @@
 
 ## Overview
 
-The Baa lexer processes source code written in the Baa language, which includes strong support for Arabic. **Note: The lexer operates on the source code *after* it has been processed by the Baa Preprocessor, which handles directives like `#تضمين`.** It reads the resulting (potentially combined) source, assumed to be encoded in UTF-16LE, and uses wide characters (`wchar_t`) internally. The lexer tokenizes Arabic identifiers, keywords, and literals, while maintaining precise source location tracking (line and column numbers). It converts the processed text into a stream of tokens that can be consumed by the parser.
+The Baa lexer, also known as a lexical analyzer or scanner, is a fundamental component of the Baa compiler. It is responsible for taking the raw Baa source code (which has **already been processed by the Baa Preprocessor**) and converting it into a sequence of meaningful units called **tokens**. These tokens are then passed to the Baa Parser for syntactic analysis.
+
+The lexer operates on a UTF-16LE wide character stream, which is the output format of the Baa Preprocessor. It is designed with strong support for Arabic, including the ability to tokenize Arabic identifiers, keywords, and various literal forms.
 
 ## Features
 
-### Arabic Language Support
+### 1. Tokenization
 
-- Recognizes Arabic letters from multiple Unicode ranges (0x0600-0x06FF, FB50-FDFF, FE70-FEFF) for identifiers.
-- Recognizes Arabic-Indic digits (٠-٩) in identifiers and number literals.
-- Recognizes Arabic keywords (e.g., `دالة`, `إذا`).
-- Supports Arabic characters within string literals.
-- Note: Bidirectional text display is dependent on the terminal/editor, not explicitly managed by the lexer logic itself.
-- Note: Standard C-style comments (`//`, `/* */`) are supported and skipped. Legacy `#` style comments are no longer supported by the lexer (preprocessor handles `#` for directives).
+The primary role of the lexer is to identify and categorize sequences of characters from the input stream into distinct tokens. Each token typically has:
 
-### Token Types
+* A **type** (e.g., identifier, keyword, integer literal, operator).
+* A **lexeme** (the actual string of characters from the source that forms the token).
+* **Source location information** (line number and starting column number).
 
-The lexer identifies the following categories of tokens:
+### 2. Arabic Language Support
 
-- Keywords (كلمات مفتاحية)
-- Identifiers (معرفات)
-- Literals (قيم حرفية)
-  - Numbers (أرقام - Scanned as `BAA_TOKEN_INT_LIT` or `BAA_TOKEN_FLOAT_LIT` based on syntax. Value parsing may occur later.)
-  - Strings (نصوص - `BAA_TOKEN_STRING_LIT`)
-  - Boolean (قيم منطقية - `BAA_TOKEN_BOOL_LIT`, scanned via `صحيح`/`خطأ` keywords)
-  - Characters (حروف - `BAA_TOKEN_CHAR_LIT`, scanned via `'c'` syntax)
-- Type Names (أسماء الأنواع - e.g., `عدد_صحيح`, `منطقي` scanned as specific `BAA_TOKEN_TYPE_*`)
-- Operators (عوامل - e.g., `+`, `==`, `+=`, `&&`, `++`)
-- Delimiters (فواصل - e.g., `(`, `;`, `{`)
-- Comments (تعليقات - `//`, `/* */` style comments are skipped, not tokenized. `#` is handled by the preprocessor.)
+* **Identifiers:** Recognizes identifiers composed of Arabic letters (from standard Unicode ranges for Arabic), English letters, Arabic-Indic digits (`٠`-`٩`), ASCII digits (`0-9`), and underscores (`_`).
+* **Keywords:** Identifies reserved Arabic keywords (e.g., `إذا`, `لكل`, `ثابت`, `مضمن`, `مقيد`).
+* **Numeric Literals:**
+  * Parses integers in decimal, hexadecimal (`0x`/`0X`), and binary (`0b`/`0B`) formats.
+  * Supports Arabic-Indic digits within all parts of numeric literals.
+  * Allows underscores (`_`) as separators for readability in numbers.
+  * Recognizes Arabic integer literal suffixes (`غ` for unsigned, `ط` for long, `طط` for long long, and their combinations like `غط`). The lexer includes these in the token's lexeme; interpretation is up to later stages.
+  * Parses floating-point numbers using `.` or the Arabic decimal separator `٫`.
+  * Supports scientific notation for floats using `e` or `E` (Arabic `أ` exponent marker planned).
+* **String and Character Literals:**
+  * Handles standard double-quoted strings (`"..."`), multiline triple-quoted strings (`"""..."""`), and raw strings (prefixed with `خ`, e.g., `خ"..."`, `خ"""..."""`).
+  * Handles single-quoted character literals (`'...'`).
+  * Processes standard C-style escape sequences (`\n`, `\t`, `\\`, `\"`, `\'`) and Unicode escapes (`\uXXXX`). (Baa-specific Arabic escapes are planned).
 
-### Source Location Tracking
+### 3. Comment Handling
 
-- Line and column tracking
-- File position management
-- Error location reporting
+* Skips single-line comments starting with `//`.
+* Skips multi-line comments enclosed in `/* ... */`.
+* Recognizes and tokenizes documentation comments (`/** ... */`) as `BAA_TOKEN_DOC_COMMENT`, preserving their content for potential use by documentation tools.
+* Note: Preprocessor directives (lines starting with `#`) are handled *before* the lexer stage.
 
-### Error Handling
+### 4. Error Handling
 
-- Returns a `BAA_TOKEN_ERROR` token when an issue is encountered (e.g., unexpected character, unterminated string/char/comment literal, invalid escape sequence).
-- The `lexeme` field of the error token contains a descriptive message (currently mostly in English, except for number parsing errors).
-- Invalid character detection.
-- Malformed token reporting (e.g., unterminated strings, invalid escape sequences).
-- Note: Detailed Arabic error messages for general lexing errors are not yet implemented. Unicode validation is limited to assuming valid UTF-16LE input.
+* Identifies lexical errors such as unexpected characters, unterminated string/character/comment literals, and invalid escape sequences.
+* When an error is encountered, it generates a `BAA_TOKEN_ERROR` token. The `lexeme` field of this token contains an error message (often in Arabic for number-related errors, English for others currently).
+* Includes basic error synchronization to attempt to continue tokenizing after an error.
 
-## Lexer Structure
+### 5. Modular Structure
 
-### BaaLexer
+The lexer implementation is organized into several files:
 
-The main lexer structure holds the current state of the lexical analysis process:
+* `lexer.c`: Core dispatch logic (`baa_lexer_next_token`), keyword table, and general helper functions.
+* `token_scanners.c`: Contains specific functions for scanning different categories of tokens (e.g., `scan_identifier`, `scan_number`, `scan_string`).
+* `lexer_char_utils.c`: Provides utility functions for character classification (e.g., `is_arabic_letter`, `is_arabic_digit`).
+* `number_parser.c`: A utility (often used in conjunction with the lexer) for converting the textual representation of numbers (lexemes) into actual numeric values and handling various numeric formats and potential errors during conversion.
+
+## Lexer State and Token Structures
+
+### `BaaLexer` (Lexer State)
+
+Holds the current state of the lexical analysis:
 
 ```c
 typedef struct {
-    const wchar_t* source;   // Source code being lexed
-    size_t start;           // Start of current token
-    size_t current;         // Current position in source
-    size_t line;           // Current line number
-    size_t column;         // Current column number
+    const wchar_t* source;   // Source code (UTF-16LE) being lexed
+    size_t source_length;  // Length of the source string
+    size_t start;           // Start index of the current token in 'source'
+    size_t current;         // Current index/position in 'source'
+    size_t line;           // Current line number (1-based)
+    size_t column;         // Current column number on the line (0-based for internal advance logic, reported 1-based)
 } BaaLexer;
 ```
 
-### BaaToken
+### `BaaToken` (Token Structure)
 
-Represents a single token in the source code:
+Represents a single token:
 
 ```c
 typedef struct {
-    BaaTokenType type;       // Type of the token
-    const wchar_t* lexeme;   // The actual text of the token
+    BaaTokenType type;       // Enum identifying the token's type
+    const wchar_t* lexeme;   // Pointer to the string of characters forming the token (dynamically allocated)
     size_t length;           // Length of the lexeme
-    size_t line;            // Line number in source
-    size_t column;          // Column number in source
+    size_t line;            // Line number where the token begins
+    size_t column;          // Column number where the token begins
 } BaaToken;
 ```
 
-### BaaTokenType
-
-Enumeration of all possible token types in the Baa language:
-
-```c
-typedef enum {
-    // Special tokens
-    BAA_TOKEN_EOF,        // End of file
-    BAA_TOKEN_ERROR,      // Error token
-    BAA_TOKEN_UNKNOWN,    // Unknown token
-    BAA_TOKEN_COMMENT,    // Comment (Defined, but not currently produced by scanner)
-
-    // Literals
-    BAA_TOKEN_IDENTIFIER, // Variable/function name
-    BAA_TOKEN_INT_LIT,    // Integer literal
-    BAA_TOKEN_FLOAT_LIT,  // Float literal (Identified by lexer based on syntax like '.' or 'e')
-    BAA_TOKEN_CHAR_LIT,   // Character literal
-    BAA_TOKEN_STRING_LIT, // String literal
-    BAA_TOKEN_BOOL_LIT,   // Boolean literal (صحيح/خطأ - true/false)
-
-    // Keywords
-    BAA_TOKEN_FUNC,       // دالة
-    BAA_TOKEN_VAR,        // متغير
-    BAA_TOKEN_CONST,      // ثابت
-    BAA_TOKEN_IF,         // إذا
-    BAA_TOKEN_ELSE,       // وإلا
-    BAA_TOKEN_WHILE,      // طالما
-    BAA_TOKEN_FOR,        // لكل
-    BAA_TOKEN_DO,         // افعل
-    BAA_TOKEN_CASE,       // حالة
-    BAA_TOKEN_SWITCH,     // اختر
-    BAA_TOKEN_RETURN,     // إرجع
-    BAA_TOKEN_BREAK,      // توقف
-    BAA_TOKEN_CONTINUE,   // أكمل
-
-    // Types
-    BAA_TOKEN_TYPE_INT,   // عدد_صحيح
-    BAA_TOKEN_TYPE_FLOAT, // عدد_حقيقي
-    BAA_TOKEN_TYPE_CHAR,  // حرف
-    BAA_TOKEN_TYPE_VOID,  // فراغ
-    BAA_TOKEN_TYPE_BOOL,  // منطقي
-
-    // Operators (Arithmetic, Comparison, Logical)
-    BAA_TOKEN_PLUS,       // +
-    BAA_TOKEN_MINUS,      // -
-    BAA_TOKEN_STAR,       // *
-    BAA_TOKEN_SLASH,      // /
-    BAA_TOKEN_PERCENT,    // %
-    BAA_TOKEN_EQUAL_EQUAL,// ==
-    BAA_TOKEN_BANG,       // !
-    BAA_TOKEN_BANG_EQUAL, // !=
-    BAA_TOKEN_LESS,       // <
-    BAA_TOKEN_LESS_EQUAL, // <=
-    BAA_TOKEN_GREATER,    // >
-    BAA_TOKEN_GREATER_EQUAL, // >=
-    BAA_TOKEN_AND,        // &&
-    BAA_TOKEN_OR,         // ||
-    BAA_TOKEN_EQUAL,      // = (Assignment)
-
-    // Compound assignment operators
-    BAA_TOKEN_PLUS_EQUAL,  // +=
-    BAA_TOKEN_MINUS_EQUAL, // -=
-    BAA_TOKEN_STAR_EQUAL,  // *=
-    BAA_TOKEN_SLASH_EQUAL, // /=
-    BAA_TOKEN_PERCENT_EQUAL, // %=
-
-    // Increment/decrement operators
-    BAA_TOKEN_INCREMENT,   // ++
-    BAA_TOKEN_DECREMENT,   // --
-
-    // Delimiters
-    BAA_TOKEN_LPAREN,     // (
-    BAA_TOKEN_RPAREN,     // )
-    BAA_TOKEN_LBRACE,     // {
-    BAA_TOKEN_RBRACE,     // }
-    BAA_TOKEN_LBRACKET,   // [
-    BAA_TOKEN_RBRACKET,   // ]
-    BAA_TOKEN_COMMA,      // ,
-    BAA_TOKEN_DOT,        // .
-    BAA_TOKEN_SEMICOLON,  // ;
-    BAA_TOKEN_COLON,      // :
-} BaaTokenType;
-```
-
-## Numeric Literals
-
-The lexer's `scan_number` function is responsible for identifying numeric literals and tokenizing them as either `BAA_TOKEN_INT_LIT` or `BAA_TOKEN_FLOAT_LIT`. It extracts the raw text of the number. The actual conversion of this text to a C numeric type (e.g., `long long`, `double`) is typically handled later by the parser or a dedicated utility like `baa_parse_number`.
-
-The lexer supports the following formats for numeric literals:
-
-### 1. Integer Literals (`BAA_TOKEN_INT_LIT`)
-    - **Decimal Integers**: Sequences of Western digits (`0`-`9`) and/or Arabic-Indic digits (`٠`-`٩` / U+0660-U+0669).
-        - Examples: `123`, `٤٢`, `0`, `٠`, `12٠3٤`
-    - **Binary Integers**: Must start with `0b` or `0B`, followed by binary digits (`0` or `1`).
-        - Examples: `0b1010`, `0B11001`
-    - **Hexadecimal Integers**: Must start with `0x` or `0X`, followed by hexadecimal digits (`0`-`9`, `a`-`f`, `A`-`F`).
-        - Examples: `0x1a3f`, `0XFF`, `0xDeadBeef`
-    - **Underscores for Readability**: Single underscores (`_`) can be used as separators within the digits of any integer literal type. They cannot be consecutive, at the very beginning of the digit sequence (immediately after a prefix like `0x_`), or at the end of the number.
-        - Examples: `1_000_000`, `0xFF_EC`, `0b1010_0101`, `١_٢٣٤_٥٦٧`
-
-### 2. Floating-Point Literals (`BAA_TOKEN_FLOAT_LIT`)
-    Float literals are identified if they contain a decimal point (`.` or `٫`) or an exponent part (`e` or `E`).
-    - **Decimal Representation**:
-        - Consist of an integer part, a decimal point, and a fractional part.
-        - The decimal point can be a period `.` (U+002E) or an Arabic Decimal Separator `٫` (U+066B).
-        - Digits in the integer and fractional parts can be Western (`0`-`9`) or Arabic-Indic (`٠`-`٩`).
-        - Examples: `3.14`, `0.5`, `٣٫١٤`, `123.456`, `٠.٥`
-        - Note: Literals starting with a dot (e.g., `.5`) or ending with a dot without a fractional part (e.g., `123.`) are tokenized differently by the lexer (e.g., `BAA_TOKEN_DOT` followed by `BAA_TOKEN_INT_LIT`, or `BAA_TOKEN_INT_LIT` followed by `BAA_TOKEN_DOT`). The parser would determine their validity as float literals.
-    - **Scientific Notation**:
-        - Can be appended to a decimal number (integer or fractional part).
-        - Introduced by `e` or `E`, followed by an optional sign (`+` or `-`), and then one or more decimal digits (Western or Arabic-Indic).
-        - Examples: `1.23e4`, `5.67E-3`, `42e+2`, `1e10`, `٣٫١٤e-2`, `12E+٠٥`
-    - **Underscores for Readability**: Single underscores (`_`) can be used as separators within the integer part, fractional part, and exponent part of float literals, with the same restrictions as for integer literals.
-        - Examples: `1_234.567_890`, `3.141_592e+1_0`
-
-*(The following sections describe a utility `baa_parse_number` which is separate from the lexer's `scan_number` but complements it by performing the actual string-to-value conversion. The lexer's `scan_number` primarily focuses on identifying the token type and boundaries.)*
-
-### BaaNumberType (Utility)
-
-```c
-typedef enum {
-    BAA_NUM_INTEGER,     // عدد_صحيح - Integer number
-    BAA_NUM_DECIMAL,     // عدد_عشري - Decimal number
-    BAA_NUM_SCIENTIFIC   // عدد_علمي - Scientific notation
-} BaaNumberType;
-```
-
-### BaaNumber
-
-```c
-typedef struct {
-    BaaNumberType type;
-    union {
-        long long int_value;
-        double decimal_value;
-    };
-    const wchar_t* raw_text;  // Original text representation
-    size_t text_length;
-} BaaNumber;
-```
-
-### BaaNumberError
-
-```c
-typedef enum {
-    BAA_NUM_SUCCESS = 0,
-    BAA_NUM_OVERFLOW,        // Number too large
-    BAA_NUM_INVALID_CHAR,    // Invalid character in number
-    BAA_NUM_MULTIPLE_DOTS,   // Multiple decimal points
-    BAA_NUM_INVALID_FORMAT,  // Invalid number format
-    BAA_NUM_MEMORY_ERROR     // Memory allocation error
-} BaaNumberError;
-```
-
-### Number Parsing Utility Functions (e.g., `baa_parse_number`)
-
-- `baa_parse_number`: Parse a string as a number, detecting the format automatically.
-- `baa_free_number`: Free a number structure.
-- `baa_number_error_message`: Get error message for number parsing (provides Arabic messages).
-- `baa_is_digit`: Check if a character is a digit (including Arabic-Indic digits).
-- `baa_is_hex_digit`: Check if a character is a hexadecimal digit.
-- `baa_is_arabic_digit`: Check if a character is an Arabic-Indic digit.
-
-## Keyword, Type, and Boolean Literal Recognition
-
-The lexer recognizes keywords, type names, and boolean literals by checking scanned identifiers against an internal list:
-
-- **Keywords**: `متغير` (VAR), `ثابت` (CONST), `دالة`, `إذا`, etc. are tokenized with their specific types (e.g., `BAA_TOKEN_VAR`).
-- **Type Names**: `عدد_صحيح`, `عدد_حقيقي`, `حرف`, `فراغ`, `منطقي` are tokenized with their respective `BAA_TOKEN_TYPE_*` types.
-- **Boolean Literals**: `صحيح` (True) and `خطأ` (False) are tokenized as `BAA_TOKEN_BOOL_LIT`.
-
-Example:
-
-```baa
-متغير x: منطقي = صحيح؛
-إذا (x == صحيح) {
-    // ...
-} وإلا {
-    // ...
-}
-```
-
-## Operator Support
-
-The lexer supports a wide range of operators, tokenized with corresponding types (e.g., `BAA_TOKEN_PLUS`, `BAA_TOKEN_INCREMENT`):
-
-- **Arithmetic**: `+`, `-`, `*`, `/`, `%`
-- **Comparison**: `==`, `!=`, `<`, `<=`, `>`, `>=`
-- **Logical**: `&&`, `||`, `!`
-- **Assignment**: `=`, `+=`, `-=`, `*=`, `/=`, `%=`
-- **Increment/Decrement**: `++`, `--`
-
-## String and Character Handling
-
-- [x] Basic string literal support (double quotes)
-- [x] Character literal support (single quotes)
-- [x] Basic escape sequences in strings/chars (\n, \t, \\, \", \', \r, \0)
-- [x] Unicode escape sequences (\uXXXX)
-- [x] Multiline strings (`"""..."""`): Newlines are preserved, escape sequences are processed.
-- [x] Raw string literals (`خ"..."`, `خ"""..."""`): Newlines are preserved in multiline raw strings; no escape sequences are processed in any raw string.
-
-## Comment Support
-
-- Single line comments (`//` style - Skipped, not tokenized)
-- Multi-line comments (`/* ... */` - Skipped, not tokenized). Unterminated multi-line comments result in `BAA_TOKEN_ERROR`.
-- **Documentation Comments:** `/** ... */` - These are specifically recognized and tokenized as `BAA_TOKEN_DOC_COMMENT`. The lexeme of the token includes the content *between* the opening `/**` and the closing `*/` (including leading/trailing whitespace and asterisks on intermediate lines). These tokens can be used by later stages (like documentation generators or IDEs). Unterminated documentation comments will result in a `BAA_TOKEN_ERROR`.
-- Note: Legacy `#` style comments are no longer supported by the lexer. The preprocessor handles lines starting with `#` for directives.
+A comprehensive list of `BaaTokenType` values can be found in `include/baa/lexer/lexer.h`.
 
 ## Usage
 
-### Initialization
+1. **Initialization:**
+    An instance of `BaaLexer` is initialized using `baa_init_lexer()`, providing it with the preprocessed source code (as a `wchar_t*`) and the source filename (for error reporting context).
 
-The primary way to initialize the lexer is using `baa_init_lexer`:
+    ```c
+    #include "baa/lexer/lexer.h"
+    #include "baa/utils/utils.h" // For baa_file_content or similar
 
-```c
-#include "baa/lexer/lexer.h"
-#include "baa/utils/utils.h" // For file reading
+    // wchar_t* preprocessed_source = ... (obtained from preprocessor)
+    // const wchar_t* source_filename = L"my_program.ب";
+    BaaLexer lexer_instance;
+    baa_init_lexer(&lexer_instance, preprocessed_source, source_filename);
+    ```
 
-// ...
+2. **Token Processing:**
+    Tokens are retrieved sequentially by calling `baa_lexer_next_token()` in a loop until a `BAA_TOKEN_EOF` (End Of File) token is encountered or an unrecoverable error occurs. Each call returns a pointer to a dynamically allocated `BaaToken`, which must be freed by the caller using `baa_free_token()`.
 
-const wchar_t* filename = L"your_file.baa";
-// Use a utility function (e.g., from utils.h) to read the file content
-// Assuming baa_file_content (moved to utils) or similar exists:
-wchar_t* source_code = baa_file_content(filename); // Or baa_read_file
-if (!source_code) { /* Handle file reading error */ }
+    ```c
+    BaaToken* token;
+    do {
+        token = baa_lexer_next_token(&lexer_instance);
+        if (!token) { /* Handle memory allocation error for token */ break; }
 
-BaaLexer lexer; // Allocate on stack or heap as needed
-baa_init_lexer(&lexer, source_code, filename); // Initialize the lexer state
+        // Process token:
+        // wprintf(L"Type: %ls, Lexeme: '%.*ls', Line: %zu, Col: %zu\n",
+        //         baa_token_type_to_string(token->type),
+        //         (int)token->length, token->lexeme,
+        //         token->line, token->column);
 
-// If using baa_create_lexer (allocates lexer struct on heap):
-// BaaLexer* lexer_ptr = baa_create_lexer(source_code);
-// if (!lexer_ptr) { /* Handle allocation error */ }
-// // Use lexer_ptr->...
-// baa_free_lexer(lexer_ptr); // Remember to free later
+        if (token->type == BAA_TOKEN_ERROR) {
+            // fwprintf(stderr, L"Lexical Error: %ls\n", token->lexeme);
+        }
 
-// Remember to free source_code when done
-// free(source_code);
+        BaaTokenType current_type = token->type; // Store before freeing
+        baa_free_token(token);
+        if (current_type == BAA_TOKEN_EOF || current_type == BAA_TOKEN_ERROR) {
+            break;
+        }
+    } while (true);
+    ```
 
-```
+## Future Improvements and Roadmap Items
 
-### Token Processing
+* Implementation of Baa-specific Arabic escape sequences for string and character literals.
+* Support for Arabic float exponent marker (`أ`) and float suffix (`ح`).
+* Enhanced error recovery mechanisms and more specific error token types.
+* Further Unicode support for identifiers based on UAX #31.
+* Performance optimizations (e.g., for keyword lookup, string interning) as needed.
+* Robust source mapping if preprocessor outputs `#line` directives.
 
-```c
-BaaToken* token;
-do {
-    token = baa_lexer_next_token(lexer);
-    if (!token) {
-        // Handle potential memory allocation error during token creation
-        fprintf(stderr, "Failed to create token.\n");
-        break;
-    }
-
-    // Process the token based on its type
-    wprintf(L"Token: %ls, Lexeme: '%ls', Line: %zu, Col: %zu\n",
-            baa_token_type_to_string(token->type), // Function exists
-            token->lexeme ? token->lexeme : L"<NULL>", // Handle potential NULL lexeme
-            token->line,
-            token->column);
-
-    if (token->type == BAA_TOKEN_ERROR) {
-        // Handle lexer error (message is in token->lexeme)
-        fwprintf(stderr, L"Lexer Error: %ls at Line %zu, Col %zu\n",
-                 token->lexeme, token->line, token->column);
-        // Depending on desired behavior, you might stop or try to continue
-    }
-
-    // Free the current token before getting the next one
-    baa_free_token(token);
-
-} while (token->type != BAA_TOKEN_EOF); // Stop when EOF is reached
-
-// Clean up the lexer
-baa_free_lexer(lexer);
-
-// Free file content if loaded from file
-// free(file_content);
-```
-
-*Note: Error reporting relies on the `BAA_TOKEN_ERROR` token type; the `lexeme` field of this token contains the error message.*
-
-## Implementation Details
-
-### Lexer Operations
-
-The lexer provides the following core functionality (declared in `baa/lexer/lexer.h`):
-
-1.  **Initialization**:
-    - `baa_init_lexer(BaaLexer* lexer, const wchar_t* source, const wchar_t* filename)`: Initializes a pre-allocated `BaaLexer` struct.
-    - `baa_create_lexer(const wchar_t* source)`: Allocates and initializes a `BaaLexer` struct (caller must free with `baa_free_lexer`).
-2.  **Token Scanning**:
-    - `baa_lexer_next_token(BaaLexer* lexer)`: Gets the next token from the source. Returns a dynamically allocated `BaaToken` (caller must free with `baa_free_token`).
-3.  **Token Utilities**:
-    - `baa_token_type_to_string(BaaTokenType type)`: Converts a token type enum to its string representation.
-    - `baa_token_is_keyword(BaaTokenType type)`: Checks if a token type is a keyword.
-    - `baa_token_is_type(BaaTokenType type)`: Checks if a token type is a type name.
-    - `baa_token_is_operator(BaaTokenType type)`: Checks if a token type is an operator.
-4.  **Memory Management**:
-    - `baa_free_lexer(BaaLexer* lexer)`: Frees a lexer allocated by `baa_create_lexer`.
-    - `baa_free_token(BaaToken* token)`: Frees a token allocated by `baa_lexer_next_token` (including its lexeme if dynamically allocated).
-
-*(Note: General file handling utilities like `baa_file_size` and `baa_file_content` have been moved to `baa/utils/utils.h`)*
-
-### Internal Lexer Helpers
-
-The lexer uses several internal helper functions:
-
-1.  **Character Classification**: `is_arabic_letter`, `is_arabic_digit`, standard C `isw...` functions.
-2.  **Lexer Navigation**: `peek`, `peek_next`, `advance`, `match`, `skip_whitespace`.
-3.  **Token Creation**: `make_token`, `make_error_token`.
-
-### State Management
-
-- `source`, `start`, `current`, `line`, `column` fields in `BaaLexer`.
-
-### Memory Management
-
-- `baa_create_lexer`, `baa_free_lexer`: Manage the `BaaLexer` struct.
-- `make_token`, `scan_string`, `make_error_token`: Allocate `BaaToken` structs and potentially their `lexeme` buffers.
-- `baa_free_token`: Frees `BaaToken` and its dynamically allocated `lexeme`.
-- `baa_file_content`: Allocates buffer for file content (caller must free).
-- `baa_parse_number`, `baa_free_number`: Manage `BaaNumber` struct and its `raw_text`.
-
-## Future Improvements
-
-- Enhanced support for Arabic dialects
-- Performance optimizations for large files
-- Advanced error recovery mechanisms
-- Extended Unicode range support
+*For a detailed list of ongoing tasks and future plans, refer to `docs/LEXER_ROADMAP.md`.*
