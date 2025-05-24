@@ -4,6 +4,48 @@ All notable changes to the B (باء) compiler project will be documented in thi
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.18.0] - 2025-05-25
+
+### Added
+
+- **AST Redesign (Phase 0 & Initial Phase 1):**
+  - Introduced new core AST type definitions in `include/baa/ast/ast_types.h`:
+    - `BaaSourceLocation` and `BaaSourceSpan` for precise source code location tracking.
+    - Unified `BaaNodeKind` enum for all AST node types (initial kinds: `_UNKNOWN`, `_PROGRAM`, `_LITERAL_EXPR`).
+    - Base `BaaNode` structure with `kind`, `span`, and `void* data`.
+    - `BaaAstNodeModifiers` typedef and initial modifier flags (`BAA_MOD_NONE`, `BAA_MOD_CONST`, `BAA_MOD_STATIC`).
+  - Implemented basic AST node lifecycle functions in `src/ast/ast_node.c` and `include/baa/ast/ast.h`:
+    - `BaaNode* baa_ast_new_node(BaaNodeKind kind, BaaSourceSpan span)` for generic node creation.
+    - `void baa_ast_free_node(BaaNode* node)` shell for recursive node deallocation.
+  - Implemented Literal Expression AST Nodes (`BAA_NODE_KIND_LITERAL_EXPR`):
+    - Defined `BaaLiteralKind` enum and `BaaLiteralExprData` struct in `include/baa/ast/ast_types.h`.
+    - Implemented `BaaNode* baa_ast_new_literal_int_node(...)` and `BaaNode* baa_ast_new_literal_string_node(...)` in `src/ast/ast_expressions.c` (prototypes in `include/baa/ast/ast.h`).
+    - Implemented internal helper `baa_ast_free_literal_expr_data(...)` in `src/ast/ast_expressions.c` (prototype in `src/ast/ast_expressions.h`).
+    - Updated `baa_ast_free_node` dispatch to handle `BAA_NODE_KIND_LITERAL_EXPR`.
+  - Added new `baa_ast` static library component to CMake (`src/ast/CMakeLists.txt`).
+- **AST Tester Tool:**
+  - Added `tools/baa_ast_tester.c` for incrementally testing AST node creation and memory management.
+  - Integrated `baa_ast_tester` into the root `CMakeLists.txt`.
+
+### Changed
+
+- **Build System:**
+  - `baa_ast_tester` now links against `baa_types` library due to usage of type system functions.
+- **AST Internal Headers:**
+  - `src/ast/ast_node.c` now includes `ast_expressions.h` (internal header) to resolve declarations for specific AST data freeing functions.
+
+### Fixed
+
+- Resolved linker errors for `baa_ast_tester` by adding `baa_types` to its linked libraries.
+- Resolved compilation error in `src/ast/ast_node.c` for undeclared `baa_ast_free_literal_expr_data` by including the internal `ast_expressions.h`.
+
+### Known Issues (AST/Parser Redesign)
+
+- The new Parser is not yet implemented; AST nodes are currently only created manually in `baa_ast_tester`.
+- Only a few AST node types (`UNKNOWN`, `LITERAL_EXPR`) are implemented. The vast majority are pending.
+- Full recursive freeing logic in `baa_ast_free_node` depends on specific `_data` freeing helpers for all node types, most of which are not yet implemented.
+- Type-safe accessor macros for AST node data are planned but not yet implemented.
+
 ## [0.1.17.0] - 2025-05-21
 
 ### Added

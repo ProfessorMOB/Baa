@@ -202,10 +202,12 @@ The project uses a modular, target-centric CMake build system:
 
 ### Parser (`src/parser/`) - **Currently under Redesign/Removal**
 
-* **(Planned)** Transforms token stream from Lexer into an Abstract Syntax Tree (AST).
-* **(Planned)** Will use a recursive descent approach.
-* **(Planned)** Modules for expressions, statements, declarations.
-* **(Planned)** Primary responsibility: syntactic validation and AST construction. Semantic checks deferred.
+* **(In Progress - New Design v2)** Defines the structure of AST nodes using a unified `BaaNode`.
+  * Each `BaaNode` has a `kind` (`BaaNodeKind`), a `BaaSourceSpan`, and a `void* data` pointing to kind-specific data.
+  * Type-safe accessor macros are planned.
+* **(In Progress)** Manages memory for AST nodes via `baa_ast_new_node` and `baa_ast_free_node`, with helpers for specific node data.
+* **(In Progress)** Provides functions for creating specific AST nodes (e.g., `baa_ast_new_literal_int_node`).
+
 * *Refer to `docs/PARSER.md` and `docs/PARSER_ROADMAP.md` for the new design plans.*
 
 ### AST (Abstract Syntax Tree) - **Currently under Redesign/Removal**

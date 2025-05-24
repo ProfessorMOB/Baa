@@ -73,18 +73,17 @@ Transforms tokens into a structured AST:
 
 ### 3. Abstract Syntax Tree (AST)
 
-The AST module provides the foundation for representing code structure:
+The AST module provides the foundation for representing code structure using a unified `BaaNode` approach.
 
-- **Status**: Planned (New Design - Re-implementation in progress). Old AST removed.
-- **Node Types (Planned)**: Comprehensive set for expressions, statements, declarations, etc.
-- **Memory Management (Planned)**: Clear rules for allocation, ownership, and deallocation.
-- **Structure (Planned)**: Standardized hierarchy as outlined in `docs/AST.md`.
-- **Traversal (Planned)**: Support for visitor pattern or similar traversal mechanisms.
+- **Status**: New Design v2 (Unified `BaaNode`) - Implementation in progress. Old AST removed. (Reflects v0.1.18.0)
+- **Structure**:
+  - Unified `BaaNode` with `BaaNodeKind kind`, `BaaSourceSpan span`, and `void* data`.
+  - Specific data structs (e.g., `BaaLiteralExprData`) for each node kind.
+  - Type-safe accessor macros planned for accessing specific data.
+- **Memory Management**: `baa_ast_new_node()` for base creation, `baa_ast_free_node()` for recursive freeing. Specific node types have dedicated creation functions and internal data-freeing helpers.
+- **Node Types**: Being progressively defined for all language constructs (expressions, statements, declarations, types). Literals implemented.
+- **Traversal**: Visitor pattern planned for AST traversal.
 - *Refer to `docs/AST.md` and `docs/AST_ROADMAP.md` for details on the new design.*
-- **Features & Status:**
-- The previous AST implementation was removed.
-- A new AST is currently under design and development.
-- Key features like node creation, memory management, and support for all language constructs are planned.
 
 ### 4. Type System
 

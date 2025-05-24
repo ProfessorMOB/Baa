@@ -6,50 +6,50 @@ The new AST (Abstract Syntax Tree) will be built around a unified `BaaNode` stru
 
 ### Phase 0: Core Definitions & Setup
 
-**Goal:** Establish the absolute foundational types and structures for the AST.
+**Goal:** Establish the absolute foundational types and structures for the AST. **(Largely Completed)**
 
 1. **Define `BaaSourceLocation` and `BaaSourceSpan`:**
-    * **File:** `ast_types.h` (or similar, e.g., `ast_core.h`)
+    * **File:** `include/baa/ast/ast_types.h`
     * **Description:** Implement the `BaaSourceLocation` (filename, line, column) and `BaaSourceSpan` (start and end `BaaSourceLocation`) structs. These are fundamental for error reporting and tooling.
     * **Details:**
         * `filename` in `BaaSourceLocation` should be `const char*` (assuming canonical, shared strings for filenames).
         * Line and column are `size_t` and 1-based.
-    * **Verification:** Review struct definitions for completeness.
+    * **Status:** [x] COMPLETED (Step 0.1)
 
 2. **Define Initial `BaaNodeKind` Enum:**
-    * **File:** `ast_types.h` (or `ast_node.h`)
+    * **File:** `include/baa/ast/ast_types.h`
     * **Description:** Create the `BaaNodeKind` enum. Start with a few essential kinds needed for early testing, like `BAA_NODE_KIND_PROGRAM`, `BAA_NODE_KIND_LITERAL_EXPR`, `BAA_NODE_KIND_UNKNOWN`.
     * **Details:** Plan for future expansion to cover all language constructs.
-    * **Verification:** Enum values are distinct. Naming convention is clear.
+    * **Status:** [x] COMPLETED (Step 0.1, includes `_LITERAL_EXPR` now)
 
 3. **Define `BaaNode` Base Structure:**
-    * **File:** `ast_node.h` (or `ast_core.h`)
+    * **File:** `include/baa/ast/ast_types.h` (definition is there)
     * **Description:** Implement the `BaaNode` struct containing `BaaNodeKind kind`, `BaaSourceSpan span`, and `void* data`.
     * **Details:** Include comments explaining each field's purpose.
-    * **Verification:** Struct definition is correct.
+    * **Status:** [x] COMPLETED (Step 0.1)
 
 4. **Define `BaaAstNodeModifiers` and Basic Flags:**
-    * **File:** `ast_types.h`
+    * **File:** `include/baa/ast/ast_types.h`
     * **Description:** Define `typedef uint32_t BaaAstNodeModifiers;` and initial `#define` constants for `BAA_MOD_NONE`, `BAA_MOD_CONST`.
-    * **Verification:** Bit flags are unique powers of 2.
+    * **Status:** [x] COMPLETED (Step 0.1)
 
 5. **Basic AST Memory Utilities (Prototypes):**
-    * **File:** `ast_memory.h` (or `ast_utils.h`)
+    * **File:** `include/baa/ast/ast.h`
     * **Description:** Declare prototypes for the core node creation and destruction functions:
         * `BaaNode* baa_ast_new_node(BaaNodeKind kind, BaaSourceSpan span);` (allocates `BaaNode` and initializes basic fields, `data` is initially NULL or handled by more specific functions).
         * `void baa_ast_free_node(BaaNode* node);` (master free function).
     * **Details:** These will be the workhorses for AST manipulation.
-    * **Verification:** Function signatures are clear and match the intended memory management model.
+    * **Status:** [x] COMPLETED (Step 0.2)
 
 6. **Basic AST Memory Utilities (Implementation):**
-    * **File:** `ast_memory.c` (or `ast_utils.c`)
+    * **File:** `src/ast/ast_node.c`
     * **Description:** Implement `baa_ast_new_node`. This function will:
         * Allocate memory for a `BaaNode`.
         * Initialize `kind` and `span`.
         * Initialize `data` to `NULL`.
         * Return the allocated node or `NULL` on failure.
     * Implement the basic structure for `baa_ast_free_node`. Initially, it might just free `node->data` (if not NULL) and then `node` itself. The recursive freeing of children and specific data will be added as node types are implemented.
-    * **Verification:** Basic allocation and freeing work without leaks for simple nodes (tested with `BAA_NODE_KIND_UNKNOWN` and NULL data).
+    * **Status:** [x] COMPLETED (Step 0.3)
 
 ### Phase 1: Minimal Expressions & Statements
 
@@ -57,18 +57,19 @@ The new AST (Abstract Syntax Tree) will be built around a unified `BaaNode` stru
 
 1. **Literal Expression Node (`BAA_NODE_KIND_LITERAL_EXPR`):**
     * **File (Defs):** `ast_expressions.h` (for `BaaLiteralExprData`), `ast_types.h` (add `BAA_NODE_KIND_LITERAL_EXPR` to enum).
-    * **File (Funcs):** `ast_expressions.c` (for creation/freeing helpers).
+    * **File (Funcs):** `include/baa/ast/ast.h` (public creation prototypes), `src/ast/ast_expressions.h` (internal free helper prototype), `src/ast/ast_expressions.c` (implementations).
     * **Description:**
         * Define `BaaLiteralKind` enum (`BAA_LITERAL_KIND_INT`, `BAA_LITERAL_KIND_STRING`, etc.).
         * Define `BaaLiteralExprData` struct with `BaaLiteralKind literal_kind`, the `union value`, and `BaaType* determined_type` (pointer to canonical type).
         * Implement `BaaNode* baa_ast_new_literal_int_node(BaaSourceSpan span, long long value, BaaType* type);`
         * Implement `BaaNode* baa_ast_new_literal_string_node(BaaSourceSpan span, const wchar_t* value, BaaType* type);` (duplicates string).
-        * Update `baa_ast_free_node`'s dispatch to call a helper `void baa_ast_free_literal_expr_data(BaaLiteralExprData* data);` which frees `string_value` if it's a string literal.
-    * **Verification:** Can create, inspect, and free integer and string literal nodes. Memory for duplicated strings is managed.
+        * Implement helper `void baa_ast_free_literal_expr_data(BaaLiteralExprData* data);`.
+        * Update `baa_ast_free_node`'s dispatch to call the helper.
+    * **Status:** [x] COMPLETED (Steps 1.1, 1.2)
 
 2. **Identifier Expression Node (`BAA_NODE_KIND_IDENTIFIER_EXPR`):**
-    * **File (Defs):** `ast_expressions.h` (for `BaaIdentifierExprData`), `ast_types.h` (add kind).
-    * **File (Funcs):** `ast_expressions.c`.
+    * **File (Defs):** `include/baa/ast/ast_types.h` (add kind), `src/ast/ast_expressions.h` (for `BaaIdentifierExprData` - or a new `ast_specific_data.h`).
+    * **File (Funcs):** `include/baa/ast/ast.h` (public creation), `src/ast/ast_expressions.c` (implementation).
     * **Description:**
         * Define `BaaIdentifierExprData` struct with `wchar_t* name;`.
         * Implement `BaaNode* baa_ast_new_identifier_expr_node(BaaSourceSpan span, const wchar_t* name);` (duplicates name).
@@ -76,8 +77,8 @@ The new AST (Abstract Syntax Tree) will be built around a unified `BaaNode` stru
     * **Verification:** Can create, inspect, and free identifier nodes. Name is correctly duplicated and freed.
 
 3. **Expression Statement Node (`BAA_NODE_KIND_EXPR_STMT`):**
-    * **File (Defs):** `ast_statements.h` (for `BaaExprStmtData`), `ast_types.h` (add kind).
-    * **File (Funcs):** `ast_statements.c`.
+    * **File (Defs):** `include/baa/ast/ast_types.h` (add kind), `src/ast/ast_statements.h` (for `BaaExprStmtData`).
+    * **File (Funcs):** `include/baa/ast/ast.h` (public creation), `src/ast/ast_statements.c` (implementation).
     * **Description:**
         * Define `BaaExprStmtData` struct with `BaaNode* expression;`.
         * Implement `BaaNode* baa_ast_new_expr_stmt_node(BaaSourceSpan span, BaaNode* expression_node);`.
@@ -85,8 +86,8 @@ The new AST (Abstract Syntax Tree) will be built around a unified `BaaNode` stru
     * **Verification:** Can create expression statements wrapping literal or identifier nodes. Freeing is recursive.
 
 4. **Block Statement Node (`BAA_NODE_KIND_BLOCK_STMT`):**
-    * **File (Defs):** `ast_statements.h` (for `BaaBlockStmtData`), `ast_types.h` (add kind).
-    * **File (Funcs):** `ast_statements.c`.
+    * **File (Defs):** `include/baa/ast/ast_types.h` (add kind), `src/ast/ast_statements.h` (for `BaaBlockStmtData`).
+    * **File (Funcs):** `include/baa/ast/ast.h` (public creation), `src/ast/ast_statements.c` (implementation).
     * **Description:**
         * Define `BaaBlockStmtData` struct with `BaaNode** statements; size_t count; size_t capacity;`.
         * Implement `BaaNode* baa_ast_new_block_stmt_node(BaaSourceSpan span);`.
@@ -95,8 +96,8 @@ The new AST (Abstract Syntax Tree) will be built around a unified `BaaNode` stru
     * **Verification:** Can create blocks, add statements. Freeing is recursive. Dynamic array works.
 
 5. **Program Node (`BAA_NODE_KIND_PROGRAM`):**
-    * **File (Defs):** `ast_program.h` (for `BaaProgramData`), `ast_types.h` (add kind).
-    * **File (Funcs):** `ast_program.c`.
+    * **File (Defs):** `include/baa/ast/ast_types.h` (kind already added), `src/ast/ast_program.h` (for `BaaProgramData`).
+    * **File (Funcs):** `include/baa/ast/ast.h` (public creation), `src/ast/ast_program.c` (implementation).
     * **Description:**
         * Define `BaaProgramData` struct similar to `BaaBlockStmtData` but for `top_level_declarations`.
         * Implement creation, adding declarations, and freeing logic analogous to `BaaBlockStmtData`.
