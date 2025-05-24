@@ -123,6 +123,7 @@ add_executable(baa_ast_tester
 target_link_libraries(baa_ast_tester PRIVATE
     baa_ast          # The new AST library we defined
     baa_utils        # AST uses utils for memory, and tester might too
+    baa_types        # AST tester now uses functions from the types library
     BaaCommonSettings # For common compiler/project settings
 )
 

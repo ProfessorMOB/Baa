@@ -1,4 +1,5 @@
 #include "baa/ast/ast.h"     // For BaaNode, BaaNodeKind, BaaSourceSpan, and function prototypes
+#include "ast_expressions.h" // For baa_ast_free_literal_expr_data (internal header)
 #include "baa/utils/utils.h" // For baa_malloc, baa_free
 #include <stdlib.h>          // For NULL
 #include <string.h>          // For memset (optional, for zeroing memory)
@@ -73,15 +74,16 @@ void baa_ast_free_node(BaaNode *node)
     // --- Program Structure Kinds ---
     case BAA_NODE_KIND_PROGRAM:
         // if (node->data) {
-        //     baa_ast_free_program_data((BaaProgramData*)node->data);
+        //     baa_ast_free_program_data((BaaProgramData*)node->data); // To be implemented
         // }
         break;
 
     // --- Expression Kinds ---
     case BAA_NODE_KIND_LITERAL_EXPR:
-        // if (node->data) {
-        //     baa_ast_free_literal_expr_data((BaaLiteralExprData*)node->data);
-        // }
+        if (node->data)
+        {
+            baa_ast_free_literal_expr_data((BaaLiteralExprData *)node->data);
+        }
         break;
 
         // Add cases for BAA_NODE_KIND_FUNCTION_DEF, BAA_NODE_KIND_PARAMETER,
@@ -109,24 +111,17 @@ void baa_ast_free_node(BaaNode *node)
     // For this initial step, if kind-specific free functions are not yet implemented,
     // we should free `node->data` if it's not NULL and not handled by a specific case.
     // This is a temporary measure until all specific free functions are in place.
-    if (node->data)
-    {
+    // With the convention that specific free_xxx_data functions free the data struct,
+    // node->data should be NULL here if it was handled by a specific case.
+    if (node->data && node->kind == BAA_NODE_KIND_UNKNOWN)
+    { // Only for truly unhandled data in UNKNOWN
         // If we reach here and node->data is not NULL, it means no specific
         // free function was called (or the specific function didn't free the data struct itself).
         // This is a potential leak or a design choice to be clarified.
         // For this initial step, let's just free it if it's not handled above.
         // This will change as we add specific free_xxx_data functions.
-        // A robust approach: the switch above should handle ALL kinds that allocate data.
-        // If a kind allocates data, it MUST have a case that calls its specific free_xxx_data.
-        // The specific free_xxx_data MUST free the data pointer it's given.
-        // Therefore, node->data should effectively be NULL or handled by the time we reach here.
-        // For safety in this very first step (before specific free_xxx_data exist):
-        if (node->kind == BAA_NODE_KIND_UNKNOWN && node->data != NULL)
-        {                         // Example: only free if it's truly generic data not handled
-            baa_free(node->data); // General free for data not handled by specific cases yet
-        }
-        // Once specific free_xxx_data are implemented for nodes that allocate data,
-        // node->data should either be NULL here or have been freed by the specific handler.
+        baa_free(node->data); // General free for BAA_NODE_KIND_UNKNOWN's data if it exists
+        node->data = NULL;    // Avoid double free if logic changes
     }
 
     // Finally, free the BaaNode structure itself
