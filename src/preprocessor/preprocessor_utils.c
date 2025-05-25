@@ -1,4 +1,7 @@
 #include "preprocessor_internal.h"
+#include <iconv.h>
+#include <errno.h> // For errno
+#include <string.h> // For strlen
 
 // --- Location Stack ---
 

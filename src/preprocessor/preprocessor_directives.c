@@ -1,5 +1,5 @@
 #include "preprocessor_internal.h"
-
+#include <wctype.h>
 // Handles a line identified as starting with a preprocessor directive '#'.
 // Modifies pp_state (conditional stack, macros, skipping state).
 // May append output to output_buffer (for #include).
