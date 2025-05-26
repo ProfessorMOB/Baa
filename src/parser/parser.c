@@ -1,3 +1,4 @@
+// src/parser/parser.c
 #include "baa/parser/parser.h"
 #include "parser_internal.h" // For BaaParser struct definition
 #include "baa/utils/utils.h" // For baa_malloc, baa_free
@@ -7,6 +8,73 @@
 
 // Forward declaration for advance, as it's called by baa_parser_create
 static void advance(BaaParser *parser);
+/**
+ * @brief Reports a parser error at the location of a specific token.
+ * Sets the parser's had_error flag and enters panic mode if not already in it.
+ * Avoids printing duplicate errors if already in panic mode.
+ *
+ * @param parser Pointer to the BaaParser instance.
+ * @param token Pointer to the BaaToken at which the error occurred.
+ * @param message_format A printf-style format string for the error message.
+ * @param ... Additional arguments for the format string.
+ */
+static void parser_error_at_token(BaaParser *parser, const BaaToken *token, const wchar_t *message_format, ...)
+{
+    if (!parser || parser->panic_mode)
+    { // Don't report if already panicking
+        return;
+    }
+    parser->panic_mode = true; // Enter panic mode
+    parser->had_error = true;
+
+    // Construct the error message prefix with location
+    // Using source_filename stored in parser struct
+    fwprintf(stderr, L"%hs:%zu:%zu: خطأ: ",
+             parser->source_filename ? parser->source_filename : "<unknown_source>",
+             token->line,
+             token->column);
+
+    va_list args;
+    va_start(args, message_format);
+    vfwprintf(stderr, message_format, args);
+    va_end(args);
+
+    fwprintf(stderr, L"\n");
+}
+
+/**
+ * @brief Checks if the current token's type matches the expected type.
+ *Does not consume the token.
+ *@param parser Pointer to the BaaParser instance.
+ *@param type The expected BaaTokenType.
+ *@ return True if the current token's type matches, false otherwise. *
+ */
+static bool check_token(BaaParser *parser, BaaTokenType type)
+{
+    if (!parser)
+        return false;
+    return parser->current_token.type == type;
+}
+
+/**
+ * @brief If the current token's type matches the expected type, consumes it
+ * and returns true. Otherwise, returns false and does not consume the token.
+ *
+ * @param parser Pointer to the BaaParser instance.
+ * @param type The expected BaaTokenType to match and consume.
+ * @return True if the token was matched and consumed, false otherwise.
+ */
+static bool match_token(BaaParser *parser, BaaTokenType type)
+{
+    if (!parser)
+        return false;
+    if (!check_token(parser, type))
+    {
+        return false;
+    }
+    advance(parser);
+    return true;
+}
 
 BaaParser *baa_parser_create(BaaLexer *lexer, const char *source_filename)
 {
@@ -125,19 +193,30 @@ BaaNode *baa_parse_program(BaaParser *parser)
     return NULL;
 }
 
-// Stub for baa_parser_free - will be implemented properly in the next step
+/**
+ * @brief Frees the resources associated with the parser.
+ *
+ * This includes freeing the lexemes of any currently held tokens (`current_token`
+ * and `previous_token`) and then freeing the BaaParser structure itself.
+ * It does NOT free the lexer instance that was passed during parser creation.
+ *
+ * @param parser A pointer to the BaaParser instance to be freed. If NULL,
+ *               the function does nothing.
+ */
 void baa_parser_free(BaaParser *parser)
 {
     if (!parser)
     {
         return;
     }
-    // Free lexemes owned by current_token and previous_token
-    if (parser->current_token.lexeme)
+
+    // Free the lexeme of the current_token if it exists
+    if (parser->current_token.lexeme != NULL)
     {
         baa_free((void *)parser->current_token.lexeme);
     }
-    if (parser->previous_token.lexeme)
+    // Free the lexeme of the previous_token if it exists
+    if (parser->previous_token.lexeme != NULL)
     {
         baa_free((void *)parser->previous_token.lexeme);
     }
