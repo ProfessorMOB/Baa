@@ -131,11 +131,11 @@ typedef enum
  */
 typedef struct
 {
-    BaaTokenType type;     // Type of the token
-    const wchar_t *lexeme; // The actual text of the token
-    size_t length;         // Length of the lexeme
-    size_t line;           // Line number in source
-    size_t column;         // Column number in source
+    BaaTokenType type; // Type of the token
+    wchar_t *lexeme;   // The actual text of the token (parser will take ownership)
+    size_t length;     // Length of the lexeme
+    size_t line;       // Line number in source
+    size_t column;     // Column number in source
 } BaaToken;
 
 /**
