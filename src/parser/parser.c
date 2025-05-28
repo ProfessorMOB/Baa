@@ -3,11 +3,81 @@
 #include "parser_internal.h" // For BaaParser struct definition
 #include "baa/utils/utils.h" // For baa_malloc, baa_free
 #include "baa/lexer/lexer.h" // For baa_lexer_next_token, baa_free_token
-#include <stdio.h>           // For error printing (temporary)
+#include <stdio.h>           // For error printing (temporary), fwprintf, vfwprintf
+#include <stdarg.h>          // For va_list, va_start, va_end
 #include <stdlib.h>          // For NULL
 
 // Forward declaration for advance, as it's called by baa_parser_create
 static void advance(BaaParser *parser);
+// Forward declaration for error reporting utility
+static void parser_error_at_token(BaaParser *parser, const BaaToken *token, const wchar_t *message_format, ...);
+// Forward declaration for synchronization
+static void synchronize(BaaParser *parser);
+
+/**
+ * @brief Attempts to recover from a syntax error by discarding tokens.
+ *
+ * After an error is reported and the parser enters panic mode, this function
+ * advances through tokens until it finds a token that likely marks the
+ * beginning of a new statement or declaration, or until EOF is reached.
+ * This helps prevent cascading error messages.
+ *
+ * Current synchronization points:
+ * - Statement terminator (`.`)
+ * - Keywords that typically start a new declaration or statement.
+ * - End of file (`BAA_TOKEN_EOF`).
+ *
+ * Once a synchronization point is found (or EOF), panic mode is cleared.
+ *
+ * @param parser Pointer to the BaaParser instance.
+ */
+static void synchronize(BaaParser *parser)
+{
+    if (!parser)
+        return;
+
+    parser->panic_mode = false; // Clear panic mode *before* consuming, as we're trying to recover.
+                                // Or, clear it after finding a recovery point. Let's clear after.
+
+    while (parser->current_token.type != BAA_TOKEN_EOF)
+    {
+        // 1. Check if the *previous* token was a statement terminator.
+        //    If so, the current token is likely the start of a new statement.
+        if (parser->previous_token.type == BAA_TOKEN_DOT)
+        {
+            parser->panic_mode = false; // Recovered
+            return;
+        }
+
+        // 2. Check if the *current* token is a keyword that likely starts a new declaration or major statement.
+        switch (parser->current_token.type)
+        {
+        // Declaration-starting keywords (type keywords)
+        case BAA_TOKEN_TYPE_INT:
+        case BAA_TOKEN_TYPE_FLOAT:
+        case BAA_TOKEN_TYPE_CHAR:
+        case BAA_TOKEN_TYPE_VOID:
+        case BAA_TOKEN_TYPE_BOOL:
+        // Statement-starting keywords
+        case BAA_TOKEN_CONST: // `ثابت` can start a declaration
+        case BAA_TOKEN_IF:
+        case BAA_TOKEN_WHILE:
+        case BAA_TOKEN_FOR:
+        case BAA_TOKEN_RETURN:
+        case BAA_TOKEN_SWITCH:          // If/when switch is added
+                                        // case BAA_TOKEN_FUNC: // If `دالة` keyword was kept
+            parser->panic_mode = false; // Recovered
+            return;
+        default:
+            // Not a recovery point based on current token type
+            break;
+        }
+        advance(parser); // Consume the token and try the next one
+    }
+    // If EOF is reached, panic mode is implicitly over.
+    parser->panic_mode = false;
+}
+
 /**
  * @brief Reports a parser error at the location of a specific token.
  * Sets the parser's had_error flag and enters panic mode if not already in it.
@@ -44,10 +114,11 @@ static void parser_error_at_token(BaaParser *parser, const BaaToken *token, cons
 
 /**
  * @brief Checks if the current token's type matches the expected type.
- *Does not consume the token.
- *@param parser Pointer to the BaaParser instance.
- *@param type The expected BaaTokenType.
- *@ return True if the current token's type matches, false otherwise. *
+ * Does not consume the token.
+ *
+ * @param parser Pointer to the BaaParser instance.
+ * @param type The expected BaaTokenType.
+ * @return True if the current token's type matches, false otherwise.
  */
 static bool check_token(BaaParser *parser, BaaTokenType type)
 {
@@ -74,6 +145,41 @@ static bool match_token(BaaParser *parser, BaaTokenType type)
     }
     advance(parser);
     return true;
+}
+
+/**
+ * @brief Consumes the current token if its type matches the expected type.
+ * If the type does not match, an error is reported, and error recovery (synchronization)
+ * might be attempted by the caller or a higher-level parsing function.
+ *
+ * @param parser Pointer to the BaaParser instance.
+ * @param expected_type The BaaTokenType that is expected.
+ * @param error_message_format A printf-style format string for the error message if the token does not match.
+ * @param ... Additional arguments for the error message format string.
+ */
+static void consume_token(BaaParser *parser, BaaTokenType expected_type, const wchar_t *error_message_format, ...)
+{
+    if (!parser)
+        return;
+
+    if (parser->current_token.type == expected_type)
+    {
+        advance(parser);
+        return;
+    }
+
+    // Token doesn't match, report error using varargs for the message
+    va_list args;
+    va_start(args, error_message_format);
+    // Create a temporary buffer for the formatted message body
+    wchar_t message_body[256]; // Adjust size as needed or use dynamic allocation
+    vswprintf(message_body, sizeof(message_body) / sizeof(wchar_t), error_message_format, args);
+    va_end(args);
+
+    // Report the error using the already formatted message_body
+    parser_error_at_token(parser, &parser->current_token, L"%ls", message_body);
+    // Note: synchronize() is typically called by the parsing rule that detects an unrecoverable state,
+    // not directly by consume_token itself, to allow the rule to decide if it can recover differently.
 }
 
 BaaParser *baa_parser_create(BaaLexer *lexer, const char *source_filename)
@@ -149,8 +255,8 @@ static void advance(BaaParser *parser)
         {
             // This indicates a critical failure in the lexer (e.g., malloc failed for token)
             // Report a parser-level error and set current_token to EOF to stop.
-            fprintf(stderr, "Parser Critical Error: Lexer failed to return a token.\n"); // TODO: Use parser_error
-            parser->had_error = true;                                                    // Signal a general error
+            parser_error_at_token(parser, &parser->current_token, L"فشل معجمي حرج: لم يتم إرجاع رمز مميز.");
+            parser->had_error = true; // Signal a general error
             parser->current_token.type = BAA_TOKEN_EOF;
             parser->current_token.lexeme = NULL; // No lexeme for this synthetic EOF
             parser->current_token.length = 0;
@@ -174,12 +280,11 @@ static void advance(BaaParser *parser)
             break; // Got a valid token or EOF
         }
 
-        // Lexical error encountered, report it (using a placeholder error function for now)
-        // TODO: Replace with proper parser_error_at(&parser->current_token, ...)
-        fprintf(stderr, "Lexical Error on line %zu, column %zu: %ls\n",
-                parser->current_token.line, parser->current_token.column,
-                parser->current_token.lexeme ? parser->current_token.lexeme : L"Unknown lexical error");
-        parser->had_error = true;
+        // Lexical error encountered. We report it here because 'advance' is responsible for
+        // dealing with tokens from the lexer.
+        parser_error_at_token(parser, &parser->current_token, L"خطأ معجمي: %ls",
+                              parser->current_token.lexeme ? parser->current_token.lexeme : L"Unknown lexical error");
+        // parser->had_error is already set by parser_error_at_token
         // The loop continues to fetch the next token after a lexical error.
         // The erroneous token's lexeme in current_token will be freed on the next advance.
     }
