@@ -4,6 +4,40 @@ All notable changes to the B (باء) compiler project will be documented in thi
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.19.0] - 2025-05-26
+
+### Added
+
+- **Parser Core Foundation (Phase 0 of Parser Redesign):**
+  - Defined internal `BaaParser` state structure in `src/parser/parser_internal.h`. This structure includes:
+    - A pointer to the `BaaLexer` instance.
+    - `current_token` and `previous_token` (of type `BaaToken`) to manage the token stream.
+    - `source_filename` (const char*) to store the name of the file being parsed for accurate error reporting.
+    - Error state flags: `had_error` and `panic_mode`.
+  - Implemented the public parser API in `include/baa/parser/parser.h`:
+    - `BaaParser* baa_parser_create(BaaLexer* lexer, const char* source_filename)` for parser initialization. It fetches the first token.
+    - `void baa_parser_free(BaaParser* parser)` for resource cleanup, including freeing owned token lexemes.
+    - `BaaNode* baa_parse_program(BaaParser* parser)` as a stub function (actual parsing logic is pending).
+    - `bool baa_parser_had_error(const BaaParser* parser)` to check for parsing errors.
+  - Implemented core token consumption and management logic within `src/parser/parser.c` (as static internal functions):
+    - `advance()`: Consumes `current_token`, makes the next token from the lexer current, manages `previous_token`, and takes ownership of the new `current_token`'s lexeme. Reports lexical errors encountered during token fetching from the lexer.
+    - `check_token()`: Peeks at the type of `current_token` without consuming it.
+    - `match_token()`: Consumes `current_token` if its type matches the expected type.
+    - `consume_token()`: Expects `current_token` to be of a specific type; if so, consumes it. If not, reports a syntax error via `parser_error_at_token`.
+  - Implemented parser error handling and basic recovery mechanisms in `src/parser/parser.c` (as static internal functions):
+    - `parser_error_at_token()`: Centralized error reporting. Prints an error message to `stderr`, including source filename, line, and column of the problematic token. Sets `had_error` and `panic_mode`. Prevents cascading errors if already in panic mode.
+    - `synchronize()`: Basic "panic mode" error recovery. When active, it discards tokens until a likely synchronization point (e.g., statement terminator '.', common statement-starting keywords, or EOF) is reached, then clears `panic_mode`.
+  - Added the `baa_parser` static library component to the CMake build system (`src/parser/CMakeLists.txt`).
+  - Integrated the new `baa_parser` library into `baa_compiler_lib` dependencies in `src/CMakeLists.txt`.
+
+### Changed
+
+- **BaaToken (`include/baa/lexer/lexer.h`):**
+  - Modified `BaaToken.lexeme` from `const wchar_t*` to `wchar_t*`. This change allows the parser to take ownership of the lexeme string memory that was allocated by the lexer.
+- **Tools (`tools/baa_parser_tester.c`):**
+  - Updated to utilize the new parser core API (`baa_parser_create`, `baa_parser_free`).
+  - The tester now demonstrates basic token iteration through the parser's internal state for observational purposes, as `baa_parse_program` is currently a stub. AST parsing and printing sections are commented out.
+
 ## [0.1.18.0] - 2025-05-25
 
 ### Added

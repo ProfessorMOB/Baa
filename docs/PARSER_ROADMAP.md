@@ -11,14 +11,14 @@ The parser will employ a recursive descent strategy, with distinct modules for p
 1. **Define `BaaParser` Structure:**
     * **File:** `parser_internal.h` (or similar private header).
     * **Description:** Define `BaaParser` struct: `BaaLexer* lexer; BaaToken current_token; BaaToken previous_token; bool had_error; bool panic_mode;`.
-    * **Verification:** Struct contains all necessary state fields.
+    * **Status:** [x] COMPLETED (Includes `source_filename` field now)
 
 2. **Implement Parser Initialization & Teardown:**
     * **File:** `parser.c`.
     * **Description:**
-        * `BaaParser* baa_parser_create(BaaLexer* lexer);` (allocates, initializes `current_token` by calling `advance`).
+        * `BaaParser* baa_parser_create(BaaLexer* lexer, const char* source_filename);` (allocates, stores filename, initializes `current_token` by calling `advance`).
         * `void baa_parser_free(BaaParser* parser);`.
-    * **Verification:** Parser can be created and freed. Initial token is fetched.
+    * **Status:** [x] COMPLETED
 
 3. **Implement Core Token Handling Utilities:**
     * **File:** `parser_utils.c` (or within `parser.c`).
@@ -27,21 +27,21 @@ The parser will employ a recursive descent strategy, with distinct modules for p
         * `bool check_token(BaaParser* p, BaaTokenType type);` (checks `current_token.type`).
         * `bool match_token(BaaParser* p, BaaTokenType type);` (if `check_token` is true, calls `advance`, returns true; else false).
         * `void consume_token(BaaParser* p, BaaTokenType expected, const wchar_t* error_message_format, ...);` (if `current_token.type` is not `expected`, reports error and enters panic mode; otherwise advances).
-    * **Verification:** Each utility functions correctly with various token inputs.
+    * **Status:** [x] COMPLETED
 
 4. **Implement Basic Error Reporting (`parser_error`):**
     * **File:** `parser_utils.c` (or `parser.c`).
     * **Description:**
-        * `void parser_error_at(BaaParser* p, BaaToken* token_for_loc, const wchar_t* message_format, ...);` (formats message, sets `had_error`, sets `panic_mode`).
+        * `void parser_error_at_token(BaaParser* p, BaaToken* token_for_loc, const wchar_t* message_format, ...);` (formats message, uses `source_filename`, sets `had_error`, sets `panic_mode`).
         * Uses `token_for_loc.span` (or constructs a span from it) to report the error location.
         * Avoids cascading errors if `panic_mode` is already true.
-    * **Verification:** Errors can be reported with token locations. Panic mode is set.
+    * **Status:** [x] COMPLETED
 
 5. **Implement Basic Error Synchronization (`synchronize`):**
     * **File:** `parser_utils.c` (or `parser.c`).
     * **Description:** `void synchronize(BaaParser* p);`.
         * Initial strategy: Advances tokens until `BAA_TOKEN_DOT` (statement terminator), `BAA_TOKEN_EOF`, or a keyword that typically starts a new statement/declaration (e.g., `إذا`, `عدد_صحيح`). Clears `panic_mode`.
-    * **Verification:** Parser can skip tokens after an error until a basic recovery point.
+    * **Status:** [x] COMPLETED
 
 ### Phase 1: Parsing Minimal Program & Primary Expressions
 

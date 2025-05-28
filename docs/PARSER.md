@@ -18,13 +18,15 @@ This document provides a comprehensive reference for the parser implementation i
 
 The parser state and core logic reside in `parser.c`, with specialized parsing functions in separate modules:
 
-```
+``` c
+
 BaaParser (Main Parser - parser.c)
 ├── Expression Parser (expression_parser.c)
 ├── Statement Parser (statement_parser.c)
 ├── Declaration Parser (declaration_parser.c)
 └── Type Parser (type_parser.c)
 └── Parser Utilities (parser_utils.c - token consumption, error reporting, etc.)
+
 ```
 
 Each parsing function (e.g., `parse_if_statement`, `parse_binary_expression`) will return a `BaaNode*` representing the construct parsed, or `NULL` if a syntax error occurred that couldn't be recovered from for that construct.
@@ -38,6 +40,7 @@ typedef struct {
     BaaLexer* lexer;           // Pointer to the lexer instance providing tokens
     BaaToken current_token;    // The current token being processed (lookahead)
     BaaToken previous_token;   // The most recently consumed token (useful for source span)
+    const char* source_filename; // Name of the source file being parsed (for error messages)
     bool had_error;            // Flag: true if any syntax error has been encountered
     bool panic_mode;           // Flag: true if the parser is currently recovering from an error
     // DiagnosticContext* diagnostics; // Optional: For collecting multiple parse errors
@@ -50,7 +53,7 @@ The `previous_token.span.start` and `current_token.span.end` (or `previous_token
 
 ### 4.1 Main Parser (`parser.c`, `parser.h`)
 
-* **`BaaParser* baa_parser_create(BaaLexer* lexer)`**: Initializes a new parser.
+* **`BaaParser* baa_parser_create(BaaLexer* lexer, const char* source_filename)`**: Initializes a new parser.
 * **`void baa_parser_free(BaaParser* parser)`**: Frees parser resources.
 * **`BaaNode* baa_parse_program(BaaParser* parser)`**: Entry point. Parses a sequence of top-level declarations (function definitions, global variable declarations) until `BAA_TOKEN_EOF`. Returns a `BaaNode*` of kind `BAA_NODE_KIND_PROGRAM`.
 * **Token Handling Utilities (internal in `parser_utils.c`):**
@@ -136,9 +139,9 @@ The parser will use a "panic mode" error recovery strategy:
 #include "baa/lexer/lexer.h" // For BaaLexer, BaaToken
 #include "baa/ast/ast.h"     // For BaaNode (once ast.h defines it)
 
-typedef struct BaaParser BaaParser; // Opaque struct
+typedef struct BaaParser BaaParser; // Opaque struct, definition in parser_internal.h
 
-BaaParser* baa_parser_create(BaaLexer* lexer);
+BaaParser* baa_parser_create(BaaLexer* lexer, const char* source_filename);
 void baa_parser_free(BaaParser* parser);
 
 // Parses the entire token stream, returns the root BaaNode (kind BAA_NODE_KIND_PROGRAM)
