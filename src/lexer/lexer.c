@@ -64,6 +64,7 @@ wchar_t advance(BaaLexer *lexer)
     if (is_at_end(lexer))
         return L'\0';
     wchar_t c = lexer->source[lexer->current++];
+    wchar_t char_consumed = c; // For debug
     if (c == L'\n')
     {
         lexer->line++;
@@ -71,9 +72,14 @@ wchar_t advance(BaaLexer *lexer)
     }
     else
     {
-        lexer->column++;
+        lexer->column++; // Increment for non-newline char
     }
-    return c; // Return the character that was consumed
+    // --- DEBUG ---
+    fwprintf(stderr, L"DEBUG LEXER advance: Consumed '%lc'(%04X), new current_idx=%zu, new line=%zu, new col=%zu\n",
+             char_consumed, (unsigned int)char_consumed, lexer->current, lexer->line, lexer->column);
+    fflush(stderr);
+    // --- END DEBUG ---
+    return char_consumed; // Return the character that was consumed
 }
 
 bool match(BaaLexer *lexer, wchar_t expected)
@@ -131,25 +137,16 @@ BaaToken *make_token(BaaLexer *lexer, BaaTokenType type)
     ((wchar_t *)token->lexeme)[token->length] = L'\0'; // Null-terminate
     token->line = lexer->line;
     token->column = lexer->start_token_column; // Use the recorded start column
-    // If lexer->column is already 1-based and points to the *next* char:
-    // Example: "ABC"
-    // Start: line=1, col=1. lexer->start=0
-    // After 'A': current=1, col=2
-    // After 'B': current=2, col=3
-    // After 'C': current=3, col=4. Token found.
-    // length = 3-0 = 3.
-    // token->column = 4 - 3 = 1. This is correct (1-based).
 
-    // The problem might be that lexer->start's column isn't directly stored.
-    // The `skip_whitespace` also calls `advance`.
-    // Let's look at `baa_lexer_next_token`:
-    // skip_whitespace(lexer);
-    // lexer->start = lexer->current; // This is an *index*
-    // The column of lexer->start is simply `lexer->column` *at this point in time*.
-
-    // Let's refine `make_token` to capture the column at `lexer->start`.
-    // This means `baa_lexer_next_token` needs to record `lexer->column` when it sets `lexer->start`.
-    // This is tricky because `BaaLexer` doesn't have `start_column`.
+    // --- DEBUG PRINT ---
+    fwprintf(stderr, L"DEBUG LEXER make_token: Type=%d, Lexeme='", type);
+    for (size_t i = 0; i < token->length; ++i)
+    {
+        putwc(token->lexeme[i], stderr);
+    } // Print char by char
+    fwprintf(stderr, L"', Len=%zu, Line=%zu, Col=%zu, lexer->start=%zu, lexer->current=%zu\n",
+             token->length, token->line, token->column, lexer->start, lexer->current);
+    // --- END DEBUG PRINT ---
     return token;
 }
 
@@ -430,6 +427,11 @@ void synchronize(BaaLexer *lexer)
 BaaToken *baa_lexer_next_token(BaaLexer *lexer)
 {
     BaaToken *whitespace_error = skip_whitespace(lexer);
+    // At this moment, skip_whitespace has returned.
+    // Let's print lexer state *immediately* here.
+    fwprintf(stderr, L"DEBUG LEXER after_skip_ws: current_idx=%zu, col=%zu, char_at_current='%lc'\n",
+             lexer->current, lexer->column, is_at_end(lexer) ? L'~' : lexer->source[lexer->current]);
+    fflush(stderr);
     if (whitespace_error != NULL)
     {
         return whitespace_error;
@@ -437,6 +439,11 @@ BaaToken *baa_lexer_next_token(BaaLexer *lexer)
 
     lexer->start = lexer->current;
     lexer->start_token_column = lexer->column; // Record column at start of token
+                                               // --- DEBUG ---
+    fwprintf(stderr, L"DEBUG LEXER next_token - Set start markers: lexer->start=%zu, lexer->start_token_column=%zu, char_at_current='%lc'\n",
+             lexer->start, lexer->start_token_column, lexer->source[lexer->current]);
+    fflush(stderr); // Ensure this prints immediately
+    // --- END DEBUG ---
 
     if (lexer->current >= lexer->source_length)
     {
@@ -500,11 +507,17 @@ BaaToken *baa_lexer_next_token(BaaLexer *lexer)
     {
         return scan_number(lexer);
     }
-    if (iswalpha(current_char_peeked) || current_char_peeked == L'_' || is_arabic_letter(current_char_peeked))
+    bool check_iswalpha = iswalpha(current_char_peeked);
+    bool check_is_underscore = (current_char_peeked == L'_');
+    bool check_is_arabic_letter = is_arabic_letter(current_char_peeked);
+    fwprintf(stderr, L"DEBUG LEXER Identifier Check: char='%lc'(%04X), iswalpha=%d, is_underscore=%d, is_arabic_letter=%d\n",
+             current_char_peeked, (unsigned int)current_char_peeked, check_iswalpha, check_is_underscore, check_is_arabic_letter);
+    fflush(stderr);
+
+    if (check_iswalpha || check_is_underscore || check_is_arabic_letter)
     {
         return scan_identifier(lexer);
     }
-
     wchar_t c = advance(lexer);
 
     if (c == L'\0' && is_at_end(lexer))

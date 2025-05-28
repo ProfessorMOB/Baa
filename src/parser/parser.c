@@ -268,6 +268,31 @@ static void advance(BaaParser *parser)
             // No need to free lexer_next_token_ptr as it's NULL
             return;
         }
+        // --- DEBUG PRINT: Token received from lexer IN THIS ITERATION ---
+        if (lexer_next_token_ptr)
+        {
+            fwprintf(stderr, L"DEBUG PARSER advance - Lexer Returned: Type=%d (%ls), Lexeme='", lexer_next_token_ptr->type, baa_token_type_to_string(lexer_next_token_ptr->type));
+            for (size_t i = 0; i < lexer_next_token_ptr->length; ++i)
+            {
+                putwc(lexer_next_token_ptr->lexeme[i], stderr);
+            }
+            fwprintf(stderr, L"', Line=%zu, Col=%zu\n", lexer_next_token_ptr->line, lexer_next_token_ptr->column);
+            fflush(stderr);
+        }
+        // --- END DEBUG PRINT ---
+
+        // --- DEBUG PRINT before assignment ---
+        if (lexer_next_token_ptr)
+        {
+            fwprintf(stderr, L"DEBUG PARSER advance - Lexer Token Before Assign: Type=%d, Lexeme='", lexer_next_token_ptr->type);
+            for (size_t i = 0; i < lexer_next_token_ptr->length; ++i)
+            {
+                putwc(lexer_next_token_ptr->lexeme[i], stderr);
+            }
+            fwprintf(stderr, L"', Len=%zu, Line=%zu, Col=%zu\n",
+                     lexer_next_token_ptr->length, lexer_next_token_ptr->line, lexer_next_token_ptr->column);
+        }
+        // --- END DEBUG PRINT ---
 
         // 4. Copy the new token's data to parser->current_token
         parser->current_token = *lexer_next_token_ptr; // Struct copy. current_token now "owns" the lexeme.
@@ -277,6 +302,16 @@ static void advance(BaaParser *parser)
 
         // 6. Free the shell of the token returned by the lexer
         baa_free_token(lexer_next_token_ptr);
+
+        // -- -DEBUG PRINT after assignment-- -
+        fwprintf(stderr, L"DEBUG PARSER advance - Parser Current Token After Assign: Type=%d, Lexeme='", parser->current_token.type);
+        for (size_t i = 0; i < parser->current_token.length; ++i)
+        {
+            putwc(parser->current_token.lexeme[i], stderr);
+        }
+        fwprintf(stderr, L"', Len=%zu, Line=%zu, Col=%zu\n",
+                 parser->current_token.length, parser->current_token.line, parser->current_token.column);
+        // --- END DEBUG PRINT ---
 
         if (parser->current_token.type != BAA_TOKEN_ERROR)
         {

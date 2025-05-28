@@ -1,3 +1,4 @@
+// tools/baa_parser_tester.c
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -11,6 +12,10 @@
 #include "baa/parser/parser.h" // Public API
 #include "baa/ast/ast.h"       // For BaaNode, even if baa_parse_program is a stub
 
+#ifdef _WIN32
+#include <windows.h> // For GetCommandLineW, CommandLineToArgvW, LocalFree
+#endif
+
 // Internal parser structure for inspection (ONLY FOR TESTING - NOT FOR PRODUCTION USE)
 // This is a bit of a hack to inspect internal state. In a real test suite,
 // you'd rely on public API or specific test interfaces.
@@ -19,36 +24,11 @@ typedef struct BaaParser_TestInspect
     BaaLexer *lexer;
     BaaToken current_token;
     BaaToken previous_token;
-    const char *source_filename;
+    // Order must EXACTLY match BaaParser in src/parser/parser_internal.h
     bool had_error;
     bool panic_mode;
+    const wchar_t *source_filename; // Corrected order based on src/parser/parser_internal.h
 } BaaParser_TestInspect;
-
-// Helper: Convert char* to wchar_t*
-static wchar_t *char_to_wchar_tester(const char *str)
-{
-    if (!str)
-        return NULL;
-    size_t len = strlen(str) + 1;
-    wchar_t *wstr = (wchar_t *)malloc(len * sizeof(wchar_t));
-    if (!wstr)
-    {
-        return NULL;
-    }
-    size_t converted;
-#ifdef _WIN32
-    mbstowcs_s(&converted, wstr, len, str, len - 1);
-#else
-    converted = mbstowcs(wstr, str, len - 1);
-    if (converted == (size_t)-1)
-    {
-        free(wstr);
-        return NULL;
-    }
-    wstr[converted] = L'\0';
-#endif
-    return wstr;
-}
 
 // Helper function to print wide strings correctly
 void print_wide_string_parser_tester(FILE *stream, const wchar_t *wstr)
@@ -85,32 +65,99 @@ void print_token_details(const char *label, const BaaToken *token)
 
 int main(int argc, char *argv[])
 {
+    (void)argc; // Suppress unused parameter warning for non-Windows
+    (void)argv; // Suppress unused parameter warning for non-Windows
+
     setlocale(LC_ALL, "");
 
-    if (argc != 2)
+    const wchar_t *w_input_filename = NULL;
+    char *input_filename_char_for_pp = NULL; // char* version for BaaPpSource
+
+#ifdef _WIN32
+    int nArgs;
+    LPWSTR *szArgList = CommandLineToArgvW(GetCommandLineW(), &nArgs);
+    if (NULL == szArgList || nArgs < 2)
+    {
+        fprintf(stderr, "Usage: baa_parser_tester <input_file.baa>\n");
+        if (szArgList)
+            LocalFree(szArgList);
+        return 1;
+    }
+    // Duplicate the wide string argument because LocalFree will deallocate szArgList later.
+    w_input_filename = baa_strdup(szArgList[1]); // Use your utils' strdup
+    if (!w_input_filename)
+    {
+        fprintf(stderr, "Error: Failed to duplicate input filename.\n");
+        LocalFree(szArgList);
+        return 1;
+    }
+    LocalFree(szArgList);
+
+    // Convert w_input_filename to char* (UTF-8) for BaaPpSource
+    int required_bytes = WideCharToMultiByte(CP_UTF8, 0, w_input_filename, -1, NULL, 0, NULL, NULL);
+    if (required_bytes <= 0)
+    {
+        fprintf(stderr, "Error: Could not determine size for UTF-8 conversion of filename.\n");
+        baa_free((void *)w_input_filename);
+        return 1;
+    }
+    input_filename_char_for_pp = (char *)baa_malloc(required_bytes);
+    if (!input_filename_char_for_pp)
+    { // Check malloc result
+        fprintf(stderr, "Error: Failed to allocate memory for UTF-8 filename.\n");
+        baa_free((void *)w_input_filename);
+        return 1;
+    }
+    WideCharToMultiByte(CP_UTF8, 0, w_input_filename, -1, input_filename_char_for_pp, required_bytes, NULL, NULL);
+
+#else // For non-Windows, use argv directly and assume it's UTF-8 or compatible
+    if (argc < 2)
     {
         fprintf(stderr, "Usage: %s <input_file.baa>\n", argv[0]);
         return 1;
     }
-
-    const wchar_t *input_filename_char = argv[1];
-    wchar_t *w_input_filename = char_to_wchar_tester(input_filename_char);
-    if (!w_input_filename)
+    input_filename_char_for_pp = baa_strdup_char(argv[1]); // Duplicate for safety
+    if (!input_filename_char_for_pp)
     {
-        fprintf(stderr, "Error: Failed to convert input filename to wchar_t.\n");
+        fprintf(stderr, "Error: Failed to duplicate input filename (char*).\n");
         return 1;
     }
+    // Convert char* (hopefully UTF-8) to wchar_t* for display and lexer init
+    size_t len_check = mbstowcs(NULL, input_filename_char_for_pp, 0);
+    if (len_check == (size_t)-1)
+    {
+        fprintf(stderr, "Error: Invalid multibyte sequence in input filename or failed to calculate length.\n");
+        baa_free(input_filename_char_for_pp);
+        return 1;
+    }
+    w_input_filename = (wchar_t *)baa_malloc((len_check + 1) * sizeof(wchar_t));
+    if (!w_input_filename)
+    {
+        fprintf(stderr, "Error: Failed to allocate memory for widechar input filename.\n");
+        baa_free(input_filename_char_for_pp);
+        return 1;
+    }
+    if (mbstowcs(w_input_filename, input_filename_char_for_pp, len_check + 1) == (size_t)-1)
+    {
+        fprintf(stderr, "Error: Failed to convert input filename to wide characters.\n");
+        baa_free((void *)w_input_filename);
+        baa_free(input_filename_char_for_pp);
+        return 1;
+    }
+#endif
 
     wprintf(L"--- Baa Parser Tester ---\n");
-    wprintf(L"Input file: %ls\n", input_filename_char);
+    wprintf(L"Input file: ");
+    print_wide_string_parser_tester(stdout, w_input_filename);
+    wprintf(L"\n");
 
     // 1. Preprocess
     wprintf(L"\n[PHASE 1: PREPROCESSING]\n");
     wchar_t *pp_error_message = NULL;
     BaaPpSource pp_source = {
         .type = BAA_PP_SOURCE_FILE,
-        .source_name = input_filename_char, // For error context in preprocessor
-        .data.file_path = input_filename_char};
+        .source_name = input_filename_char_for_pp, // Use the char* version for BaaPpSource
+        .data.file_path = input_filename_char_for_pp};
     wchar_t *source_code = baa_preprocess(&pp_source, NULL, &pp_error_message);
 
     if (!source_code)
@@ -123,10 +170,11 @@ int main(int argc, char *argv[])
         }
         else
         {
-            fwprintf(stderr, L"Unknown preprocessor error for file %hs.\n", input_filename_char);
+            fwprintf(stderr, L"Unknown preprocessor error for file %s.\n", input_filename_char_for_pp);
         }
         fwprintf(stderr, L"\n");
-        free(w_input_filename);
+        baa_free((void *)w_input_filename); // Cast as it might be const from szArgList path originally
+        baa_free(input_filename_char_for_pp);
         return 1;
     }
     wprintf(L"Preprocessing successful.\n");
@@ -140,17 +188,24 @@ int main(int argc, char *argv[])
 
     // 3. Parser Creation & Initial State Inspection
     wprintf(L"\n[PHASE 3: PARSER CREATION & TOKEN STREAM]\n");
-    BaaParser *parser = baa_parser_create(&lexer, input_filename_char);
+    BaaParser *parser = baa_parser_create(&lexer, w_input_filename); // Pass wchar_t* for source_filename
     if (!parser)
     {
         fwprintf(stderr, L"Error: Failed to create parser.\n");
         free(source_code);
-        free(w_input_filename);
+        baa_free(input_filename_char_for_pp);
+        baa_free((void *)w_input_filename);
         return 1;
     }
     wprintf(L"Parser created successfully.\n");
 
-    // Inspect the internal state of the parser (using the test-only struct cast)
+    // --- Direct inspection immediately after creation ---
+    BaaParser_TestInspect *parser_inspect_direct = (BaaParser_TestInspect *)parser;
+    printf("Direct check after create: had_error=%d, panic_mode=%d (0=false, 1=true)\n",
+           parser_inspect_direct->had_error,
+           parser_inspect_direct->panic_mode);
+    // --- End direct inspection ---
+
     BaaParser_TestInspect *parser_inspect = (BaaParser_TestInspect *)parser;
 
     int token_count = 0;
@@ -160,6 +215,13 @@ int main(int argc, char *argv[])
         wprintf(L"\nIteration %d:\n", token_count);
         print_token_details("  Parser->previous_token", &parser_inspect->previous_token);
         print_token_details("  Parser->current_token ", &parser_inspect->current_token);
+
+        // --- Direct inspection inside the loop ---
+        printf("  Direct check in loop: had_error=%d, panic_mode=%d\n",
+               parser_inspect->had_error,
+               parser_inspect->panic_mode);
+        // --- End direct inspection ---
+
         wprintf(L"  Parser: had_error=%s, panic_mode=%s\n",
                 parser_inspect->had_error ? L"true" : L"false",
                 parser_inspect->panic_mode ? L"true" : L"false");
@@ -208,7 +270,7 @@ int main(int argc, char *argv[])
             wprintf(L"Lexer returned NULL, critical error.\n");
             break;
         }
-        // "Manually" update the inspected tokens for the *tester's* observational loop
+        // "Manually" update the inspected tokens for the *tester's* display loop
         // This does NOT reflect the internal `previous_token` of the parser after its *internal* `advance` calls.
         if (parser_inspect->previous_token.lexeme)
             baa_free((void *)parser_inspect->previous_token.lexeme);
@@ -249,7 +311,8 @@ int main(int argc, char *argv[])
     wprintf(L"Parser freed.\n");
     free(source_code);
     wprintf(L"Source code buffer freed.\n");
-    free(w_input_filename);
+    baa_free((void *)w_input_filename); // Cast as it might be const from szArgList path originally
+    baa_free(input_filename_char_for_pp);
     wprintf(L"Filename buffer freed.\n");
 
     wprintf(L"\n--- Parser Tester Finished ---\n");
