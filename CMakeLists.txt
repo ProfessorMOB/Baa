@@ -133,6 +133,26 @@ target_include_directories(baa_ast_tester
         ${CMAKE_SOURCE_DIR}/include  # To find "baa/ast/ast.h", "baa/utils/utils.h"
         # No need for ${CMAKE_SOURCE_DIR}/src/ast here as public headers are in include/
 )
+
+# --- Standalone Parser Tester ---
+add_executable(baa_parser_tester
+    tools/baa_parser_tester.c
+)
+
+# Link dependencies for the parser tester
+target_link_libraries(baa_parser_tester PRIVATE
+    baa_parser       # The new parser library
+    baa_lexer        # Parser uses the lexer
+    baa_preprocessor # Parser tester will preprocess input
+    baa_ast          # For BaaNode type, even if parsing is stubbed+    baa_utils        # General utilities
+    BaaCommonSettings
+)
+
+# Include directories for the parser tester
+target_include_directories(baa_parser_tester PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+)
+
 # تفعيل الاختبارات (معطل مؤقتاً)
 # enable_testing()
 # add_subdirectory(tests) # Keep this if tests are separate

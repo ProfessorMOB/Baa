@@ -36,8 +36,11 @@ static void synchronize(BaaParser *parser)
     if (!parser)
         return;
 
-    parser->panic_mode = false; // Clear panic mode *before* consuming, as we're trying to recover.
-                                // Or, clear it after finding a recovery point. Let's clear after.
+    // parser->panic_mode = false; // Original: Clear panic mode *before* consuming
+    // Let's try clearing it *after* finding a recovery point or at the start
+    // IF an error just occurred.
+    // For this function, it's assumed an error *has* occurred and we are *already* in panic_mode.
+    // The goal is to find a safe place and then clear it.
 
     while (parser->current_token.type != BAA_TOKEN_EOF)
     {
@@ -45,7 +48,7 @@ static void synchronize(BaaParser *parser)
         //    If so, the current token is likely the start of a new statement.
         if (parser->previous_token.type == BAA_TOKEN_DOT)
         {
-            parser->panic_mode = false; // Recovered
+            parser->panic_mode = false; // Cleared on recovery
             return;
         }
 
@@ -66,7 +69,7 @@ static void synchronize(BaaParser *parser)
         case BAA_TOKEN_RETURN:
         case BAA_TOKEN_SWITCH:          // If/when switch is added
                                         // case BAA_TOKEN_FUNC: // If `دالة` keyword was kept
-            parser->panic_mode = false; // Recovered
+            parser->panic_mode = false; // Cleared on recovery
             return;
         default:
             // Not a recovery point based on current token type
@@ -75,7 +78,7 @@ static void synchronize(BaaParser *parser)
         advance(parser); // Consume the token and try the next one
     }
     // If EOF is reached, panic mode is implicitly over.
-    parser->panic_mode = false;
+    parser->panic_mode = false; // Cleared at EOF
 }
 
 /**
@@ -99,8 +102,8 @@ static void parser_error_at_token(BaaParser *parser, const BaaToken *token, cons
 
     // Construct the error message prefix with location
     // Using source_filename stored in parser struct
-    fwprintf(stderr, L"%hs:%zu:%zu: خطأ: ",
-             parser->source_filename ? parser->source_filename : "<unknown_source>",
+    fwprintf(stderr, L"%ls:%zu:%zu: خطأ: ",
+             parser->source_filename ? parser->source_filename : L"<unknown_source>",
              token->line,
              token->column);
 
@@ -182,7 +185,7 @@ static void consume_token(BaaParser *parser, BaaTokenType expected_type, const w
     // not directly by consume_token itself, to allow the rule to decide if it can recover differently.
 }
 
-BaaParser *baa_parser_create(BaaLexer *lexer, const char *source_filename)
+BaaParser *baa_parser_create(BaaLexer *lexer, const wchar_t *source_filename)
 {
     if (!lexer)
     {

@@ -20,7 +20,7 @@ struct BaaParser
     bool had_error;  // Flag: true if any syntax error has been encountered
     bool panic_mode; // Flag: true if the parser is currently recovering from an error
 
-    const char *source_filename; // Name of the source file being parsed (for error messages)
+    const wchar_t *source_filename; // Name of the source file being parsed (for error messages)
 
     // DiagnosticContext* diagnostics; // Future: For collecting multiple parse errors
 };

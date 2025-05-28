@@ -18,7 +18,7 @@ typedef struct BaaParser BaaParser;
  * @param source_filename The name of the source file being parsed (for error reporting).
  * @return A pointer to the newly created BaaParser, or NULL on failure.
  */
-BaaParser* baa_parser_create(BaaLexer* lexer, const char* source_filename);
+BaaParser *baa_parser_create(BaaLexer *lexer, const wchar_t *source_filename);
 
 /**
  * @brief Frees the resources associated with the parser.
@@ -27,7 +27,7 @@ BaaParser* baa_parser_create(BaaLexer* lexer, const char* source_filename);
  *
  * @param parser A pointer to the BaaParser to be freed.
  */
-void baa_parser_free(BaaParser* parser);
+void baa_parser_free(BaaParser *parser);
 
 /**
  * @brief Parses the entire token stream from the lexer.
@@ -40,7 +40,7 @@ void baa_parser_free(BaaParser* parser);
  *         or NULL if parsing fails and an AST cannot be constructed.
  *         The caller is responsible for freeing the returned AST using baa_ast_free_node().
  */
-BaaNode* baa_parse_program(BaaParser* parser);
+BaaNode *baa_parse_program(BaaParser *parser);
 
 /**
  * @brief Checks if the parser encountered any errors during its operation.
@@ -48,7 +48,7 @@ BaaNode* baa_parse_program(BaaParser* parser);
  * @param parser A pointer to the BaaParser.
  * @return True if errors were encountered, false otherwise.
  */
-bool baa_parser_had_error(const BaaParser* parser);
+bool baa_parser_had_error(const BaaParser *parser);
 
 // Future: Function to retrieve a list of diagnostics/errors
 // const BaaDiagnosticList* baa_parser_get_diagnostics(const BaaParser* parser);

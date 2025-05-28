@@ -25,7 +25,7 @@ struct KeywordMapping keywords[] = {
     {L"اختر", BAA_TOKEN_SWITCH},
     {L"حالة", BAA_TOKEN_CASE},
     {L"توقف", BAA_TOKEN_BREAK},
-    {L"أكمل", BAA_TOKEN_CONTINUE}, // Note: docs/language.md uses أكمل for "continue" - lexer uses استمر
+    {L"أكمل", BAA_TOKEN_CONTINUE},         // Note: docs/language.md uses أكمل for "continue" - lexer uses استمر
     {L"ثابت", BAA_TOKEN_CONST},            // Keyword for constant declaration
     {L"مضمن", BAA_TOKEN_KEYWORD_INLINE},   // Keyword for inline
     {L"مقيد", BAA_TOKEN_KEYWORD_RESTRICT}, // Keyword for restrict
@@ -67,7 +67,7 @@ wchar_t advance(BaaLexer *lexer)
     if (c == L'\n')
     {
         lexer->line++;
-        lexer->column = 0;
+        lexer->column = 1; // Reset to 1 for new line
     }
     else
     {
@@ -100,7 +100,8 @@ void baa_init_lexer(BaaLexer *lexer, const wchar_t *source, const wchar_t *filen
     lexer->start = 0;
     lexer->current = 0;
     lexer->line = 1;
-    lexer->column = 0;
+    lexer->column = 1;             // Columns should be 1-based for users
+    lexer->start_token_column = 1; // Initialize start_token_column
     // Note: No had_error field in the struct per lexer.h
 }
 
@@ -129,11 +130,26 @@ BaaToken *make_token(BaaLexer *lexer, BaaTokenType type)
     wcsncpy((wchar_t *)token->lexeme, &lexer->source[lexer->start], token->length);
     ((wchar_t *)token->lexeme)[token->length] = L'\0'; // Null-terminate
     token->line = lexer->line;
-    // Calculate column based on start position, accounting for line breaks within token?
-    // Simple approach: column where token starts.
-    // A more precise column might require tracking start column explicitly.
-    token->column = lexer->column - token->length; // Approximate start column
+    token->column = lexer->start_token_column; // Use the recorded start column
+    // If lexer->column is already 1-based and points to the *next* char:
+    // Example: "ABC"
+    // Start: line=1, col=1. lexer->start=0
+    // After 'A': current=1, col=2
+    // After 'B': current=2, col=3
+    // After 'C': current=3, col=4. Token found.
+    // length = 3-0 = 3.
+    // token->column = 4 - 3 = 1. This is correct (1-based).
 
+    // The problem might be that lexer->start's column isn't directly stored.
+    // The `skip_whitespace` also calls `advance`.
+    // Let's look at `baa_lexer_next_token`:
+    // skip_whitespace(lexer);
+    // lexer->start = lexer->current; // This is an *index*
+    // The column of lexer->start is simply `lexer->column` *at this point in time*.
+
+    // Let's refine `make_token` to capture the column at `lexer->start`.
+    // This means `baa_lexer_next_token` needs to record `lexer->column` when it sets `lexer->start`.
+    // This is tricky because `BaaLexer` doesn't have `start_column`.
     return token;
 }
 
@@ -420,19 +436,24 @@ BaaToken *baa_lexer_next_token(BaaLexer *lexer)
     }
 
     lexer->start = lexer->current;
+    lexer->start_token_column = lexer->column; // Record column at start of token
 
-    if (lexer->current >= lexer->source_length) {
+    if (lexer->current >= lexer->source_length)
+    {
         lexer->start = lexer->current;
         return make_token(lexer, BAA_TOKEN_EOF);
     }
 
     wchar_t current_char_peeked = peek(lexer);
 
-    if (current_char_peeked == L'\u062E') {
-        if (lexer->current + 1 < lexer->source_length && lexer->source[lexer->current + 1] == L'"') {
+    if (current_char_peeked == L'\u062E')
+    {
+        if (lexer->current + 1 < lexer->source_length && lexer->source[lexer->current + 1] == L'"')
+        {
             if (lexer->current + 3 < lexer->source_length &&
                 lexer->source[lexer->current + 2] == L'"' &&
-                lexer->source[lexer->current + 3] == L'"') {
+                lexer->source[lexer->current + 3] == L'"')
+            {
                 size_t start_line = lexer->line;
                 size_t start_col = lexer->column;
                 advance(lexer);
@@ -440,7 +461,9 @@ BaaToken *baa_lexer_next_token(BaaLexer *lexer)
                 advance(lexer);
                 advance(lexer);
                 return scan_raw_string_literal(lexer, true, start_line, start_col);
-            } else {
+            }
+            else
+            {
                 size_t start_line = lexer->line;
                 size_t start_col = lexer->column;
                 advance(lexer);
@@ -450,64 +473,96 @@ BaaToken *baa_lexer_next_token(BaaLexer *lexer)
         }
     }
 
-    if (current_char_peeked == L'"') {
+    if (current_char_peeked == L'"')
+    {
         if (lexer->current + 2 < lexer->source_length &&
             lexer->source[lexer->current + 1] == L'"' &&
-            lexer->source[lexer->current + 2] == L'"') {
+            lexer->source[lexer->current + 2] == L'"')
+        {
             size_t start_line = lexer->line;
             size_t start_col = lexer->column;
             advance(lexer);
             advance(lexer);
             advance(lexer);
             return scan_multiline_string_literal(lexer, start_line, start_col);
-        } else {
+        }
+        else
+        {
             return scan_string(lexer);
         }
     }
 
-    if (is_arabic_digit(current_char_peeked)) {
+    if (is_arabic_digit(current_char_peeked))
+    {
         return scan_number(lexer);
     }
-    if (iswdigit(current_char_peeked)) {
+    if (iswdigit(current_char_peeked))
+    {
         return scan_number(lexer);
     }
-    if (iswalpha(current_char_peeked) || current_char_peeked == L'_' || is_arabic_letter(current_char_peeked)) {
+    if (iswalpha(current_char_peeked) || current_char_peeked == L'_' || is_arabic_letter(current_char_peeked))
+    {
         return scan_identifier(lexer);
     }
 
     wchar_t c = advance(lexer);
 
-    if (c == L'\0' && is_at_end(lexer)) {
+    if (c == L'\0' && is_at_end(lexer))
+    {
         lexer->start = lexer->current;
         return make_token(lexer, BAA_TOKEN_EOF);
     }
 
     switch (c)
     {
-    case L'(': return make_token(lexer, BAA_TOKEN_LPAREN);
-    case L')': return make_token(lexer, BAA_TOKEN_RPAREN);
-    case L'{': return make_token(lexer, BAA_TOKEN_LBRACE);
-    case L'}': return make_token(lexer, BAA_TOKEN_RBRACE);
-    case L'[': return make_token(lexer, BAA_TOKEN_LBRACKET);
-    case L']': return make_token(lexer, BAA_TOKEN_RBRACKET);
-    case L',': return make_token(lexer, BAA_TOKEN_COMMA);
-    case L'.': return make_token(lexer, BAA_TOKEN_DOT);
-    case L':': return make_token(lexer, BAA_TOKEN_COLON);
-    case L';': return make_token(lexer, BAA_TOKEN_SEMICOLON);
-    case L'%': return match(lexer, L'=') ? make_token(lexer, BAA_TOKEN_PERCENT_EQUAL) : make_token(lexer, BAA_TOKEN_PERCENT);
-    case L'+': return match(lexer, L'=') ? make_token(lexer, BAA_TOKEN_PLUS_EQUAL) : (match(lexer, L'+') ? make_token(lexer, BAA_TOKEN_INCREMENT) : make_token(lexer, BAA_TOKEN_PLUS));
-    case L'-': return match(lexer, L'=') ? make_token(lexer, BAA_TOKEN_MINUS_EQUAL) : (match(lexer, L'-') ? make_token(lexer, BAA_TOKEN_DECREMENT) : make_token(lexer, BAA_TOKEN_MINUS));
-    case L'*': return match(lexer, L'=') ? make_token(lexer, BAA_TOKEN_STAR_EQUAL) : make_token(lexer, BAA_TOKEN_STAR);
-    case L'/': return match(lexer, L'=') ? make_token(lexer, BAA_TOKEN_SLASH_EQUAL) : make_token(lexer, BAA_TOKEN_SLASH);
-    case L'!': return match(lexer, L'=') ? make_token(lexer, BAA_TOKEN_BANG_EQUAL) : make_token(lexer, BAA_TOKEN_BANG);
-    case L'=': return match(lexer, L'=') ? make_token(lexer, BAA_TOKEN_EQUAL_EQUAL) : make_token(lexer, BAA_TOKEN_EQUAL);
-    case L'<': return match(lexer, L'=') ? make_token(lexer, BAA_TOKEN_LESS_EQUAL) : make_token(lexer, BAA_TOKEN_LESS);
-    case L'>': return match(lexer, L'=') ? make_token(lexer, BAA_TOKEN_GREATER_EQUAL) : make_token(lexer, BAA_TOKEN_GREATER);
-    case L'\'': return scan_char_literal(lexer);
-    case 0x060C: return make_token(lexer, BAA_TOKEN_COMMA);
-    case 0x061B: return make_token(lexer, BAA_TOKEN_SEMICOLON);
-    case 0x061F: return make_token(lexer, BAA_TOKEN_UNKNOWN);
-    case 0x066D: return make_token(lexer, BAA_TOKEN_STAR);
+    case L'(':
+        return make_token(lexer, BAA_TOKEN_LPAREN);
+    case L')':
+        return make_token(lexer, BAA_TOKEN_RPAREN);
+    case L'{':
+        return make_token(lexer, BAA_TOKEN_LBRACE);
+    case L'}':
+        return make_token(lexer, BAA_TOKEN_RBRACE);
+    case L'[':
+        return make_token(lexer, BAA_TOKEN_LBRACKET);
+    case L']':
+        return make_token(lexer, BAA_TOKEN_RBRACKET);
+    case L',':
+        return make_token(lexer, BAA_TOKEN_COMMA);
+    case L'.':
+        return make_token(lexer, BAA_TOKEN_DOT);
+    case L':':
+        return make_token(lexer, BAA_TOKEN_COLON);
+    case L';':
+        return make_token(lexer, BAA_TOKEN_SEMICOLON);
+    case L'%':
+        return match(lexer, L'=') ? make_token(lexer, BAA_TOKEN_PERCENT_EQUAL) : make_token(lexer, BAA_TOKEN_PERCENT);
+    case L'+':
+        return match(lexer, L'=') ? make_token(lexer, BAA_TOKEN_PLUS_EQUAL) : (match(lexer, L'+') ? make_token(lexer, BAA_TOKEN_INCREMENT) : make_token(lexer, BAA_TOKEN_PLUS));
+    case L'-':
+        return match(lexer, L'=') ? make_token(lexer, BAA_TOKEN_MINUS_EQUAL) : (match(lexer, L'-') ? make_token(lexer, BAA_TOKEN_DECREMENT) : make_token(lexer, BAA_TOKEN_MINUS));
+    case L'*':
+        return match(lexer, L'=') ? make_token(lexer, BAA_TOKEN_STAR_EQUAL) : make_token(lexer, BAA_TOKEN_STAR);
+    case L'/':
+        return match(lexer, L'=') ? make_token(lexer, BAA_TOKEN_SLASH_EQUAL) : make_token(lexer, BAA_TOKEN_SLASH);
+    case L'!':
+        return match(lexer, L'=') ? make_token(lexer, BAA_TOKEN_BANG_EQUAL) : make_token(lexer, BAA_TOKEN_BANG);
+    case L'=':
+        return match(lexer, L'=') ? make_token(lexer, BAA_TOKEN_EQUAL_EQUAL) : make_token(lexer, BAA_TOKEN_EQUAL);
+    case L'<':
+        return match(lexer, L'=') ? make_token(lexer, BAA_TOKEN_LESS_EQUAL) : make_token(lexer, BAA_TOKEN_LESS);
+    case L'>':
+        return match(lexer, L'=') ? make_token(lexer, BAA_TOKEN_GREATER_EQUAL) : make_token(lexer, BAA_TOKEN_GREATER);
+    case L'\'':
+        return scan_char_literal(lexer);
+    case 0x060C:
+        return make_token(lexer, BAA_TOKEN_COMMA);
+    case 0x061B:
+        return make_token(lexer, BAA_TOKEN_SEMICOLON);
+    case 0x061F:
+        return make_token(lexer, BAA_TOKEN_UNKNOWN);
+    case 0x066D:
+        return make_token(lexer, BAA_TOKEN_STAR);
     case L'&':
         if (!match(lexer, L'&'))
         {
@@ -536,67 +591,128 @@ const wchar_t *baa_token_type_to_string(BaaTokenType type)
 {
     switch (type)
     {
-    case BAA_TOKEN_EOF: return L"BAA_TOKEN_EOF";
-    case BAA_TOKEN_ERROR: return L"BAA_TOKEN_ERROR";
-    case BAA_TOKEN_UNKNOWN: return L"BAA_TOKEN_UNKNOWN";
-    case BAA_TOKEN_COMMENT: return L"BAA_TOKEN_COMMENT";
-    case BAA_TOKEN_DOC_COMMENT: return L"BAA_TOKEN_DOC_COMMENT";
-    case BAA_TOKEN_IDENTIFIER: return L"BAA_TOKEN_IDENTIFIER";
-    case BAA_TOKEN_INT_LIT: return L"BAA_TOKEN_INT_LIT";
-    case BAA_TOKEN_FLOAT_LIT: return L"BAA_TOKEN_FLOAT_LIT";
-    case BAA_TOKEN_CHAR_LIT: return L"BAA_TOKEN_CHAR_LIT";
-    case BAA_TOKEN_STRING_LIT: return L"BAA_TOKEN_STRING_LIT";
-    case BAA_TOKEN_BOOL_LIT: return L"BAA_TOKEN_BOOL_LIT";
-    case BAA_TOKEN_CONST: return L"BAA_TOKEN_CONST";
-    case BAA_TOKEN_KEYWORD_INLINE: return L"BAA_TOKEN_KEYWORD_INLINE";
-    case BAA_TOKEN_KEYWORD_RESTRICT: return L"BAA_TOKEN_KEYWORD_RESTRICT";
-    case BAA_TOKEN_IF: return L"BAA_TOKEN_IF";
-    case BAA_TOKEN_ELSE: return L"BAA_TOKEN_ELSE";
-    case BAA_TOKEN_WHILE: return L"BAA_TOKEN_WHILE";
-    case BAA_TOKEN_FOR: return L"BAA_TOKEN_FOR";
-    case BAA_TOKEN_DO: return L"BAA_TOKEN_DO";
-    case BAA_TOKEN_CASE: return L"BAA_TOKEN_CASE";
-    case BAA_TOKEN_SWITCH: return L"BAA_TOKEN_SWITCH";
-    case BAA_TOKEN_RETURN: return L"BAA_TOKEN_RETURN";
-    case BAA_TOKEN_BREAK: return L"BAA_TOKEN_BREAK";
-    case BAA_TOKEN_CONTINUE: return L"BAA_TOKEN_CONTINUE";
-    case BAA_TOKEN_TYPE_INT: return L"BAA_TOKEN_TYPE_INT";
-    case BAA_TOKEN_TYPE_FLOAT: return L"BAA_TOKEN_TYPE_FLOAT";
-    case BAA_TOKEN_TYPE_CHAR: return L"BAA_TOKEN_TYPE_CHAR";
-    case BAA_TOKEN_TYPE_VOID: return L"BAA_TOKEN_TYPE_VOID";
-    case BAA_TOKEN_TYPE_BOOL: return L"BAA_TOKEN_TYPE_BOOL";
-    case BAA_TOKEN_PLUS: return L"BAA_TOKEN_PLUS";
-    case BAA_TOKEN_MINUS: return L"BAA_TOKEN_MINUS";
-    case BAA_TOKEN_STAR: return L"BAA_TOKEN_STAR";
-    case BAA_TOKEN_SLASH: return L"BAA_TOKEN_SLASH";
-    case BAA_TOKEN_PERCENT: return L"BAA_TOKEN_PERCENT";
-    case BAA_TOKEN_EQUAL: return L"BAA_TOKEN_EQUAL";
-    case BAA_TOKEN_EQUAL_EQUAL: return L"BAA_TOKEN_EQUAL_EQUAL";
-    case BAA_TOKEN_BANG: return L"BAA_TOKEN_BANG";
-    case BAA_TOKEN_BANG_EQUAL: return L"BAA_TOKEN_BANG_EQUAL";
-    case BAA_TOKEN_LESS: return L"BAA_TOKEN_LESS";
-    case BAA_TOKEN_LESS_EQUAL: return L"BAA_TOKEN_LESS_EQUAL";
-    case BAA_TOKEN_GREATER: return L"BAA_TOKEN_GREATER";
-    case BAA_TOKEN_GREATER_EQUAL: return L"BAA_TOKEN_GREATER_EQUAL";
-    case BAA_TOKEN_AND: return L"BAA_TOKEN_AND";
-    case BAA_TOKEN_OR: return L"BAA_TOKEN_OR";
-    case BAA_TOKEN_PLUS_EQUAL: return L"BAA_TOKEN_PLUS_EQUAL";
-    case BAA_TOKEN_MINUS_EQUAL: return L"BAA_TOKEN_MINUS_EQUAL";
-    case BAA_TOKEN_STAR_EQUAL: return L"BAA_TOKEN_STAR_EQUAL";
-    case BAA_TOKEN_SLASH_EQUAL: return L"BAA_TOKEN_SLASH_EQUAL";
-    case BAA_TOKEN_PERCENT_EQUAL: return L"BAA_TOKEN_PERCENT_EQUAL";
-    case BAA_TOKEN_INCREMENT: return L"BAA_TOKEN_INCREMENT";
-    case BAA_TOKEN_DECREMENT: return L"BAA_TOKEN_DECREMENT";
-    case BAA_TOKEN_LPAREN: return L"BAA_TOKEN_LPAREN";
-    case BAA_TOKEN_RPAREN: return L"BAA_TOKEN_RPAREN";
-    case BAA_TOKEN_LBRACE: return L"BAA_TOKEN_LBRACE";
-    case BAA_TOKEN_RBRACE: return L"BAA_TOKEN_RBRACE";
-    case BAA_TOKEN_LBRACKET: return L"BAA_TOKEN_LBRACKET";
-    case BAA_TOKEN_RBRACKET: return L"BAA_TOKEN_RBRACKET";
-    case BAA_TOKEN_COMMA: return L"BAA_TOKEN_COMMA";
-    case BAA_TOKEN_DOT: return L"BAA_TOKEN_DOT";
-    case BAA_TOKEN_SEMICOLON: return L"BAA_TOKEN_SEMICOLON";
-    case BAA_TOKEN_COLON: return L"BAA_TOKEN_COLON";
+    case BAA_TOKEN_EOF:
+        return L"BAA_TOKEN_EOF";
+    case BAA_TOKEN_ERROR:
+        return L"BAA_TOKEN_ERROR";
+    case BAA_TOKEN_UNKNOWN:
+        return L"BAA_TOKEN_UNKNOWN";
+    case BAA_TOKEN_COMMENT:
+        return L"BAA_TOKEN_COMMENT";
+    case BAA_TOKEN_DOC_COMMENT:
+        return L"BAA_TOKEN_DOC_COMMENT";
+    case BAA_TOKEN_IDENTIFIER:
+        return L"BAA_TOKEN_IDENTIFIER";
+    case BAA_TOKEN_INT_LIT:
+        return L"BAA_TOKEN_INT_LIT";
+    case BAA_TOKEN_FLOAT_LIT:
+        return L"BAA_TOKEN_FLOAT_LIT";
+    case BAA_TOKEN_CHAR_LIT:
+        return L"BAA_TOKEN_CHAR_LIT";
+    case BAA_TOKEN_STRING_LIT:
+        return L"BAA_TOKEN_STRING_LIT";
+    case BAA_TOKEN_BOOL_LIT:
+        return L"BAA_TOKEN_BOOL_LIT";
+    case BAA_TOKEN_CONST:
+        return L"BAA_TOKEN_CONST";
+    case BAA_TOKEN_KEYWORD_INLINE:
+        return L"BAA_TOKEN_KEYWORD_INLINE";
+    case BAA_TOKEN_KEYWORD_RESTRICT:
+        return L"BAA_TOKEN_KEYWORD_RESTRICT";
+    case BAA_TOKEN_IF:
+        return L"BAA_TOKEN_IF";
+    case BAA_TOKEN_ELSE:
+        return L"BAA_TOKEN_ELSE";
+    case BAA_TOKEN_WHILE:
+        return L"BAA_TOKEN_WHILE";
+    case BAA_TOKEN_FOR:
+        return L"BAA_TOKEN_FOR";
+    case BAA_TOKEN_DO:
+        return L"BAA_TOKEN_DO";
+    case BAA_TOKEN_CASE:
+        return L"BAA_TOKEN_CASE";
+    case BAA_TOKEN_SWITCH:
+        return L"BAA_TOKEN_SWITCH";
+    case BAA_TOKEN_RETURN:
+        return L"BAA_TOKEN_RETURN";
+    case BAA_TOKEN_BREAK:
+        return L"BAA_TOKEN_BREAK";
+    case BAA_TOKEN_CONTINUE:
+        return L"BAA_TOKEN_CONTINUE";
+    case BAA_TOKEN_TYPE_INT:
+        return L"BAA_TOKEN_TYPE_INT";
+    case BAA_TOKEN_TYPE_FLOAT:
+        return L"BAA_TOKEN_TYPE_FLOAT";
+    case BAA_TOKEN_TYPE_CHAR:
+        return L"BAA_TOKEN_TYPE_CHAR";
+    case BAA_TOKEN_TYPE_VOID:
+        return L"BAA_TOKEN_TYPE_VOID";
+    case BAA_TOKEN_TYPE_BOOL:
+        return L"BAA_TOKEN_TYPE_BOOL";
+    case BAA_TOKEN_PLUS:
+        return L"BAA_TOKEN_PLUS";
+    case BAA_TOKEN_MINUS:
+        return L"BAA_TOKEN_MINUS";
+    case BAA_TOKEN_STAR:
+        return L"BAA_TOKEN_STAR";
+    case BAA_TOKEN_SLASH:
+        return L"BAA_TOKEN_SLASH";
+    case BAA_TOKEN_PERCENT:
+        return L"BAA_TOKEN_PERCENT";
+    case BAA_TOKEN_EQUAL:
+        return L"BAA_TOKEN_EQUAL";
+    case BAA_TOKEN_EQUAL_EQUAL:
+        return L"BAA_TOKEN_EQUAL_EQUAL";
+    case BAA_TOKEN_BANG:
+        return L"BAA_TOKEN_BANG";
+    case BAA_TOKEN_BANG_EQUAL:
+        return L"BAA_TOKEN_BANG_EQUAL";
+    case BAA_TOKEN_LESS:
+        return L"BAA_TOKEN_LESS";
+    case BAA_TOKEN_LESS_EQUAL:
+        return L"BAA_TOKEN_LESS_EQUAL";
+    case BAA_TOKEN_GREATER:
+        return L"BAA_TOKEN_GREATER";
+    case BAA_TOKEN_GREATER_EQUAL:
+        return L"BAA_TOKEN_GREATER_EQUAL";
+    case BAA_TOKEN_AND:
+        return L"BAA_TOKEN_AND";
+    case BAA_TOKEN_OR:
+        return L"BAA_TOKEN_OR";
+    case BAA_TOKEN_PLUS_EQUAL:
+        return L"BAA_TOKEN_PLUS_EQUAL";
+    case BAA_TOKEN_MINUS_EQUAL:
+        return L"BAA_TOKEN_MINUS_EQUAL";
+    case BAA_TOKEN_STAR_EQUAL:
+        return L"BAA_TOKEN_STAR_EQUAL";
+    case BAA_TOKEN_SLASH_EQUAL:
+        return L"BAA_TOKEN_SLASH_EQUAL";
+    case BAA_TOKEN_PERCENT_EQUAL:
+        return L"BAA_TOKEN_PERCENT_EQUAL";
+    case BAA_TOKEN_INCREMENT:
+        return L"BAA_TOKEN_INCREMENT";
+    case BAA_TOKEN_DECREMENT:
+        return L"BAA_TOKEN_DECREMENT";
+    case BAA_TOKEN_LPAREN:
+        return L"BAA_TOKEN_LPAREN";
+    case BAA_TOKEN_RPAREN:
+        return L"BAA_TOKEN_RPAREN";
+    case BAA_TOKEN_LBRACE:
+        return L"BAA_TOKEN_LBRACE";
+    case BAA_TOKEN_RBRACE:
+        return L"BAA_TOKEN_RBRACE";
+    case BAA_TOKEN_LBRACKET:
+        return L"BAA_TOKEN_LBRACKET";
+    case BAA_TOKEN_RBRACKET:
+        return L"BAA_TOKEN_RBRACKET";
+    case BAA_TOKEN_COMMA:
+        return L"BAA_TOKEN_COMMA";
+    case BAA_TOKEN_DOT:
+        return L"BAA_TOKEN_DOT";
+    case BAA_TOKEN_SEMICOLON:
+        return L"BAA_TOKEN_SEMICOLON";
+    case BAA_TOKEN_COLON:
+        return L"BAA_TOKEN_COLON";
     default:
         return L"BAA_TOKEN_INVALID_TYPE_IN_TO_STRING";
     }
