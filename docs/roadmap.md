@@ -74,11 +74,14 @@ This roadmap outlines the high-level plan for the Baa language project. For deta
 * **Goal:** Develop a new, robust Parser and Abstract Syntax Tree (AST) representation.
 * **Status:** Previous implementations removed. New design phase is complete, implementation starting.
 
-### 2.1 Abstract Syntax Tree (AST) - New Design
+### 2.1 Abstract Syntax Tree (AST) - New Design (v0.1.18.0)
 
-* **(In Progress/Planned)** Define all AST node types (expressions, statements, declarations, types, program structure) as per `docs/AST.md`.
-* **(In Progress/Planned)** Implement standardized node structures, memory management (creation/freeing functions).
-* **(Planned)** Implement AST traversal mechanisms (e.g., Visitor pattern).
+* **[x]** Core structures defined (`BaaNode`, `BaaSourceSpan`, `BaaNodeKind`, `BaaAstNodeModifiers`).
+* **[x]** Basic memory utilities (`baa_ast_new_node`, `baa_ast_free_node` shell) implemented.
+* **[In Progress]** Implementing specific node types:
+  * **[x]** Literal Expression Nodes (`BAA_NODE_KIND_LITERAL_EXPR` for int, string) with data structs and lifecycle functions.
+* **(Planned Next)** Identifier Expression Nodes, basic Statement Nodes (ExprStmt, BlockStmt), Program Node.
+* **(Planned Later)** Full suite of node types, type-safe accessors, AST Visitor, Pretty-Printer.
 * *See `docs/AST.md` and `docs/AST_ROADMAP.md`.*
 
 ### 2.2 Parser - New Design

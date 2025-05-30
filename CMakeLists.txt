@@ -114,6 +114,45 @@ target_include_directories(baa_lexer_tester
         ${CMAKE_SOURCE_DIR}/src/lexer # For lexer_internal.h if needed by included lexer files
 )
 
+# --- Standalone AST Tester ---
+add_executable(baa_ast_tester
+    tools/baa_ast_tester.c
+)
+
+# Link dependencies for the AST tester
+target_link_libraries(baa_ast_tester PRIVATE
+    baa_ast          # The new AST library we defined
+    baa_utils        # AST uses utils for memory, and tester might too
+    baa_types        # AST tester now uses functions from the types library
+    BaaCommonSettings # For common compiler/project settings
+)
+
+# Include directories for the AST tester
+target_include_directories(baa_ast_tester
+    PRIVATE
+        ${CMAKE_SOURCE_DIR}/include  # To find "baa/ast/ast.h", "baa/utils/utils.h"
+        # No need for ${CMAKE_SOURCE_DIR}/src/ast here as public headers are in include/
+)
+
+# --- Standalone Parser Tester ---
+add_executable(baa_parser_tester
+    tools/baa_parser_tester.c
+)
+
+# Link dependencies for the parser tester
+target_link_libraries(baa_parser_tester PRIVATE
+    baa_parser       # The new parser library
+    baa_lexer        # Parser uses the lexer
+    baa_preprocessor # Parser tester will preprocess input
+    baa_ast          # For BaaNode type, even if parsing is stubbed+    baa_utils        # General utilities
+    BaaCommonSettings
+)
+
+# Include directories for the parser tester
+target_include_directories(baa_parser_tester PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+)
+
 # تفعيل الاختبارات (معطل مؤقتاً)
 # enable_testing()
 # add_subdirectory(tests) # Keep this if tests are separate

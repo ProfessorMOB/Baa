@@ -131,11 +131,11 @@ typedef enum
  */
 typedef struct
 {
-    BaaTokenType type;     // Type of the token
-    const wchar_t *lexeme; // The actual text of the token
-    size_t length;         // Length of the lexeme
-    size_t line;           // Line number in source
-    size_t column;         // Column number in source
+    BaaTokenType type; // Type of the token
+    wchar_t *lexeme;   // The actual text of the token (parser will take ownership)
+    size_t length;     // Length of the lexeme
+    size_t line;       // Line number in source
+    size_t column;     // Column number in source
 } BaaToken;
 
 /**
@@ -143,12 +143,13 @@ typedef struct
  */
 typedef struct
 {
-    const wchar_t *source; // Source code being lexed
-    size_t source_length;  // Length of the source string
-    size_t start;          // Start of current token
-    size_t current;        // Current position in source
-    size_t line;           // Current line number
-    size_t column;         // Current column number
+    const wchar_t *source;     // Source code being lexed
+    size_t source_length;      // Length of the source string
+    size_t start;              // Start of current token
+    size_t current;            // Current position in source
+    size_t line;               // Current line number
+    size_t column;             // Current column number
+    size_t start_token_column; // Column where the current token started
 } BaaLexer;
 
 // Lexer functions
