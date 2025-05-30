@@ -49,13 +49,14 @@ const wchar_t *baa_number_error_message(BaaNumberError error);
 typedef enum
 {
     // Special tokens
-    BAA_TOKEN_EOF,         // End of file
-    BAA_TOKEN_ERROR,       // Error token
-    BAA_TOKEN_UNKNOWN,     // Unknown token
-    BAA_TOKEN_WHITESPACE,  // Sequence of spaces/tabs
-    BAA_TOKEN_NEWLINE,     // Newline character(s)
-    BAA_TOKEN_COMMENT,     // Comment (Currently skipped, but type exists)
-    BAA_TOKEN_DOC_COMMENT, // Documentation Comment /** ... */
+    BAA_TOKEN_EOF,                 // End of file
+    BAA_TOKEN_ERROR,               // Error token
+    BAA_TOKEN_UNKNOWN,             // Unknown token
+    BAA_TOKEN_WHITESPACE,          // Sequence of spaces/tabs
+    BAA_TOKEN_NEWLINE,             // Newline character(s)
+    BAA_TOKEN_SINGLE_LINE_COMMENT, // Content of // comment
+    BAA_TOKEN_MULTI_LINE_COMMENT,  // Content of /* ... */ comment (non-doc)
+    BAA_TOKEN_DOC_COMMENT,         // Content of /** ... */ comment
 
     // Literals
     BAA_TOKEN_IDENTIFIER, // Variable/function name

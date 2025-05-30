@@ -472,8 +472,41 @@ BaaToken *baa_lexer_next_token(BaaLexer *lexer)
         return scan_whitespace_sequence(lexer); // scan_whitespace_sequence is a new function
     }
 
-    // 3. Handle Comments (placeholder for now, will be detailed in next step)
-    // if (c == L'/') { /* ... comment logic ... */ }
+    // 3. Handle Comments
+    if (c == L'/')
+    {
+        if (peek_next(lexer) == L'/')
+        { // Single-line comment: //
+            size_t comment_start_line = lexer->line;
+            size_t comment_start_col = lexer->column; // Column of the first '/'
+            advance(lexer);                           // Consume first /
+            advance(lexer);                           // Consume second /
+            // scan_single_line_comment will consume content until newline.
+            // Newline itself will be tokenized in the next call to baa_lexer_next_token.
+            return scan_single_line_comment(lexer, comment_start_line, comment_start_col);
+        }
+        else if (peek_next(lexer) == L'*')
+        { // Multi-line: /* or Doc: /**
+            size_t comment_start_line = lexer->line;
+            size_t comment_start_col = lexer->column; // Column of the first '/'
+
+            advance(lexer); // Consume /
+            advance(lexer); // Consume *
+
+            if (peek(lexer) == L'*' && peek_next(lexer) != L'/')
+            {                   // Doc comment: /** (and not /**/)
+                advance(lexer); // Consume the second '*' of /**
+                // scan_doc_comment handles from here, consumes content and '*/'
+                return scan_doc_comment(lexer, comment_start_line, comment_start_col);
+            }
+            else
+            { // Regular /* or empty /**/
+                // scan_multi_line_comment handles from here, consumes content and '*/'
+                return scan_multi_line_comment(lexer, comment_start_line, comment_start_col);
+            }
+        }
+        // If just '/', it's not a comment starter here, fall through to operator handling below.
+    }
 
     // 4. Dispatch to other token types
     //    (Raw strings, strings, chars, numbers, identifiers, operators)
@@ -633,8 +666,10 @@ const wchar_t *baa_token_type_to_string(BaaTokenType type)
         return L"BAA_TOKEN_WHITESPACE";
     case BAA_TOKEN_NEWLINE:
         return L"BAA_TOKEN_NEWLINE";
-    case BAA_TOKEN_COMMENT:
-        return L"BAA_TOKEN_COMMENT";
+    case BAA_TOKEN_SINGLE_LINE_COMMENT:
+        return L"BAA_TOKEN_SINGLE_LINE_COMMENT";
+    case BAA_TOKEN_MULTI_LINE_COMMENT:
+        return L"BAA_TOKEN_MULTI_LINE_COMMENT";
     case BAA_TOKEN_DOC_COMMENT:
         return L"BAA_TOKEN_DOC_COMMENT";
     case BAA_TOKEN_IDENTIFIER:

@@ -209,7 +209,7 @@ BaaToken *scan_number(BaaLexer *lexer)
             }
             else
             { // EOF after sign
-                // Error: exponent needs digits after sign
+              // Error: exponent needs digits after sign
             }
         }
         else if (is_baa_digit(next_peek_exp))
@@ -854,4 +854,87 @@ BaaToken *scan_whitespace_sequence(BaaLexer *lexer)
     }
     // lexer->current is now after the sequence. make_token uses lexer->start and lexer->current.
     return make_token(lexer, BAA_TOKEN_WHITESPACE);
+}
+/**
+ * @brief Scans the content of a single-line comment (after //).
+ * Assumes lexer->start is positioned at the first '/' of the "//".
+ * The opening "//" is consumed by the caller (baa_lexer_next_token).
+ * This function consumes the comment content until newline or EOF.
+ *
+ * @param lexer Pointer to the BaaLexer instance.
+ * @param comment_delimiter_start_line Line where the opening "//" started.
+ * @param comment_delimiter_start_col Column where the opening "//" started.
+ * @return A BaaToken of type BAA_TOKEN_SINGLE_LINE_COMMENT. Lexeme is the content.
+ */
+BaaToken *scan_single_line_comment(BaaLexer *lexer, size_t comment_delimiter_start_line, size_t comment_delimiter_start_col)
+{
+    // Called after '//' is consumed by baa_lexer_next_token.
+    // lexer->current is at the first character of the comment content.
+    lexer->start = lexer->current; // Lexeme STARTS AFTER //
+
+    while (peek(lexer) != L'\n' && !is_at_end(lexer))
+    {
+        advance(lexer);
+    }
+    // lexer->current is at '\n' or EOF.
+    // make_token uses lexer->start (start of content) and lexer->current (end of content).
+    BaaToken *token = make_token(lexer, BAA_TOKEN_SINGLE_LINE_COMMENT);
+    if (token)
+    {                                                // Ensure make_token succeeded
+        token->line = comment_delimiter_start_line;  // Report token at the line of "//"
+        token->column = comment_delimiter_start_col; // Report token at the column of "//"
+    }
+    // Do NOT consume the newline here; let baa_lexer_next_token handle it as a separate token.
+    return token;
+}
+
+/**
+ * @brief Scans the content of a multi-line comment (between /* and * /).
+ * Assumes lexer->start is positioned at the first '/' of the "/*".
+ * The opening "/*" is consumed by the caller (baa_lexer_next_token).
+ * This function consumes the comment content and the closing "* /".
+ *
+ * @param lexer Pointer to the BaaLexer instance.
+ * @param comment_delimiter_start_line Line where the opening "/*" started.
+ * @param comment_delimiter_start_col Column where the opening "/*" started.
+ * @return A BaaToken of type BAA_TOKEN_MULTI_LINE_COMMENT or BAA_TOKEN_ERROR if unterminated.
+ */
+BaaToken *scan_multi_line_comment(BaaLexer *lexer, size_t comment_delimiter_start_line, size_t comment_delimiter_start_col)
+{
+    // Called AFTER "/*" has been consumed by baa_lexer_next_token.
+    // lexer->current is at the first character of the comment content.
+    lexer->start = lexer->current; // Lexeme STARTS AFTER /*
+
+    bool terminated = false;
+    while (!is_at_end(lexer))
+    {
+        if (peek(lexer) == L'*' && peek_next(lexer) == L'/')
+        {
+            terminated = true;
+            break; // lexer->current is at the '*' of "*/"
+        }
+        advance(lexer); // Consumes content char, advance handles line/col updates
+    }
+
+    if (!terminated)
+    {
+        // Error token should point to the start of the unterminated comment "/*"
+        // To do this with make_error_token which uses current lexer state, we'd have to reset:
+        // lexer->current = lexer->start; // (where lexer->start was the original "//") - this is complex.
+        // A better make_error_token would accept a location.
+        // For now, using the specific start_line/col passed in:
+        return make_error_token(lexer, L"تعليق متعدد الأسطر غير منتهٍ (بدأ في السطر %zu، العمود %zu)", comment_delimiter_start_line, comment_delimiter_start_col);
+    }
+
+    // lexer->current is at the '*' of "*/". make_token will create lexeme up to this point.
+    BaaToken *token = make_token(lexer, BAA_TOKEN_MULTI_LINE_COMMENT);
+    if (token)
+    {
+        token->line = comment_delimiter_start_line;  // Report token at the line of "/*"
+        token->column = comment_delimiter_start_col; // Report token at the column of "/*"
+    }
+
+    advance(lexer); // Consume '*' of "*/"
+    advance(lexer); // Consume '/' of "*/"
+    return token;
 }
