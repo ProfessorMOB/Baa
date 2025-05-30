@@ -4,6 +4,45 @@ All notable changes to the B (باء) compiler project will be documented in thi
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.20.0] - 2025-05-30
+
+### Added
+
+- **Lexer Tokenization of Whitespace & Comments:**
+  - Introduced new token types:
+    - `BAA_TOKEN_WHITESPACE`: For sequences of spaces and/or tabs. Lexeme contains the exact whitespace sequence.
+    - `BAA_TOKEN_NEWLINE`: For newline characters (`\n`, `\r`, `\r\n`). Lexeme is the normalized or actual sequence.
+    - `BAA_TOKEN_SINGLE_LINE_COMMENT`: For `//` comments. Lexeme contains the comment content (after `//`, excluding trailing newline). Token location points to the start of `//`.
+    - `BAA_TOKEN_MULTI_LINE_COMMENT`: For `/* ... */` comments (non-documentation). Lexeme contains the content between `/*` and `*/`. Token location points to the start of `/*`.
+  - `BAA_TOKEN_DOC_COMMENT` (for `/** ... */`) now consistently has its lexeme as content-only, with token location pointing to the start of `/**`.
+  - Updated `baa_token_type_to_string` to include string representations for these new token types.
+- **New Lexer Scanners (`src/lexer/token_scanners.c`):**
+  - `scan_whitespace_sequence()`: Implemented to scan and tokenize contiguous spaces and tabs.
+  - `scan_single_line_comment()`: Implemented to scan and tokenize the content of `//` comments.
+  - `scan_multi_line_comment()`: Implemented to scan and tokenize the content of `/* ... */` comments.
+
+### Changed
+
+- **Lexer Core (`src/lexer/lexer.c` -> `baa_lexer_next_token`):**
+  - Major refactor to no longer skip whitespace or comments.
+  - Now dispatches to specific scanner functions to create tokens for `BAA_TOKEN_WHITESPACE`, `BAA_TOKEN_NEWLINE`, `BAA_TOKEN_SINGLE_LINE_COMMENT`, `BAA_TOKEN_MULTI_LINE_COMMENT`, and `BAA_TOKEN_DOC_COMMENT`.
+  - The internal `skip_whitespace` function was removed; its whitespace-only skipping logic is now part of the initial checks in `baa_lexer_next_token` before dispatching to `scan_whitespace_sequence` or handling newlines directly.
+- **Lexer Scanners for Comments (`src/lexer/token_scanners.c`):**
+  - `scan_single_line_comment`, `scan_multi_line_comment`, and `scan_doc_comment` now create tokens manually, ensuring their lexemes contain only the comment *content* (delimiters excluded) and their reported token location (line/column) corresponds to the start of the comment delimiter sequence (`//`, `/*`, `/**`). They use the lexer's internal `append_char_to_buffer` utility for building content.
+- **`scan_char_literal` (`src/lexer/token_scanners.c`):**
+  - Updated to consume its own opening delimiter (`'`) as it's now called when `peek(lexer)` is at the delimiter.
+  - Modified to produce a token whose lexeme is the *processed character value* (e.g., for `'\n'`, the lexeme is a 1-char string containing the newline character), consistent with string literal tokenization. Token location points to the opening `'`.
+
+### Fixed
+
+- Ensured consistent handling of token location reporting for comment tokens, pointing to the start of their respective delimiters.
+- Improved robustness of `baa_file_content` in `src/utils/utils.c` for reading UTF-16LE files, particularly around BOM handling and file size calculation. (This was a prerequisite fix identified during lexer testing).
+- Enhanced `tools/baa_lexer_tester.c` to better handle file input and display Unicode output on Windows consoles for improved testing.
+
+### Known Issues
+
+- The parser does not yet handle these new whitespace/comment tokens; it will need significant updates to either filter them or incorporate them into its grammar rules if necessary.
+
 ## [0.1.19.0] - 2025-05-26
 
 ### Added

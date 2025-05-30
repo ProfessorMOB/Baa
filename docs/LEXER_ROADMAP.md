@@ -12,13 +12,14 @@ This roadmap outlines the planned improvements and current status of the Baa lan
 * [x] Line and column tracking.
 * [x] Basic error token creation (`make_error_token`, `BAA_TOKEN_ERROR`).
 * [x] Token memory management (`make_token` allocates, `baa_free_token` frees).
+* [x] Tokenize whitespace and newlines instead of skipping.
 * [ ] **Future:** Add support for more token types for language extensions if Baa evolves significantly.
 
 ## 2. Token Types (Feature Completion)
 
 * **Comments:**
-  * [x] Single line comments (`//`) - Skipped.
-  * [x] Multi-line comments (`/* ... */`) - Skipped.
+  * [x] Single line comments (`//`) - Tokenized as `BAA_TOKEN_SINGLE_LINE_COMMENT` (content only). (v0.1.20.0)
+  * [x] Multi-line comments (`/* ... */`) - Tokenized as `BAA_TOKEN_MULTI_LINE_COMMENT` (content only, non-doc). (v0.1.20.0)
   * [x] Documentation comments (`/** ... */`) - Tokenized as `BAA_TOKEN_DOC_COMMENT`. (v0.1.11.0)
 * **Literals:**
   * [x] Identifiers (`BAA_TOKEN_IDENTIFIER`) - Basic Arabic/ASCII support.

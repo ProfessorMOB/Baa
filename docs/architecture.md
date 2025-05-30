@@ -41,13 +41,14 @@ The lexical analyzer responsible for tokenizing source code. It has a modular st
 - **Unicode Support**: Full support for Arabic characters in identifiers, literals, and keywords. Recognizes Arabic-Indic digits.
 - **Source Tracking**: Accurate line and column tracking for tokens and errors.
 - **Error Detection**: Identifies lexical errors (e.g., unexpected characters, unterminated literals, invalid escapes) and provides diagnostic messages.
+- **Whitespace and Newlines**: Tokenizes spaces/tabs (`BAA_TOKEN_WHITESPACE`) and newlines (`BAA_TOKEN_NEWLINE`) separately.
+- **Comment Handling**: Tokenizes single-line (`//` -> `BAA_TOKEN_SINGLE_LINE_COMMENT`), multi-line (`/*...*/` -> `BAA_TOKEN_MULTI_LINE_COMMENT`), and documentation comments (`/**...*/` -> `BAA_TOKEN_DOC_COMMENT`). Lexemes for comments contain the content excluding delimiters.
 - **Numeric Literal Recognition**:
   - Identifies various number formats: integers (decimal, binary `0b`/`0B`, hexadecimal `0x`/`0X`), floats (using `.` or `٫` as decimal separator), and scientific notation (using `أ` as exponent marker).
   - Supports Arabic-Indic digits (`٠`-`٩`) and Western digits (`0`-`9`) within all parts of numbers.
   - Supports underscores (`_`) as separators for readability in numbers.
   - (Planned: Arabic literal suffixes like `غ`, `ط`, `طط`, `ح`).
   - The lexer's `scan_number` function (in `token_scanners.c`) handles the syntactic recognition and extracts the raw lexeme. The separate `number_parser.c` utility can be used later for converting these lexemes to actual numeric values.
-- **Comment Handling**: Skips single-line (`//`, `#`) and multi-line (`/* */`) comments.
 - **String/Char Literals**: Handles string (`"..."`) and character (`'...'`) literals. Currently implements standard C escapes. *Planned: Support for Baa-specific Arabic escape sequences (e.g., `\س` for newline, `\م` for tab, `\يXXXX` for Unicode) while retaining `\` as the escape character.*
 - **Features & Status:**
   - Core lexer functionality and modular structure are implemented.
@@ -56,7 +57,7 @@ The lexical analyzer responsible for tokenizing source code. It has a modular st
   - String and character literal support with escapes.
   - Source position tracking.
   - Error token generation.
-  - *Planned:* Advanced error recovery, documentation comment tokens, multi-line/raw string literals.
+  - *Planned:* Advanced error recovery, Baa-specific Arabic escapes, Arabic float exponent/suffix.
 
 ### 2. Parser
 

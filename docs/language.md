@@ -274,10 +274,12 @@ This section describes the low-level building blocks of Baa programs **after** p
 
 Baa supports standard C/C++ style comments, as well as documentation comments:
 
-* **Single-line:** Begins with `//` and continues to the end of the line. The lexer skips these. - *[Implemented]*
-* **Multi-line:** Begins with `/*` and ends with `*/`. These comments can span multiple lines. The lexer skips these. - *[Implemented]*
-* **Documentation Comments:** Begin with `/**` and end with `*/`. These are recognized by the lexer (as `BAA_TOKEN_DOC_COMMENT`) and their content can be extracted for documentation generation tools. - *[Implemented by Lexer]*
+* **Single-line:** Begins with `//` and continues to the end of the line. The lexer produces a `BAA_TOKEN_SINGLE_LINE_COMMENT` whose lexeme is the content after `//`. The token's location points to the start of `//`. - *[Implemented]*
+* **Multi-line:** Begins with `/*` and ends with `*/`. These comments can span multiple lines. The lexer produces a `BAA_TOKEN_MULTI_LINE_COMMENT` whose lexeme is the content between `/*` and `*/`. The token's location points to the start of `/*`. - *[Implemented]*
+* **Documentation Comments:** Begin with `/**` and end with `*/`. by the lexer as `BAA_TOKEN_DOC_COMMENT`. The lexeme is the content between `/**` and `*/`, and the token's location points to the start of `/**`. - *[Implemented by Lexer]*
 * **Preprocessor Directives:** Lines starting with `#` (e.g., `#تضمين`, `#تعريف`) are handled entirely by the preprocessor before lexical analysis. They are not treated as comments by the lexer. - *[Implemented for various directives]*
+* * **Whitespace and Newlines:** Sequences of spaces/tabs are tokenized as `BAA_TOKEN_WHITESPACE`.
+* Newline characters (`\n`, `\r`, `\r\n`) are tokenized as `BAA_TOKEN_NEWLINE`. These are passed to the parser. - *[Implemented]*
 
 ```baa
 // هذا تعليق سطر واحد.

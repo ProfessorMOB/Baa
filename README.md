@@ -28,9 +28,11 @@ The project is actively under development. Key components and their status:
 * **Lexer (`src/lexer/`):** - *Actively Developed & Largely Functional*
   * Tokenizes preprocessed UTF-16LE stream.
   * Supports Arabic/English identifiers, Arabic-Indic digits, Arabic keywords.
+  * **Tokenizes whitespace, newlines, and all comment types (`//`, `/*...*/`, `/**...*/`) as distinct tokens.**
+  * Comment tokens have lexemes containing only their content (delimiters excluded).
   * Handles numeric literals (decimal, hex `0x`, binary `0b`, underscores, Arabic decimal separator `٫`, basic scientific `e/E`). Arabic suffixes (`غ`, `ط`, `طط`) are tokenized.
   * Handles string (`"..."`, multiline `"""..."""`, raw `خ"..."`) and character (`'...'`) literals with standard C & Unicode (`\uXXXX`) escapes.
-  * Recognizes documentation comments (`/** ... */`).
+  * String and character literal tokens have lexemes containing the processed content (escapes resolved).
   * Accurate line/column tracking and error reporting for lexical errors.
   * *See `docs/LEXER_ROADMAP.md` for planned enhancements (e.g., Arabic exponent `أ`, float suffix `ح`, Arabic escapes).*
 

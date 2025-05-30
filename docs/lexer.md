@@ -15,29 +15,45 @@ The primary role of the lexer is to identify and categorize sequences of charact
 * A **type** (e.g., identifier, keyword, integer literal, operator).
 * A **lexeme** (the actual string of characters from the source that forms the token).
 * **Source location information** (line number and starting column number).
+  * Unlike many traditional lexers that skip whitespace and comments, the Baa lexer
+  * tokenizes these elements. This provides a richer token stream that can be useful
+  * for tools like formatters, linters, or IDEs that require full source fidelity.
+  * The parser will then be responsible for deciding how to handle or ignore these tokens.
 
 ### 2. Arabic Language Support
 
 * **Identifiers:** Recognizes identifiers composed of Arabic letters (from standard Unicode ranges for Arabic), English letters, Arabic-Indic digits (`٠`-`٩`), ASCII digits (`0-9`), and underscores (`_`).
 * **Keywords:** Identifies reserved Arabic keywords (e.g., `إذا`, `لكل`, `ثابت`, `مضمن`, `مقيد`).
 * **Numeric Literals:**
+  * (Details on numeric literals, including Arabic digits, suffixes, exponent markers, hex/binary remain largely the same as previously documented.)
   * Parses integers in decimal, hexadecimal (`0x`/`0X`), and binary (`0b`/`0B`) formats.
   * Supports Arabic-Indic digits within all parts of numeric literals.
   * Allows underscores (`_`) as separators for readability in numbers.
-  * Recognizes Arabic integer literal suffixes (`غ` for unsigned, `ط` for long, `طط` for long long, and their combinations like `غط`). The lexer includes these in the token's lexeme; interpretation is up to later stages.
+  * Recognizes Arabic integer literal suffixes (`غ` for unsigned, `ط` for long, `طط` for long long, and their combinations like `غط`). The lexer includes these in the token's lexeme.
   * Parses floating-point numbers using `.` or the Arabic decimal separator `٫`.
   * Supports scientific notation for floats using `e` or `E` (Arabic `أ` exponent marker planned).
 * **String and Character Literals:**
+  * (Details on string/char literals, including multiline, raw, and escape sequences remain largely the same as previously documented.)
   * Handles standard double-quoted strings (`"..."`), multiline triple-quoted strings (`"""..."""`), and raw strings (prefixed with `خ`, e.g., `خ"..."`, `خ"""..."""`).
   * Handles single-quoted character literals (`'...'`).
   * Processes standard C-style escape sequences (`\n`, `\t`, `\\`, `\"`, `\'`) and Unicode escapes (`\uXXXX`). (Baa-specific Arabic escapes are planned).
 
 ### 3. Comment Handling
 
-* Skips single-line comments starting with `//`.
-* Skips multi-line comments enclosed in `/* ... */`.
-* Recognizes and tokenizes documentation comments (`/** ... */`) as `BAA_TOKEN_DOC_COMMENT`, preserving their content for potential use by documentation tools.
+* **Tokenizes all comment types**, preserving their content (excluding delimiters) as the token's lexeme. The token's location (line/column) points to the start of the comment delimiter.
+* **`BAA_TOKEN_SINGLE_LINE_COMMENT`**: For comments starting with `//`. The lexeme contains the text after `//` up to the newline.
+* Example: `// هذا تعليق` -> `Token(SINGLE_LINE_COMMENT, " هذا تعليق", line, col_of_slash)`
+* **`BAA_TOKEN_MULTI_LINE_COMMENT`**: For comments enclosed in `/* ... */` (that are not doc comments). The lexeme contains the text between `/*` and `*/`.
+* Example: `/* تعليق \n متعدد الأسطر */` -> `Token(MULTI_LINE_COMMENT, " تعليق \n متعدد الأسطر ", line, col_of_slash_star)`
+* **`BAA_TOKEN_DOC_COMMENT`**: For documentation comments enclosed in `/** ... */`. The lexeme contains the text between `/**` and `*/`.
+* Example: `/** تعليق توثيقي. */` -> `Token(DOC_COMMENT, " تعليق توثيقي. ", line, col_of_first_slash)`
 * Note: Preprocessor directives (lines starting with `#`) are handled *before* the lexer stage.
+
+### 3.5 Whitespace and Newline Handling
+
+* **`BAA_TOKEN_WHITESPACE`**: Tokenizes sequences of one or more spaces and/or tabs. The lexeme contains the exact whitespace sequence.
+* Example: ` \t ` -> `Token(WHITESPACE, "  \t ", line, col)`
+* **`BAA_TOKEN_NEWLINE`**: Tokenizes newline sequences (`\n`, `\r`, `\r\n`). The lexeme is the actual sequence encountered (e.g., `"\n"` or `"\r\n"`), and the token's location points to the start of this sequence. Line and column tracking are updated accordingly by the lexer.
 
 ### 4. Error Handling
 
@@ -79,7 +95,9 @@ Represents a single token:
 typedef struct {
     BaaTokenType type;       // Enum identifying the token's type
     const wchar_t* lexeme;   // Pointer to the string of characters forming the token (dynamically allocated)
-    size_t length;           // Length of the lexeme
+    // For string, char, and comment tokens, this is the *processed content*.
+    // For other tokens (keywords, identifiers, numbers, operators), this is the raw source text.
+    size_t length;           // Length of the lexeme (content length for processed types)
     size_t line;            // Line number where the token begins
     size_t column;          // Column number where the token begins
 } BaaToken;
