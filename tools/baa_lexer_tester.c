@@ -1,65 +1,153 @@
-// Simplified main in baa_lexer_tester.c or a new file
+// tools/baa_lexer_tester.c
 #include "baa/lexer/lexer.h"
-#include "baa/utils/utils.h" // For baa_strdup if needed, and baa_file_content if we use it
+#include "baa/utils/utils.h" // For baa_file_content if reading from file, and baa_strdup
 #include <stdio.h>
 #include <wchar.h>
 #include <locale.h>
+#include <stdlib.h> // For free
 
-void print_token_for_debug(const BaaToken *token, const char *context_msg)
-{
-    if (!token)
-    {
-        fwprintf(stderr, L"%hs: NULL TOKEN\n", context_msg);
+#ifdef _WIN32
+#include <windows.h> // For GetCommandLineW, CommandLineToArgvW, LocalFree
+#endif
+
+// Helper function to print wide strings correctly
+void print_wide_string_tester(FILE *stream, const wchar_t *wstr) {
+    if (!wstr) {
+        fwprintf(stream, L"(null_lexeme)"); // Indicate if lexeme is NULL
+        return;
+    }
+    if (fwprintf(stream, L"%ls", wstr) < 0) {
+        fprintf(stderr, "\n[Warning: fwprintf failed. Fallback print may be incomplete.]\n");
+        while (*wstr) {
+            if (putwc(*wstr, stream) == WEOF) break;
+            wstr++;
+        }
+    }
+}
+
+void print_token_for_tester(const BaaToken *token, int count) {
+    if (!token) {
+        fwprintf(stderr, L"Token %03d: NULL TOKEN (Critical Lexer Error)\n", count);
         return;
     }
     const wchar_t *type_str = baa_token_type_to_string(token->type);
-    fwprintf(stderr, L"%hs: Type=%ls (%d), Lexeme='", context_msg, type_str, token->type);
-    for (size_t i = 0; i < token->length; ++i)
-    {
-        putwc(token->lexeme[i], stderr);
-    }
-    fwprintf(stderr, L"', Len=%zu, Line=%zu, Col=%zu\n",
+    wprintf(L"Token %03d: Type=%ls (%d), Lexeme='", count, type_str ? type_str : L"UNKNOWN_TYPE_STR", token->type);
+    print_wide_string_tester(stdout, token->lexeme);
+    wprintf(L"', Len=%zu, Line=%zu, Col=%zu\n",
              token->length, token->line, token->column);
-    fflush(stderr);
 }
 
-int main()
-{
+int main(int argc, char *argv_char[]) {
     setlocale(LC_ALL, "");
 
-    // Preprocessed string, matching the problematic scenario
-    const wchar_t *source = L"@//comment\nعدد_صحيح س";
-    // Alternative to be absolutely sure about preprocessor output:
-    // Use your preprocessor to generate this string from a file, then feed it here.
+    const wchar_t *source_to_lex = NULL;
+    wchar_t *file_content_buffer = NULL; // To hold content if read from file
+    const wchar_t *source_name_for_lexer = L"<string_input>";
+
+#ifdef _WIN32
+    int nArgs;
+    LPWSTR *szArgList = CommandLineToArgvW(GetCommandLineW(), &nArgs);
+    if (nArgs > 1) {
+        source_name_for_lexer = baa_strdup(szArgList[1]); // For lexer init
+        file_content_buffer = baa_file_content(szArgList[1]); // Read file content
+        if (!file_content_buffer) {
+            fwprintf(stderr, L"Error: Could not read file: ");
+            print_wide_string_tester(stderr, szArgList[1]);
+            fwprintf(stderr, L"\n");
+            if(source_name_for_lexer) baa_free((void*)source_name_for_lexer);
+            LocalFree(szArgList);
+            return 1;
+        }
+        source_to_lex = file_content_buffer;
+    }
+    if (szArgList) LocalFree(szArgList);
+#else
+    if (argc > 1) {
+        // Convert char* filename to wchar_t* for baa_file_content and lexer init
+        size_t len_needed = mbstowcs(NULL, argv_char[1], 0);
+        if (len_needed == (size_t)-1) {
+            fprintf(stderr, "Error: Invalid multibyte sequence in filename.\n");
+            return 1;
+        }
+        wchar_t* w_filename = (wchar_t*)malloc((len_needed + 1) * sizeof(wchar_t));
+        if (!w_filename) {
+            fprintf(stderr, "Error: Memory allocation failed for wide filename.\n");
+            return 1;
+        }
+        mbstowcs(w_filename, argv_char[1], len_needed + 1);
+
+        source_name_for_lexer = baa_strdup(w_filename); // For lexer init
+        file_content_buffer = baa_file_content(w_filename); // Read file
+        free(w_filename);
+
+        if (!file_content_buffer) {
+            fwprintf(stderr, L"Error: Could not read file: %hs\n", argv_char[1]);
+            if(source_name_for_lexer) baa_free((void*)source_name_for_lexer);
+            return 1;
+        }
+        source_to_lex = file_content_buffer;
+    }
+#endif
+
+    if (!source_to_lex) {
+        // Default to a simple test string if no file is provided
+        // This string includes spaces, tabs, and newlines.
+        // Let's use the example from your tools/baa_lexer_tester.c for direct comparison
+        // but modify it to test new whitespace tokens.
+        static const wchar_t default_source[] = L"  \tident1\n\nvar1 = 10.\n// comment to be ignored\n";
+        source_to_lex = default_source;
+        source_name_for_lexer = L"<default_test_string>";
+        wprintf(L"No input file provided. Using default test string:\n\"");
+        print_wide_string_tester(stdout, source_to_lex);
+        wprintf(L"\"\n\n");
+    } else {
+        wprintf(L"Lexing file: ");
+        print_wide_string_tester(stdout, source_name_for_lexer);
+        wprintf(L"\nContent:\n\"");
+        print_wide_string_tester(stdout, source_to_lex);
+        wprintf(L"\"\n\n");
+    }
+
 
     BaaLexer lexer;
-    baa_init_lexer(&lexer, source, L"test_direct_lex.baa");
+    // Pass source_name_for_lexer (which is wchar_t*) to baa_init_lexer
+    baa_init_lexer(&lexer, source_to_lex, source_name_for_lexer);
 
-    BaaToken *token1, *token2, *token3;
+    wprintf(L"--- Lexer Tokens ---\n");
+    int token_count = 0;
+    BaaToken *token;
 
-    fwprintf(stderr, L"--- Direct Lexer Test ---\n");
+    do {
+        token = baa_lexer_next_token(&lexer);
+        print_token_for_tester(token, token_count++);
 
-    // Token 1: Should be error for @
-    token1 = baa_lexer_next_token(&lexer);
-    print_token_for_debug(token1, "Token 1 (Lexer)");
-    if (token1)
-        baa_free_token(token1);
+        BaaTokenType current_type = BAA_TOKEN_UNKNOWN; // Default if token is NULL
+        if (token) {
+            current_type = token->type;
+            baa_free_token(token); // Free after use
+        } else {
+            break; // Critical error from lexer
+        }
 
-    // Token 2: Should be "عدد_صحيح"
-    token2 = baa_lexer_next_token(&lexer);
-    print_token_for_debug(token2, "Token 2 (Lexer)");
-    if (token2)
-        baa_free_token(token2);
+        if (current_type == BAA_TOKEN_EOF || current_type == BAA_TOKEN_ERROR) {
+            break;
+        }
+        if (token_count > 100) { // Safety break
+            wprintf(L"Safety break: Token limit reached.\n");
+            break;
+        }
+    } while (true);
 
-    // Token 3: Should be "س"
-    token3 = baa_lexer_next_token(&lexer);
-    print_token_for_debug(token3, "Token 3 (Lexer)");
-    if (token3)
-        baa_free_token(token3);
+    wprintf(L"--- End Lexer Tokens ---\n");
 
-    // ... continue for more tokens if needed
+    if (file_content_buffer) {
+        free(file_content_buffer);
+    }
+    // If source_name_for_lexer was strdup'd (for file input case)
+    if (source_name_for_lexer != L"<string_input>" && source_name_for_lexer != L"<default_test_string>") {
+        baa_free((void*)source_name_for_lexer);
+    }
 
-    fwprintf(stderr, L"--- End Direct Lexer Test ---\n");
 
     return 0;
 }
