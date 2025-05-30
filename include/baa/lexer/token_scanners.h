@@ -19,5 +19,6 @@ BaaToken *scan_char_literal(BaaLexer *lexer);
 BaaToken *scan_multiline_string_literal(BaaLexer *lexer, size_t start_line, size_t start_col);
 BaaToken *scan_raw_string_literal(BaaLexer *lexer, bool is_multiline, size_t start_line, size_t start_col);
 BaaToken *scan_doc_comment(BaaLexer *lexer, size_t start_line, size_t start_col);
+BaaToken *scan_whitespace_sequence(BaaLexer *lexer);
 
 #endif // BAA_TOKEN_SCANNERS_H

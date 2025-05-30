@@ -52,6 +52,8 @@ typedef enum
     BAA_TOKEN_EOF,         // End of file
     BAA_TOKEN_ERROR,       // Error token
     BAA_TOKEN_UNKNOWN,     // Unknown token
+    BAA_TOKEN_WHITESPACE,  // Sequence of spaces/tabs
+    BAA_TOKEN_NEWLINE,     // Newline character(s)
     BAA_TOKEN_COMMENT,     // Comment (Currently skipped, but type exists)
     BAA_TOKEN_DOC_COMMENT, // Documentation Comment /** ... */
 
