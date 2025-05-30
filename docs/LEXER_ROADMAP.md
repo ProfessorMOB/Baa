@@ -14,6 +14,7 @@ This roadmap outlines the planned improvements and current status of the Baa lan
 * [x] Token memory management (`make_token` allocates, `baa_free_token` frees).
 * [x] Tokenize whitespace and newlines instead of skipping.
 * [ ] **Future:** Add support for more token types for language extensions if Baa evolves significantly.
+* [ ]**Future:** Configurable tab width for column calculation in `advance()`. (Roadmap Section 8 refinement)
 
 ## 2. Token Types (Feature Completion)
 
@@ -94,6 +95,7 @@ This roadmap outlines the planned improvements and current status of the Baa lan
   * [ ] Consider introducing more specific error token types (e.g., `BAA_TOKEN_ERROR_UNTERMINATED_STRING`, `BAA_TOKEN_ERROR_INVALID_NUMBER_SUFFIX`) or an error code field within `BAA_TOKEN_ERROR` tokens.
   * [ ] Enhance error messages to provide suggestions where applicable (e.g., "Invalid escape sequence `\ق`. Did you mean `\س`?").
 * **Enhanced Synchronization (`synchronize` function):**
+  * * The current `synchronize` in `lexer.c` is quite basic.
   * [ ] Review and improve robustness of the `synchronize()` function.
   * [ ] Consider context-sensitive synchronization (e.g., different behavior if error occurs inside a string vs. a number vs. general code).
 * **Maximum Error Count:**
@@ -119,14 +121,17 @@ This roadmap outlines the planned improvements and current status of the Baa lan
 ## 9. Token Structure (`BaaToken`) Considerations
 
 * [x] String/Char literals: Lexer processes escapes and stores the final value in `token->lexeme`.
+* [x] Comment tokens: Lexer stores content only (delimiters excluded) in `token->lexeme`.
 * [ ] Numeric literals: Lexer captures the full textual lexeme. `number_parser.c` converts this. Ensure `number_parser.c` is updated for all planned numeric literal features (suffixes `ح`, exponent `أ`, hex floats).
-* [x] Source Location Precision: Tokens store start line/column. End location or length is not currently stored in `BaaToken`.
+* [x] Source Location Precision: Tokens store start line/column.
+* [ ] **Enhance Token Location:** Add full source span (`BaaSourceSpan` or similar with start/end line/col) to `BaaToken` for more precise error reporting and tooling. This involves updating `BaaToken` struct and `make_token` logic.
 
 ## 10. Integration with Preprocessor
 
 * [x] Lexer operates on preprocessed UTF-16LE output.
 * **Source Mapping:**
   * [ ] Investigate robust handling of source location mapping if the preprocessor outputs `#line` directives (or similar) to relate preprocessed code back to original files/lines from includes or complex macros.
+*     * This would involve the lexer parsing `#line num "filename"` and updating its internal line/filename tracking.
 
 ## 11. Testing and Validation
 
@@ -147,6 +152,7 @@ This roadmap outlines the planned improvements and current status of the Baa lan
 ## 12. File Handling (Primarily `src/utils/utils.c`)
 
 * [x] `baa_file_content` (in utils) reads UTF-16LE. Preprocessor uses `read_file_content` which handles UTF-8 and UTF-16LE. Lexer receives UTF-16LE.
+* * [ ] Review `BaaLexer` struct: Consider adding `const wchar_t* current_filename_for_reporting;` if `#line` directives are handled, for accurate token location.
 * [ ] Review `baa_read_file` (in utils) usage/necessity if all pre-lexer input is handled by preprocessor's `read_file_content`.
 
 ## Implementation Priorities (High-Level View)

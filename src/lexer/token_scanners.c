@@ -322,7 +322,21 @@ BaaToken *scan_number(BaaLexer *lexer)
         }
         // The lexeme will now include these suffixes.
         // The actual interpretation of these (unsigned, long, long long)
-        // will be handled by the parser or semantic analyzer later.
+        // will be handled by the parser or semantic analyzer.
+    }
+    else if (base_prefix == 0 && is_float)            // It's a decimal float, check for float suffix
+    {                                                 /**
+                                                       * @brief Arabic float suffix HAH (U+062D).
+                                                       * Indicates that the literal is of a floating-point type.
+                                                       * Future: Could distinguish between float/double if more suffixes are added.
+                                                       */
+        const wchar_t ARABIC_FLOAT_SUFFIX_HAH = L'ح'; // U+062D
+
+        if (peek(lexer) == ARABIC_FLOAT_SUFFIX_HAH)
+        {
+            // Consume the 'ح' suffix. It becomes part of the BAA_TOKEN_FLOAT_LIT lexeme.
+            advance(lexer);
+        }
     }
 
     return make_token(lexer, is_float ? BAA_TOKEN_FLOAT_LIT : BAA_TOKEN_INT_LIT);
