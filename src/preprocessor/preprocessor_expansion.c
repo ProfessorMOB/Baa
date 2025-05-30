@@ -1,4 +1,5 @@
 #include "preprocessor_internal.h"
+#include <wctype.h>
 
 // --- Macro Expansion Stack Implementation ---
 

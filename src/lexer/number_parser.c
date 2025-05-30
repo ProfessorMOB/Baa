@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
+#include <limits.h>
 
 // Forward declaration for baa_is_arabic_digit
 bool baa_is_arabic_digit(wchar_t c);

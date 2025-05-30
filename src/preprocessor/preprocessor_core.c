@@ -1,5 +1,5 @@
 #include "preprocessor_internal.h"
-
+#include <wctype.h>
 // --- Core Recursive Processing Function ---
 
 // Processes a single file, handling includes recursively.

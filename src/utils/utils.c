@@ -4,6 +4,7 @@
 #include <string.h>
 #include <wchar.h>
 #include <stdio.h>
+#include <errno.h>
 
 // Error handling state
 static BaaError current_error = BAA_SUCCESS;
@@ -222,7 +223,7 @@ long baa_file_size(FILE *file)
     {
         return 0;
     }
-    fpos_t original = 0;
+    fpos_t original;
     if (fgetpos(file, &original) != 0)
     {
         // Consider using baa_set_error here or a more robust error handling

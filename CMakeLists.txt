@@ -27,7 +27,13 @@ endif()
 # إعداد معيار لغة C
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
-set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /IGNORE:4006 /IGNORE:4099") # Ignore certain linker warnings if needed
+if (WIN32)
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /IGNORE:4006 /IGNORE:4099") # Ignore certain linker warnings if needed
+else()
+    # Linux/macOS specific linker options (none needed here for these specific ignores)
+    # target_link_options(your_target PRIVATE "-Wl,--no-warn-mismatch") # Example for a common Linux linker option
+endif()
+
 
 add_subdirectory(src)
 
