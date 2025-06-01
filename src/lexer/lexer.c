@@ -74,11 +74,6 @@ wchar_t advance(BaaLexer *lexer)
     {
         lexer->column++; // Increment for non-newline char
     }
-    // --- DEBUG ---
-    fwprintf(stderr, L"DEBUG LEXER advance: Consumed '%lc'(%04X), new current_idx=%zu, new line=%zu, new col=%zu\n",
-             char_consumed, (unsigned int)char_consumed, lexer->current, lexer->line, lexer->column);
-    fflush(stderr);
-    // --- END DEBUG ---
     return char_consumed; // Return the character that was consumed
 }
 
@@ -137,16 +132,6 @@ BaaToken *make_token(BaaLexer *lexer, BaaTokenType type)
     ((wchar_t *)token->lexeme)[token->length] = L'\0'; // Null-terminate
     token->line = lexer->line;
     token->column = lexer->start_token_column; // Use the recorded start column
-
-    // --- DEBUG PRINT ---
-    fwprintf(stderr, L"DEBUG LEXER make_token: Type=%d, Lexeme='", type);
-    for (size_t i = 0; i < token->length; ++i)
-    {
-        putwc(token->lexeme[i], stderr);
-    } // Print char by char
-    fwprintf(stderr, L"', Len=%zu, Line=%zu, Col=%zu, lexer->start=%zu, lexer->current=%zu\n",
-             token->length, token->line, token->column, lexer->start, lexer->current);
-    // --- END DEBUG PRINT ---
     return token;
 }
 
@@ -426,24 +411,9 @@ void synchronize(BaaLexer *lexer)
 
 BaaToken *baa_lexer_next_token(BaaLexer *lexer)
 {
-    BaaToken *whitespace_error = skip_whitespace(lexer);
-    // At this moment, skip_whitespace has returned.
-    // Let's print lexer state *immediately* here.
-    fwprintf(stderr, L"DEBUG LEXER after_skip_ws: current_idx=%zu, col=%zu, char_at_current='%lc'\n",
-             lexer->current, lexer->column, is_at_end(lexer) ? L'~' : lexer->source[lexer->current]);
-    fflush(stderr);
-    if (whitespace_error != NULL)
-    {
-        return whitespace_error;
-    }
 
     lexer->start = lexer->current;
     lexer->start_token_column = lexer->column; // Record column at start of token
-                                               // --- DEBUG ---
-    fwprintf(stderr, L"DEBUG LEXER next_token - Set start markers: lexer->start=%zu, lexer->start_token_column=%zu, char_at_current='%lc'\n",
-             lexer->start, lexer->start_token_column, lexer->source[lexer->current]);
-    fflush(stderr); // Ensure this prints immediately
-    // --- END DEBUG ---
 
     if (lexer->current >= lexer->source_length)
     {
@@ -451,11 +421,78 @@ BaaToken *baa_lexer_next_token(BaaLexer *lexer)
         return make_token(lexer, BAA_TOKEN_EOF);
     }
 
-    wchar_t current_char_peeked = peek(lexer);
+    wchar_t c = peek(lexer);
 
-    if (current_char_peeked == L'\u062E')
+    // 1. Handle Newlines first
+    if (c == L'\n')
     {
-        if (lexer->current + 1 < lexer->source_length && lexer->source[lexer->current + 1] == L'"')
+        advance(lexer); // Consumes \n, advance updates line/col
+                        // make_token will use the updated lexer->start which was set before this check,
+        // and lexer->current which is now after the \n. Lexeme will be L"\n".
+        return make_token(lexer, BAA_TOKEN_NEWLINE);
+    }
+    if (c == L'\r')
+    {
+        advance(lexer); // Consumes \r
+        if (peek(lexer) == L'\n')
+        {
+            advance(lexer); // Consumes \n for \r\n
+        }
+        // make_token will capture the correct lexeme ("\r" or "\r\n")
+        // lexer->start was at the beginning of '\r'.
+        return make_token(lexer, BAA_TOKEN_NEWLINE);
+    }
+
+    // 2. Handle other Whitespace (spaces, tabs)
+    if (c == L' ' || c == L'\t')
+    {
+        // scan_whitespace_sequence will consume all subsequent ' ' and '\t'
+        // and call make_token for BAA_TOKEN_WHITESPACE.
+        // lexer->start was already set for the beginning of this sequence.
+        return scan_whitespace_sequence(lexer); // scan_whitespace_sequence is a new function
+    }
+
+    // 3. Handle Comments
+    if (c == L'/')
+    {
+        if (peek_next(lexer) == L'/')
+        { // Single-line comment: //
+            size_t comment_start_line = lexer->line;
+            size_t comment_start_col = lexer->column; // Column of the first '/'
+            advance(lexer);                           // Consume first /
+            advance(lexer);                           // Consume second /
+            // scan_single_line_comment will consume content until newline.
+            // Newline itself will be tokenized in the next call to baa_lexer_next_token.
+            return scan_single_line_comment(lexer, comment_start_line, comment_start_col);
+        }
+        else if (peek_next(lexer) == L'*')
+        { // Multi-line: /* or Doc: /**
+            size_t comment_start_line = lexer->line;
+            size_t comment_start_col = lexer->column; // Column of the first '/'
+
+            advance(lexer); // Consume /
+            advance(lexer); // Consume *
+
+            if (peek(lexer) == L'*' && peek_next(lexer) != L'/')
+            {                   // Doc comment: /** (and not /**/)
+                advance(lexer); // Consume the second '*' of /**
+                // scan_doc_comment handles from here, consumes content and '*/'
+                return scan_doc_comment(lexer, comment_start_line, comment_start_col);
+            }
+            else
+            { // Regular /* or empty /**/
+                // scan_multi_line_comment handles from here, consumes content and '*/'
+                return scan_multi_line_comment(lexer, comment_start_line, comment_start_col);
+            }
+        }
+        // If just '/', it's not a comment starter here, fall through to operator handling below.
+    }
+
+    // 4. Dispatch to other token types
+    //    (Raw strings, strings, chars, numbers, identifiers, operators)
+    if (c == L'\u062E')
+    {
+        if (peek_next(lexer) == L'"') // Simplified using peek_next
         {
             if (lexer->current + 3 < lexer->source_length &&
                 lexer->source[lexer->current + 2] == L'"' &&
@@ -463,24 +500,20 @@ BaaToken *baa_lexer_next_token(BaaLexer *lexer)
             {
                 size_t start_line = lexer->line;
                 size_t start_col = lexer->column;
-                advance(lexer);
-                advance(lexer);
-                advance(lexer);
-                advance(lexer);
+                // scan_raw_string_literal itself will consume the 'خ"""'
                 return scan_raw_string_literal(lexer, true, start_line, start_col);
             }
             else
             {
                 size_t start_line = lexer->line;
                 size_t start_col = lexer->column;
-                advance(lexer);
-                advance(lexer);
+                // scan_raw_string_literal itself will consume the 'خ"'
                 return scan_raw_string_literal(lexer, false, start_line, start_col);
             }
         }
     }
 
-    if (current_char_peeked == L'"')
+    if (c == L'"')
     {
         if (lexer->current + 2 < lexer->source_length &&
             lexer->source[lexer->current + 1] == L'"' &&
@@ -488,9 +521,7 @@ BaaToken *baa_lexer_next_token(BaaLexer *lexer)
         {
             size_t start_line = lexer->line;
             size_t start_col = lexer->column;
-            advance(lexer);
-            advance(lexer);
-            advance(lexer);
+            // scan_multiline_string_literal will consume '"""'
             return scan_multiline_string_literal(lexer, start_line, start_col);
         }
         else
@@ -499,34 +530,31 @@ BaaToken *baa_lexer_next_token(BaaLexer *lexer)
         }
     }
 
-    if (is_arabic_digit(current_char_peeked))
+    if (is_baa_digit(c) ||
+        (c == L'.' && is_baa_digit(peek_next(lexer))) ||
+        (c == L'\u066B' && is_baa_digit(peek_next(lexer))))
     {
         return scan_number(lexer);
     }
-    if (iswdigit(current_char_peeked))
-    {
-        return scan_number(lexer);
-    }
-    bool check_iswalpha = iswalpha(current_char_peeked);
-    bool check_is_underscore = (current_char_peeked == L'_');
-    bool check_is_arabic_letter = is_arabic_letter(current_char_peeked);
-    fwprintf(stderr, L"DEBUG LEXER Identifier Check: char='%lc'(%04X), iswalpha=%d, is_underscore=%d, is_arabic_letter=%d\n",
-             current_char_peeked, (unsigned int)current_char_peeked, check_iswalpha, check_is_underscore, check_is_arabic_letter);
-    fflush(stderr);
+    bool check_iswalpha = iswalpha(c);
+    bool check_is_underscore = (c == L'_');
+    bool check_is_arabic_letter = is_arabic_letter(c);
 
     if (check_iswalpha || check_is_underscore || check_is_arabic_letter)
     {
         return scan_identifier(lexer);
     }
-    wchar_t c = advance(lexer);
 
-    if (c == L'\0' && is_at_end(lexer))
-    {
+    // It was 'c' from peek, now consume it if it's an operator/delimiter
+    wchar_t first_char_consumed = advance(lexer);
+
+    if (first_char_consumed == L'\0' && is_at_end(lexer))
+    { // Should have been caught by is_at_end earlier
         lexer->start = lexer->current;
         return make_token(lexer, BAA_TOKEN_EOF);
     }
 
-    switch (c)
+    switch (first_char_consumed)
     {
     case L'(':
         return make_token(lexer, BAA_TOKEN_LPAREN);
@@ -610,8 +638,14 @@ const wchar_t *baa_token_type_to_string(BaaTokenType type)
         return L"BAA_TOKEN_ERROR";
     case BAA_TOKEN_UNKNOWN:
         return L"BAA_TOKEN_UNKNOWN";
-    case BAA_TOKEN_COMMENT:
-        return L"BAA_TOKEN_COMMENT";
+    case BAA_TOKEN_WHITESPACE:
+        return L"BAA_TOKEN_WHITESPACE";
+    case BAA_TOKEN_NEWLINE:
+        return L"BAA_TOKEN_NEWLINE";
+    case BAA_TOKEN_SINGLE_LINE_COMMENT:
+        return L"BAA_TOKEN_SINGLE_LINE_COMMENT";
+    case BAA_TOKEN_MULTI_LINE_COMMENT:
+        return L"BAA_TOKEN_MULTI_LINE_COMMENT";
     case BAA_TOKEN_DOC_COMMENT:
         return L"BAA_TOKEN_DOC_COMMENT";
     case BAA_TOKEN_IDENTIFIER:

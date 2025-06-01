@@ -4,6 +4,82 @@ All notable changes to the B (باء) compiler project will be documented in thi
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.21.0] - 2025-05-31 (Conceptual Lexer Updates & Bug Identification)
+
+### Added (Conceptual - Lexer)
+
+- **Lexer: Arabic-Only Exponent Marker for Floats:**
+  - The lexer's `scan_number` logic (in `src/lexer/token_scanners.c`) is conceptually updated to recognize `أ` (ALIF WITH HAMZA ABOVE, U+0623) as the exclusive exponent marker for floating-point literals.
+  - Support for English `e`/`E` as exponent markers is conceptually removed.
+- **Lexer: Arabic Float Suffix `ح`:**
+  - `scan_number` logic is conceptually updated to recognize and consume `ح` (HAH, U+062D) as a suffix for floating-point literals. The `ح` becomes part of the `BAA_TOKEN_FLOAT_LIT` lexeme.
+- **Lexer: Baa-Specific Arabic Escape Sequences:**
+
+- Scanner functions (`scan_char_literal`, `scan_string`, `scan_multiline_string_literal` in `src/lexer/token_scanners.c`) are conceptually updated to process Baa-specific Arabic escape sequences:
+- `\س` for newline (`L'\n'`)
+- `\م` for tab (`L'\t'`)
+- `\ر` for carriage return (`L'\r'`)
+- `\ص` for null character (`L'\0'`)
+- `\يXXXX` for 4-digit hex Unicode (replaces `\uXXXX`)
+- `\هـHH` for 2-digit hex byte value (Tatweel `ـ` is mandatory after `ه`)
+- Standard C-style single-letter escapes (e.g., `\n`, `\t`) and `\uXXXX` are conceptually no longer supported and should generate errors if encountered after `\`.
+- Standard `\\`, `\'`, `\"` remain for escaping themselves.
+
+### Changed (Documentation)
+
+- Updated `docs/LEXER_ROADMAP.md`, `docs/language.md`, `docs/arabic_support.md`, `docs/c_comparison.md`, `README.md`, and `docs/architecture.md` to reflect the conceptual shift to Arabic-only exponent markers (`أ`) and Arabic-only escape sequences (`\س`, `\يXXXX`, etc.) for character and string literals in the lexer.
+
+### Identified Issues (Lexer Bugs - To Be Fixed)
+
+- **Keyword Mismatch:** Keyword `وإلا` (else) is incorrectly tokenized as `BAA_TOKEN_IDENTIFIER` instead of `BAA_TOKEN_ELSE`.
+- **Float Literal Error:** Input like `.456` (leading dot float) is incorrectly tokenized as `BAA_TOKEN_INT_LIT` instead of `BAA_TOKEN_FLOAT_LIT`.
+- **Multiline String Escape Error:** Escape sequences (e.g., `\س`) within multiline string literals (`"""..."""`) are causing an "Unexpected character: '\'" error instead of being processed.
+- **Numeric Lexeme Display vs. Content (Verification Needed):** Arabic-Indic digits (e.g., `٠١٢٣`) and the Arabic decimal separator (`٫`) in source appear as Western digits or `?` in the `baa_lexer_tester` output for token lexemes. This needs verification (e.g., hex dump of lexeme) to determine if it's a lexer internal conversion bug or a display issue in the tester/console. The lexer should store raw source characters in the lexeme.
+
+### Known Issues (Carryover)
+
+- Parser and AST components are still under active redesign and re-implementation.
+- `number_parser.c` needs updates to correctly interpret new lexemes from `scan_number` (e.g., with `أ` exponent, `ح` suffix, and existing integer suffixes).
+
+## [0.1.20.0] - 2025-05-30
+
+### Added
+
+- **Lexer Tokenization of Whitespace & Comments:**
+  - Introduced new token types:
+    - `BAA_TOKEN_WHITESPACE`: For sequences of spaces and/or tabs. Lexeme contains the exact whitespace sequence.
+    - `BAA_TOKEN_NEWLINE`: For newline characters (`\n`, `\r`, `\r\n`). Lexeme is the normalized or actual sequence.
+    - `BAA_TOKEN_SINGLE_LINE_COMMENT`: For `//` comments. Lexeme contains the comment content (after `//`, excluding trailing newline). Token location points to the start of `//`.
+    - `BAA_TOKEN_MULTI_LINE_COMMENT`: For `/* ... */` comments (non-documentation). Lexeme contains the content between `/*` and `*/`. Token location points to the start of `/*`.
+  - `BAA_TOKEN_DOC_COMMENT` (for `/** ... */`) now consistently has its lexeme as content-only, with token location pointing to the start of `/**`.
+  - Updated `baa_token_type_to_string` to include string representations for these new token types.
+- **New Lexer Scanners (`src/lexer/token_scanners.c`):**
+  - `scan_whitespace_sequence()`: Implemented to scan and tokenize contiguous spaces and tabs.
+  - `scan_single_line_comment()`: Implemented to scan and tokenize the content of `//` comments.
+  - `scan_multi_line_comment()`: Implemented to scan and tokenize the content of `/* ... */` comments.
+
+### Changed
+
+- **Lexer Core (`src/lexer/lexer.c` -> `baa_lexer_next_token`):**
+  - Major refactor to no longer skip whitespace or comments.
+  - Now dispatches to specific scanner functions to create tokens for `BAA_TOKEN_WHITESPACE`, `BAA_TOKEN_NEWLINE`, `BAA_TOKEN_SINGLE_LINE_COMMENT`, `BAA_TOKEN_MULTI_LINE_COMMENT`, and `BAA_TOKEN_DOC_COMMENT`.
+  - The internal `skip_whitespace` function was removed; its whitespace-only skipping logic is now part of the initial checks in `baa_lexer_next_token` before dispatching to `scan_whitespace_sequence` or handling newlines directly.
+- **Lexer Scanners for Comments (`src/lexer/token_scanners.c`):**
+  - `scan_single_line_comment`, `scan_multi_line_comment`, and `scan_doc_comment` now create tokens manually, ensuring their lexemes contain only the comment *content* (delimiters excluded) and their reported token location (line/column) corresponds to the start of the comment delimiter sequence (`//`, `/*`, `/**`). They use the lexer's internal `append_char_to_buffer` utility for building content.
+- **`scan_char_literal` (`src/lexer/token_scanners.c`):**
+  - Updated to consume its own opening delimiter (`'`) as it's now called when `peek(lexer)` is at the delimiter.
+  - Modified to produce a token whose lexeme is the *processed character value* (e.g., for `'\n'`, the lexeme is a 1-char string containing the newline character), consistent with string literal tokenization. Token location points to the opening `'`.
+
+### Fixed
+
+- Ensured consistent handling of token location reporting for comment tokens, pointing to the start of their respective delimiters.
+- Improved robustness of `baa_file_content` in `src/utils/utils.c` for reading UTF-16LE files, particularly around BOM handling and file size calculation. (This was a prerequisite fix identified during lexer testing).
+- Enhanced `tools/baa_lexer_tester.c` to better handle file input and display Unicode output on Windows consoles for improved testing.
+
+### Known Issues
+
+- The parser does not yet handle these new whitespace/comment tokens; it will need significant updates to either filter them or incorporate them into its grammar rules if necessary.
+
 ## [0.1.19.0] - 2025-05-26
 
 ### Added

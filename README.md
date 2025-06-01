@@ -2,7 +2,7 @@
 
 B (باء) is a programming language designed to support Arabic syntax while maintaining conceptual alignment with C features. It allows developers to write code using Arabic keywords and identifiers. The project aims to provide a complete compiler toolchain, including a preprocessor, lexer, parser, semantic analyzer, and code generator.
 
-## Current Status (Reflects Build System v0.1.18.0 / Preprocessor v0.1.17.0)
+## Current Status (Reflects Build System v0.1.18.0 / Preprocessor v0.1.17.0 / Lexer conceptual v0.1.21.0)
 
 The project is actively under development. Key components and their status:
 
@@ -28,20 +28,27 @@ The project is actively under development. Key components and their status:
 * **Lexer (`src/lexer/`):** - *Actively Developed & Largely Functional*
   * Tokenizes preprocessed UTF-16LE stream.
   * Supports Arabic/English identifiers, Arabic-Indic digits, Arabic keywords.
-  * Handles numeric literals (decimal, hex `0x`, binary `0b`, underscores, Arabic decimal separator `٫`, basic scientific `e/E`). Arabic suffixes (`غ`, `ط`, `طط`) are tokenized.
-  * Handles string (`"..."`, multiline `"""..."""`, raw `خ"..."`) and character (`'...'`) literals with standard C & Unicode (`\uXXXX`) escapes.
-  * Recognizes documentation comments (`/** ... */`).
+  * Tokenizes whitespace, newlines, and all comment types (`//`, `/*...*/`, `/**...*/`) as distinct tokens.
+  * Comment tokens have lexemes containing only their content (delimiters excluded).
+  * Handles numeric literals:
+    * Integers: decimal, hex `0x`, binary `0b`, underscores, Arabic-Indic digits. Arabic suffixes (`غ`, `ط`, `طط`) are tokenized.
+    * Floats: decimal point (`.` or `٫`), Arabic exponent marker `أ` (English `e`/`E` not supported), underscores, Arabic-Indic digits. Arabic float suffix `ح` tokenized.
+  * Handles string (`"..."`, multiline `"""..."""`, raw `خ"..."`) and character (`'...'`) literals.
+  * Processes **Baa-specific Arabic escape sequences** (e.g., `\س` for newline, `\م` for tab, `\يXXXX` for Unicode, `\هـHH` for hex byte). Standard C escapes like `\n`, `\t`, `\uXXXX` are **not** supported.
+  * String and character literal tokens have lexemes containing the processed content (escapes resolved).
   * Accurate line/column tracking and error reporting for lexical errors.
-  * *See `docs/LEXER_ROADMAP.md` for planned enhancements (e.g., Arabic exponent `أ`, float suffix `ح`, Arabic escapes).*
+  * *See `docs/LEXER_ROADMAP.md` for planned enhancements and known issues (e.g., C99 hex floats, deeper Unicode for identifiers).*
 
 * **Parser (`src/parser/`):** - **Under Redesign/Re-implementation**
   * The previous parser implementation has been removed to facilitate a complete redesign.
+  * **(In Progress - v0.1.19.0)** Core parser structure (token handling, error reporting) implemented.
   * **(Planned)** Will transform the token stream from the lexer into an Abstract Syntax Tree (AST).
   * **(Planned)** Will use a recursive descent approach and focus on syntactic validation, deferring semantic checks.
   * *Refer to `docs/PARSER.md` and `docs/PARSER_ROADMAP.md` for new design plans.*
 
 * **Abstract Syntax Tree (AST):** - **Under Redesign/Re-implementation**
   * The previous AST implementation has been removed.
+  * **(In Progress - v0.1.18.0)** Core AST types (`BaaNode`, `BaaSourceSpan`, `BaaNodeKind`) and basic literal expression nodes implemented.
   * **(Planned)** Will provide a structured representation of the parsed code.
   * **(Planned)** Node types for expressions, statements, declarations, etc., with standardized memory management.
   * *Refer to `docs/AST.md` and `docs/AST_ROADMAP.md` for new design plans.*
@@ -61,7 +68,7 @@ The project is actively under development. Key components and their status:
   * **(Planned)** Semantic analysis, including symbol table management, name resolution, full type checking, and advanced flow analysis, will be developed to work with the new AST.
   * *See `docs/SEMANTIC_ANALYSIS.md` and `docs/SEMANTIC_ANALYSIS_ROADMAP.md`.*
 
-* **Code Generation (`src/codegen/`):** - *Basic Stubs / LLVM Integration Planned*
+* **Code Generation (`src/codegen/`):** - *Basic Stubs / LLVM Integration Conditional*
   * LLVM backend is optional (controlled by `USE_LLVM` CMake option).
   * If LLVM is disabled or not found, a stub backend (`llvm_stub.c`) is used.
   * Actual LLVM IR generation from an AST is **pending** the new Parser/AST implementation and further development of `llvm_codegen.c`.
@@ -70,21 +77,21 @@ The project is actively under development. Key components and their status:
 * **Utilities (`src/utils/`):** - *Implemented*
   * Memory management wrappers (`baa_malloc`, `baa_free`, `baa_strdup`).
   * String handling utilities.
-  * Basic file I/O helpers.
+  * Basic file I/O helpers (including UTF-16LE support for Baa sources).
 
 ### Overall Project Status
 
 * **What's Working Well:**
   * **Preprocessor:** Handles most C99-level features with Arabic syntax.
-  * **Lexer:** Robust tokenization of Baa syntax, including good Arabic numeral and string support.
+  * **Lexer:** Robust tokenization of Baa syntax, including good Arabic numeral and string support (with new Arabic escapes conceptually).
   * **Core Types & Operators:** Foundational system in place.
   * **CMake Build System:** Modular and correctly links components.
 * **What's Actively Being Rebuilt/Designed:**
-  * **Parser**
-  * **Abstract Syntax Tree (AST)**
+  * **Parser** (Core structure in place, detailed parsing rules in progress).
+  * **Abstract Syntax Tree (AST)** (Core structure and some nodes in place, ongoing).
 * **What's Planned/Blocked:**
-  * **Semantic Analysis** (depends on new AST)
-  * **Code Generation** (LLVM IR from AST, depends on new AST & Semantic Analysis)
+  * **Semantic Analysis** (depends on new AST).
+  * **Code Generation** (LLVM IR from AST, depends on new AST & Semantic Analysis).
   * Comprehensive **Standard Library**.
 * **General:**
   * Error reporting is being continuously improved for precision and clarity.
@@ -93,9 +100,9 @@ The project is actively under development. Key components and their status:
 ### Roadmap
 
 * **Short-term Goals (towards 0.2.0 and beyond):**
-    1. **Critical: Re-implement Parser and AST** based on new designs. This is the current main focus.
-    2. Continue enhancing Preprocessor and Lexer (see their respective roadmaps).
-    3. Begin foundational Semantic Analysis once the new AST is stable.
+    1. **Critical: Continue implementation of new Parser and AST** based on new designs. This is the current main focus.
+    2. Resolve identified Lexer bugs and fully test new escape/exponent features.
+    3. Begin foundational Semantic Analysis once the new AST is more complete.
     4. Develop Code Generation (LLVM) based on the new, semantically-analyzed AST.
 * *For a high-level overview, see `docs/roadmap.md`. For component-specific details, refer to `LEXER_ROADMAP.md`, `PARSER_ROADMAP.md`, `AST_ROADMAP.md`, `PREPROCESSOR_ROADMAP.md`, etc.*
 
@@ -113,11 +120,13 @@ baa/
 ├── src/                    # Source code (organized by component)
 │   ├── CMakeLists.txt      # Adds component subdirectories
 │   ├── analysis/
+│   ├── ast/                  # New AST implementation
 │   ├── codegen/
 │   ├── compiler.c          # Core compiler logic (part of baa_compiler_lib)
 │   ├── lexer/
 │   ├── main.c              # Main executable entry point
 │   ├── operators/
+│   ├── parser/             # New Parser implementation
 │   ├── preprocessor/
 │   ├── types/
 │   └── utils/
@@ -162,7 +171,7 @@ It is **required** to perform an out-of-source build.
         cmake -G "Ninja" -DCMAKE_C_COMPILER="C:/Program Files/LLVM/bin/clang-cl.exe" ..
         ```
 
-        *(Adjust path to `clang-cl.exe` as needed. `-DCMAKE_CXX_COMPILER` can also be set similarly if C++ parts were present.)*
+        *(Adjust path to `clang-cl.exe` as needed.)*
     * **Linux/macOS (using system default C compiler, e.g., GCC or Clang):**
 
         ```bash
@@ -188,14 +197,23 @@ It is **required** to perform an out-of-source build.
 
     ```bash
     # After building:
-    ./baa_preprocessor_tester <path/to/your/file.baa>
+    ./build/tools/baa_preprocessor_tester <path/to/your/file.baa>
     ```
 
 * **Lexer Tester:**
 
     ```bash
     # After building:
-    ./baa_lexer_tester <path/to/your/file.baa>
+    ./build/tools/baa_lexer_tester <path/to/your/file.baa>
+    ```
+
+    (Output is now written to `lexer_test_output.txt` in the current working directory)
+
+* **Parser Tester (when available):**
+
+    ```bash
+    # After building:
+    ./build/tools/baa_parser_tester <path/to/your/file.baa>
     ```
 
 ## Language Highlights (Current & Planned)
@@ -203,7 +221,13 @@ It is **required** to perform an out-of-source build.
 * **Arabic Syntax:** Keywords, identifiers, and planned support for more Arabic constructs.
 * **Preprocessor:** C99-compliant features with Arabic directives.
 * **Type System:** Static typing with basic C types and Arabic names.
-* **Literals:** Support for Arabic-Indic digits, Arabic decimal separator, underscores in numbers, and various string literal formats.
+* **Literals:**
+  * Support for Arabic-Indic digits (`٠-٩`).
+  * Arabic decimal separator (`٫`).
+  * Arabic exponent marker `أ` for floats (replaces `e`/`E`).
+  * Arabic suffixes for integers (`غ`, `ط`, `طط`) and floats (`ح`).
+  * Baa-specific Arabic escape sequences (e.g., `\س`, `\م`, `\يXXXX`) for strings and characters; C-style escapes like `\n`, `\uXXXX` are not supported.
+  * Various string literal formats (regular, multiline `"""..."""`, raw `خ"..."`).
 * **Statement Terminator:** Uses `.` (dot) instead of `;`.
 * *For full details, see `docs/language.md` and `docs/arabic_support.md`.*
 
@@ -224,7 +248,7 @@ It is **required** to perform an out-of-source build.
 
 ## Contributing
 
-Contributions are welcome! Please refer to `docs/development.md` for coding standards, build system details, and component implementation guidelines. Key areas for contribution currently include the Parser and AST redesign and implementation.
+Contributions are welcome! Please refer to `docs/development.md` for coding standards, build system details, and component implementation guidelines. Key areas for contribution currently include the Parser and AST redesign and implementation, and resolving identified lexer bugs.
 
 ## License
 
