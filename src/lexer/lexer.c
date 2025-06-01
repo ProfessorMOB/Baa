@@ -74,11 +74,6 @@ wchar_t advance(BaaLexer *lexer)
     {
         lexer->column++; // Increment for non-newline char
     }
-    // --- DEBUG ---
-    fwprintf(stderr, L"DEBUG LEXER advance: Consumed '%lc'(%04X), new current_idx=%zu, new line=%zu, new col=%zu\n",
-             char_consumed, (unsigned int)char_consumed, lexer->current, lexer->line, lexer->column);
-    fflush(stderr);
-    // --- END DEBUG ---
     return char_consumed; // Return the character that was consumed
 }
 
@@ -137,16 +132,6 @@ BaaToken *make_token(BaaLexer *lexer, BaaTokenType type)
     ((wchar_t *)token->lexeme)[token->length] = L'\0'; // Null-terminate
     token->line = lexer->line;
     token->column = lexer->start_token_column; // Use the recorded start column
-
-    // --- DEBUG PRINT ---
-    fwprintf(stderr, L"DEBUG LEXER make_token: Type=%d, Lexeme='", type);
-    for (size_t i = 0; i < token->length; ++i)
-    {
-        putwc(token->lexeme[i], stderr);
-    } // Print char by char
-    fwprintf(stderr, L"', Len=%zu, Line=%zu, Col=%zu, lexer->start=%zu, lexer->current=%zu\n",
-             token->length, token->line, token->column, lexer->start, lexer->current);
-    // --- END DEBUG PRINT ---
     return token;
 }
 
@@ -429,11 +414,6 @@ BaaToken *baa_lexer_next_token(BaaLexer *lexer)
 
     lexer->start = lexer->current;
     lexer->start_token_column = lexer->column; // Record column at start of token
-                                               // --- DEBUG ---
-    fwprintf(stderr, L"DEBUG LEXER next_token - Set start markers: lexer->start=%zu, lexer->start_token_column=%zu, char_at_current='%lc'\n",
-             lexer->start, lexer->start_token_column, lexer->source[lexer->current]);
-    fflush(stderr); // Ensure this prints immediately
-    // --- END DEBUG ---
 
     if (lexer->current >= lexer->source_length)
     {
@@ -559,10 +539,6 @@ BaaToken *baa_lexer_next_token(BaaLexer *lexer)
     bool check_iswalpha = iswalpha(c);
     bool check_is_underscore = (c == L'_');
     bool check_is_arabic_letter = is_arabic_letter(c);
-    // Debug print for identifier check can be kept if useful during development
-    fwprintf(stderr, L"DEBUG LEXER Identifier Check: char='%lc'(%04X), iswalpha=%d, is_underscore=%d, is_arabic_letter=%d\n",
-             c, (unsigned int)c, check_iswalpha, check_is_underscore, check_is_arabic_letter);
-    fflush(stderr);
 
     if (check_iswalpha || check_is_underscore || check_is_arabic_letter)
     {

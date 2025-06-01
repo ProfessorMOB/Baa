@@ -11,33 +11,43 @@
 #endif
 
 // Helper function to print wide strings correctly
-void print_wide_string_tester(FILE *stream, const wchar_t *wstr) {
-    if (!wstr) {
+void print_wide_string_tester(FILE *stream, const wchar_t *wstr)
+{
+    if (!wstr)
+    {
         fwprintf(stream, L"(null_lexeme)"); // Indicate if lexeme is NULL
         return;
     }
-    if (fwprintf(stream, L"%ls", wstr) < 0) {
-        fprintf(stderr, "\n[Warning: fwprintf failed. Fallback print may be incomplete.]\n");
-        while (*wstr) {
-            if (putwc(*wstr, stream) == WEOF) break;
+    if (fwprintf(stream, L"%ls", wstr) < 0)
+    {
+        // Fallback for console - avoid adding extra newlines if fwprintf fails
+        while (*wstr)
+        {
+            if (putwc(*wstr, stream) == WEOF)
+                break;
             wstr++;
         }
     }
 }
 
-void print_token_for_tester(const BaaToken *token, int count) {
-    if (!token) {
+void print_token_for_tester(const BaaToken *token, int count)
+{
+    if (!token)
+    {
         fwprintf(stderr, L"Token %03d: NULL TOKEN (Critical Lexer Error)\n", count);
         return;
     }
     const wchar_t *type_str = baa_token_type_to_string(token->type);
-    wprintf(L"Token %03d: Type=%ls (%d), Lexeme='", count, type_str ? type_str : L"UNKNOWN_TYPE_STR", token->type);
+    // Simplified single-line output
+    wprintf(L"[%03d] %-30ls (L%zu C%zu Len%zu) '",
+            count, type_str ? type_str : L"UNKNOWN_TYPE_STR",
+            token->line, token->column, token->length);
     print_wide_string_tester(stdout, token->lexeme);
-    wprintf(L"', Len=%zu, Line=%zu, Col=%zu\n",
-             token->length, token->line, token->column);
+    wprintf(L"'\n");
 }
 
-int main(int argc, char *argv_char[]) {
+int main(int argc, char *argv_char[])
+{
     setlocale(LC_ALL, "");
 
     const wchar_t *source_to_lex = NULL;
@@ -47,49 +57,59 @@ int main(int argc, char *argv_char[]) {
 #ifdef _WIN32
     int nArgs;
     LPWSTR *szArgList = CommandLineToArgvW(GetCommandLineW(), &nArgs);
-    if (nArgs > 1) {
-        source_name_for_lexer = baa_strdup(szArgList[1]); // For lexer init
+    if (nArgs > 1)
+    {
+        source_name_for_lexer = baa_strdup(szArgList[1]);     // For lexer init
         file_content_buffer = baa_file_content(szArgList[1]); // Read file content
-        if (!file_content_buffer) {
+        if (!file_content_buffer)
+        {
             fwprintf(stderr, L"Error: Could not read file: ");
             print_wide_string_tester(stderr, szArgList[1]);
             fwprintf(stderr, L"\n");
-            if(source_name_for_lexer) baa_free((void*)source_name_for_lexer);
+            if (source_name_for_lexer)
+                baa_free((void *)source_name_for_lexer);
             LocalFree(szArgList);
             return 1;
         }
         source_to_lex = file_content_buffer;
     }
-    if (szArgList) LocalFree(szArgList);
+    if (szArgList)
+        LocalFree(szArgList);
 #else
-    if (argc > 1) {
+    if (argc > 1)
+    {
         // Convert char* filename to wchar_t* for baa_file_content and lexer init
         size_t len_needed = mbstowcs(NULL, argv_char[1], 0);
-        if (len_needed == (size_t)-1) {
+        if (len_needed == (size_t)-1)
+        {
             fprintf(stderr, "Error: Invalid multibyte sequence in filename.\n");
             return 1;
         }
-        wchar_t* w_filename = (wchar_t*)malloc((len_needed + 1) * sizeof(wchar_t));
-        if (!w_filename) {
+        wchar_t *w_filename = (wchar_t *)malloc((len_needed + 1) * sizeof(wchar_t));
+        if (!w_filename)
+        {
             fprintf(stderr, "Error: Memory allocation failed for wide filename.\n");
             return 1;
         }
         mbstowcs(w_filename, argv_char[1], len_needed + 1);
 
-        source_name_for_lexer = baa_strdup(w_filename); // For lexer init
+        source_name_for_lexer = baa_strdup(w_filename);     // For lexer init
         file_content_buffer = baa_file_content(w_filename); // Read file
         free(w_filename);
 
-        if (!file_content_buffer) {
+        if (!file_content_buffer)
+        {
             fwprintf(stderr, L"Error: Could not read file: %hs\n", argv_char[1]);
-            if(source_name_for_lexer) baa_free((void*)source_name_for_lexer);
+            if (source_name_for_lexer)
+                baa_free((void *)source_name_for_lexer);
             return 1;
         }
         source_to_lex = file_content_buffer;
     }
 #endif
 
-    if (!source_to_lex) {
+    if (!source_to_lex)
+    {
         // Default to a simple test string if no file is provided
         // This string includes spaces, tabs, and newlines.
         // Let's use the example from your tools/baa_lexer_tester.c for direct comparison
@@ -100,14 +120,15 @@ int main(int argc, char *argv_char[]) {
         wprintf(L"No input file provided. Using default test string:\n\"");
         print_wide_string_tester(stdout, source_to_lex);
         wprintf(L"\"\n\n");
-    } else {
+    }
+    else
+    {
         wprintf(L"Lexing file: ");
         print_wide_string_tester(stdout, source_name_for_lexer);
         wprintf(L"\nContent:\n\"");
         print_wide_string_tester(stdout, source_to_lex);
         wprintf(L"\"\n\n");
     }
-
 
     BaaLexer lexer;
     // Pass source_name_for_lexer (which is wchar_t*) to baa_init_lexer
@@ -117,37 +138,39 @@ int main(int argc, char *argv_char[]) {
     int token_count = 0;
     BaaToken *token;
 
-    do {
+    do
+    {
         token = baa_lexer_next_token(&lexer);
         print_token_for_tester(token, token_count++);
 
         BaaTokenType current_type = BAA_TOKEN_UNKNOWN; // Default if token is NULL
-        if (token) {
+        if (token)
+        {
             current_type = token->type;
             baa_free_token(token); // Free after use
-        } else {
+        }
+        else
+        {
             break; // Critical error from lexer
         }
 
-        if (current_type == BAA_TOKEN_EOF || current_type == BAA_TOKEN_ERROR) {
-            break;
-        }
-        if (token_count > 100) { // Safety break
-            wprintf(L"Safety break: Token limit reached.\n");
+        if (current_type == BAA_TOKEN_EOF || current_type == BAA_TOKEN_ERROR)
+        {
             break;
         }
     } while (true);
 
     wprintf(L"--- End Lexer Tokens ---\n");
 
-    if (file_content_buffer) {
+    if (file_content_buffer)
+    {
         free(file_content_buffer);
     }
     // If source_name_for_lexer was strdup'd (for file input case)
-    if (source_name_for_lexer != L"<string_input>" && source_name_for_lexer != L"<default_test_string>") {
-        baa_free((void*)source_name_for_lexer);
+    if (source_name_for_lexer != L"<string_input>" && source_name_for_lexer != L"<default_test_string>")
+    {
+        baa_free((void *)source_name_for_lexer);
     }
-
 
     return 0;
 }

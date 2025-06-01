@@ -180,12 +180,18 @@ BaaToken *scan_number(BaaLexer *lexer)
     }
 
     current_peek = peek(lexer);
-    if (base_prefix == 0 && (current_peek == L'e' || current_peek == L'E'))
+    /**
+     * @brief Arabic exponent marker ALIF WITH HAMZA ABOVE (U+0623).
+     * Replaces 'e'/'E' for scientific notation in floating-point numbers.
+     */
+    const wchar_t ARABIC_EXPONENT_MARKER_ALIF_HAMZA = L'أ'; // U+0623
+
+    if (base_prefix == 0 && current_peek == ARABIC_EXPONENT_MARKER_ALIF_HAMZA)
     {
         wchar_t next_peek_exp = peek_next(lexer);
         if (next_peek_exp == L'_')
         {
-            BaaToken *error_token = make_error_token(lexer, L"شرطة سفلية غير صالحة في العدد (السطر %zu، العمود %zu): لا يمكن أن تتبع علامة الأس 'e'/'E' مباشرة.", lexer->line, lexer->column + 1);
+            BaaToken *error_token = make_error_token(lexer, L"شرطة سفلية غير صالحة في العدد (السطر %zu، العمود %zu): لا يمكن أن تتبع علامة الأس 'أ' مباشرة.", lexer->line, lexer->column + 1);
             synchronize(lexer);
             return error_token;
         }
@@ -200,7 +206,7 @@ BaaToken *scan_number(BaaLexer *lexer)
                 wchar_t after_sign_peek = lexer->source[lexer->current + 2];
                 if (after_sign_peek == L'_')
                 {
-                    BaaToken *error_token = make_error_token(lexer, L"شرطة سفلية غير صالحة في العدد (السطر %zu، العمود %zu): لا يمكن أن تتبع علامة الأس (+/-) مباشرة.", lexer->line, lexer->column + 2);
+                    BaaToken *error_token = make_error_token(lexer, L"شرطة سفلية غير صالحة في العدد (السطر %zu، العمود %zu): لا يمكن أن تتبع علامة الأس (+/-) في الأس 'أ' مباشرة.", lexer->line, lexer->column + 2);
                     synchronize(lexer);
                     return error_token;
                 }
@@ -220,12 +226,12 @@ BaaToken *scan_number(BaaLexer *lexer)
         if (has_exponent_part)
         {
             is_float = true;
-            advance(lexer); // Consume 'e' or 'E'
+            advance(lexer); // Consume 'أ'
             if (sign_offset == 1)
                 advance(lexer); // Consume '+' or '-'
             if (!is_baa_digit(peek(lexer)))
             {
-                BaaToken *error_token = make_error_token(lexer, L"تنسيق أس غير صالح بعد 'e' أو 'E' (السطر %zu، العمود %zu)", lexer->line, lexer->column);
+                BaaToken *error_token = make_error_token(lexer, L"تنسيق أس غير صالح بعد 'أ' (السطر %zu، العمود %zu)", lexer->line, lexer->column);
                 synchronize(lexer);
                 return error_token;
             }
