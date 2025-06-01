@@ -4,6 +4,43 @@ All notable changes to the B (باء) compiler project will be documented in thi
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.21.0] - 2025-05-31 (Conceptual Lexer Updates & Bug Identification)
+
+### Added (Conceptual - Lexer)
+
+- **Lexer: Arabic-Only Exponent Marker for Floats:**
+  - The lexer's `scan_number` logic (in `src/lexer/token_scanners.c`) is conceptually updated to recognize `أ` (ALIF WITH HAMZA ABOVE, U+0623) as the exclusive exponent marker for floating-point literals.
+  - Support for English `e`/`E` as exponent markers is conceptually removed.
+- **Lexer: Arabic Float Suffix `ح`:**
+  - `scan_number` logic is conceptually updated to recognize and consume `ح` (HAH, U+062D) as a suffix for floating-point literals. The `ح` becomes part of the `BAA_TOKEN_FLOAT_LIT` lexeme.
+- **Lexer: Baa-Specific Arabic Escape Sequences:**
+
+- Scanner functions (`scan_char_literal`, `scan_string`, `scan_multiline_string_literal` in `src/lexer/token_scanners.c`) are conceptually updated to process Baa-specific Arabic escape sequences:
+- `\س` for newline (`L'\n'`)
+- `\م` for tab (`L'\t'`)
+- `\ر` for carriage return (`L'\r'`)
+- `\ص` for null character (`L'\0'`)
+- `\يXXXX` for 4-digit hex Unicode (replaces `\uXXXX`)
+- `\هـHH` for 2-digit hex byte value (Tatweel `ـ` is mandatory after `ه`)
+- Standard C-style single-letter escapes (e.g., `\n`, `\t`) and `\uXXXX` are conceptually no longer supported and should generate errors if encountered after `\`.
+- Standard `\\`, `\'`, `\"` remain for escaping themselves.
+
+### Changed (Documentation)
+
+- Updated `docs/LEXER_ROADMAP.md`, `docs/language.md`, `docs/arabic_support.md`, `docs/c_comparison.md`, `README.md`, and `docs/architecture.md` to reflect the conceptual shift to Arabic-only exponent markers (`أ`) and Arabic-only escape sequences (`\س`, `\يXXXX`, etc.) for character and string literals in the lexer.
+
+### Identified Issues (Lexer Bugs - To Be Fixed)
+
+- **Keyword Mismatch:** Keyword `وإلا` (else) is incorrectly tokenized as `BAA_TOKEN_IDENTIFIER` instead of `BAA_TOKEN_ELSE`.
+- **Float Literal Error:** Input like `.456` (leading dot float) is incorrectly tokenized as `BAA_TOKEN_INT_LIT` instead of `BAA_TOKEN_FLOAT_LIT`.
+- **Multiline String Escape Error:** Escape sequences (e.g., `\س`) within multiline string literals (`"""..."""`) are causing an "Unexpected character: '\'" error instead of being processed.
+- **Numeric Lexeme Display vs. Content (Verification Needed):** Arabic-Indic digits (e.g., `٠١٢٣`) and the Arabic decimal separator (`٫`) in source appear as Western digits or `?` in the `baa_lexer_tester` output for token lexemes. This needs verification (e.g., hex dump of lexeme) to determine if it's a lexer internal conversion bug or a display issue in the tester/console. The lexer should store raw source characters in the lexeme.
+
+### Known Issues (Carryover)
+
+- Parser and AST components are still under active redesign and re-implementation.
+- `number_parser.c` needs updates to correctly interpret new lexemes from `scan_number` (e.g., with `أ` exponent, `ح` suffix, and existing integer suffixes).
+
 ## [0.1.20.0] - 2025-05-30
 
 ### Added

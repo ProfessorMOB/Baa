@@ -13,76 +13,72 @@ The initial stage that processes the source file before tokenization:
 - **Directive Handling**: Processes directives like `#تضمين` (include) and `#تعريف` (define).
 - **File Inclusion**: Merges included files into a single stream.
 - **Macro Expansion**: Substitutes defined object-like and function-like macros. Supports stringification (`#`) and token pasting (`##`). Detects recursive expansion.
-- **Input Encoding**: Expects UTF-16LE input files (checks BOM).
-- **Output**: Produces a single `wchar_t*` stream for the lexer.
+- **Input Encoding**: Expects UTF-16LE input files (checks BOM), or UTF-8 (with/without BOM, auto-detected and converted to UTF-16LE internally).
+- **Output**: Produces a single `wchar_t*` stream (UTF-16LE) for the lexer.
 - **Circular Include Detection**: Prevents infinite include loops.
-- **Conditional Compilation**: Handles `#إذا`, `#إذا_عرف`, `#إذا_لم_يعرف`, `#وإلا_إذا`, `#إلا`, `#نهاية_إذا`. Evaluates constant integer expressions for `#إذا`/`#وإلا_إذا` (supports arithmetic, comparison, logical operators, `معرف()`; excludes bitwise ops).
-- **Error Reporting**: Reports errors with file path and line number context.
+- **Conditional Compilation**: Handles `#إذا`, `#إذا_عرف`, `#إذا_لم_يعرف`, `#وإلا_إذا`, `#إلا`, `#نهاية_إذا`. Evaluates constant integer expressions for `#إذا`/`#وإلا_إذا` (supports arithmetic, comparison, logical, bitwise operators, `معرف()`).
+- **Error Reporting**: Reports errors with file path and line number context. Accumulates multiple diagnostics.
 - **Features & Status:**
   - Implemented as a separate stage.
   - Handles `#تضمين` (relative and standard paths).
-  - Handles `#تعريف` (object-like and function-like macros, including `#`, `##`, and **rescanning of expansion results**).
+  - Handles `#تعريف` (object-like and function-like macros, including `#`, `##`, variadic, and **rescanning of expansion results**).
   - Handles `#الغاء_تعريف` to undefine macros.
-  - Handles conditional compilation (`#إذا_عرف`, `#إذا_لم_يعرف`, `#إلا`, `#نهاية_إذا`, `#إذا`, `#وإلا_إذا`) with expression evaluation (using `معرف` for `defined`; excludes bitwise ops).
-  - Detects circular includes and recursive macro expansion (expansion stack prevents direct self-recursion during a single expansion's rescan).
-  - Enforces UTF-16LE input.
-  - Provides error messages with file/line context.
-  - Predefined macros implemented: `__الملف__`, `__السطر__` (as integer), `__التاريخ__`, `__الوقت__`.
-  - *Planned:* Bitwise operators in conditional expressions, remaining predefined macros (`__الدالة__`, `__إصدار_المعيار_باء__`), Variadic Macros (`وسائط_إضافية`, `__وسائط_متغيرة__`), other standard directives (`#خطأ`, `#تحذير`, `#سطر`, `#براغما`, `أمر_براغما`), UTF-8 input support, full macro expansion in conditional expressions.
+  - Handles conditional compilation (`#إذا_عرف`, `#إذا_لم_يعرف`, `#إلا`, `#نهاية_إذا`, `#إذا`, `#وإلا_إذا`) with expression evaluation (using `معرف` for `defined`).
+  - Supports `#خطأ` and `#تحذير` directives.
+  - Detects circular includes and recursive macro expansion.
+  - Provides predefined macros (`__الملف__`, `__السطر__` (int), `__التاريخ__`, `__الوقت__`, `__الدالة__` (placeholder), `__إصدار_المعيار_باء__`).
+  - *See `docs/PREPROCESSOR_ROADMAP.md` for latest status, including error recovery enhancements.*
 
 ### 1. Lexer
 
 The lexical analyzer responsible for tokenizing source code. It has a modular structure:
 
 - `lexer.c`: Core dispatch logic (`baa_lexer_next_token`) and helper functions.
-- `token_scanners.c`: Implements specific scanning functions for identifiers, numbers, strings, and characters.
+- `token_scanners.c`: Implements specific scanning functions for identifiers, numbers, strings, and comments.
 - `lexer_char_utils.c`: Provides character classification utilities (e.g., for Arabic letters, digits).
-- **Token Generation**: Converts source text (output from preprocessor) into a stream of tokens.
+- **Token Generation**: Converts source text (UTF-16LE output from preprocessor) into a stream of tokens.
 - **Unicode Support**: Full support for Arabic characters in identifiers, literals, and keywords. Recognizes Arabic-Indic digits.
 - **Source Tracking**: Accurate line and column tracking for tokens and errors.
 - **Error Detection**: Identifies lexical errors (e.g., unexpected characters, unterminated literals, invalid escapes) and provides diagnostic messages.
 - **Whitespace and Newlines**: Tokenizes spaces/tabs (`BAA_TOKEN_WHITESPACE`) and newlines (`BAA_TOKEN_NEWLINE`) separately.
 - **Comment Handling**: Tokenizes single-line (`//` -> `BAA_TOKEN_SINGLE_LINE_COMMENT`), multi-line (`/*...*/` -> `BAA_TOKEN_MULTI_LINE_COMMENT`), and documentation comments (`/**...*/` -> `BAA_TOKEN_DOC_COMMENT`). Lexemes for comments contain the content excluding delimiters.
 - **Numeric Literal Recognition**:
-  - Identifies various number formats: integers (decimal, binary `0b`/`0B`, hexadecimal `0x`/`0X`), floats (using `.` or `٫` as decimal separator), and scientific notation (using `أ` as exponent marker).
+  - Identifies various number formats: integers (decimal, binary `0b`/`0B`, hexadecimal `0x`/`0X`), floats (using `.` or `٫` as decimal separator).
+  - Uses Arabic exponent marker `أ` for scientific notation (English `e`/`E` are not supported).
   - Supports Arabic-Indic digits (`٠`-`٩`) and Western digits (`0`-`9`) within all parts of numbers.
   - Supports underscores (`_`) as separators for readability in numbers.
-  - (Planned: Arabic literal suffixes like `غ`, `ط`, `طط`, `ح`).
-  - The lexer's `scan_number` function (in `token_scanners.c`) handles the syntactic recognition and extracts the raw lexeme. The separate `number_parser.c` utility can be used later for converting these lexemes to actual numeric values.
-- **String/Char Literals**: Handles string (`"..."`) and character (`'...'`) literals. Currently implements standard C escapes. *Planned: Support for Baa-specific Arabic escape sequences (e.g., `\س` for newline, `\م` for tab, `\يXXXX` for Unicode) while retaining `\` as the escape character.*
+  - Tokenizes Arabic integer literal suffixes (`غ`, `ط`, `طط`) and float suffix (`ح`).
+  - The lexer's `scan_number` function handles syntactic recognition and extracts the raw lexeme. The separate `number_parser.c` utility is intended for converting these lexemes to actual numeric values.
+- **String/Char Literals**: Handles string (`"..."`, `"""..."""` multiline, `خ"..."` raw) and character (`'...'`) literals.
+  - Processes **Baa-specific Arabic escape sequences** (e.g., `\س` for newline, `\م` for tab, `\يXXXX` for Unicode, `\هـHH` for hex byte).
+  - Standard C escapes like `\n`, `\t`, `\uXXXX` are **not** supported and will result in errors.
 - **Features & Status:**
   - Core lexer functionality and modular structure are implemented.
-  - UTF-16LE encoding is processed (input from preprocessor).
   - Robust token handling for keywords, identifiers, operators, and various literal types.
-  - String and character literal support with escapes.
+  - String and character literal support with Baa-specific escapes (conceptually).
   - Source position tracking.
   - Error token generation.
-  - *Planned:* Advanced error recovery, Baa-specific Arabic escapes, Arabic float exponent/suffix.
+  - *See `docs/LEXER_ROADMAP.md` for known issues (e.g., `وإلا` as identifier, `.456` as int_lit) and planned work.*
 
 ### 2. Parser
 
 Transforms tokens into a structured AST:
 
-- **Critical:** Re-implement Parser and AST based on new designs.
-- Enhance Preprocessor and Lexer with remaining planned features.
-- Begin foundational Code Generation work once Parser/AST are stable.
-
-- **Features & Status:**
-  - The previous parser implementation was removed.
-  - A new parser is currently under design and development.
-  - Key features like expression parsing, statement handling, and declaration parsing are planned for the new implementation.
+- **Status**: New Design v2 - Core infrastructure implemented (v0.1.19.0), detailed parsing rules ongoing.
+- **Approach**: Recursive descent.
+- **Output**: Abstract Syntax Tree (AST) composed of `BaaNode`s.
+- **Error Handling**: Syntax error detection, reporting, and basic panic mode recovery.
+- *Refer to `docs/PARSER.md` and `docs/PARSER_ROADMAP.md` for details on the new design.*
 
 ### 3. Abstract Syntax Tree (AST)
 
 The AST module provides the foundation for representing code structure using a unified `BaaNode` approach.
 
-- **Status**: New Design v2 (Unified `BaaNode`) - Implementation in progress. Old AST removed. (Reflects v0.1.18.0)
+- **Status**: New Design v2 - Core types and basic literal nodes implemented (v0.1.18.0), ongoing development for other node types.
 - **Structure**:
   - Unified `BaaNode` with `BaaNodeKind kind`, `BaaSourceSpan span`, and `void* data`.
   - Specific data structs (e.g., `BaaLiteralExprData`) for each node kind.
-  - Type-safe accessor macros planned for accessing specific data.
-- **Memory Management**: `baa_ast_new_node()` for base creation, `baa_ast_free_node()` for recursive freeing. Specific node types have dedicated creation functions and internal data-freeing helpers.
-- **Node Types**: Being progressively defined for all language constructs (expressions, statements, declarations, types). Literals implemented.
+- **Memory Management**: `baa_ast_new_node()` for base creation, `baa_ast_free_node()` for recursive freeing.
 - **Traversal**: Visitor pattern planned for AST traversal.
 - *Refer to `docs/AST.md` and `docs/AST_ROADMAP.md` for details on the new design.*
 
@@ -90,38 +86,26 @@ The AST module provides the foundation for representing code structure using a u
 
 A robust type system that supports both C compatibility and Arabic type names:
 
-- **Basic Types**: عدد_صحيح (int), عدد_حقيقي (float), حرف (char)
-- **Type Checking**: Static type checking with detailed error messages
-- **Type Conversion**: Implicit and explicit type conversion rules
-- **Type Validation**: Compile-time type validation
+- **Basic Types**: `عدد_صحيح` (int), `عدد_حقيقي` (float), `حرف` (char), `منطقي` (bool), `فراغ` (void).
+- **Type Checking**: Static type checking (planned for Semantic Analysis).
+- **Type Conversion**: Implicit and explicit type conversion rules (planned for Semantic Analysis).
 - **Features & Status:**
-  - Complete implementation
-  - Basic types (int, float, char, etc.)
-  - Boolean type (منطقي) with literals (صحيح/خطأ)
-  - Type checking and conversion rules
-  - Type initialization support
-  - Arabic type names support
-  - Array type support
+  - Core type definitions and structures implemented.
+  - Array type structure (`BAA_TYPE_ARRAY`) defined.
 
 ### 5. Operators
 
 Operator system with full Arabic support:
 
-- **Arithmetic**: جمع (+), طرح (-), ضرب (*), قسمة (/)
-- **Comparison**: يساوي (==), أكبر_من (>), أصغر_من (<)
+- **Arithmetic**: `+`, `-`, `*`, `/`, `%`
+- **Comparison**: `==`, `!=`, `>`, `<`, `>=`, `<=`
 - **Logical**: Uses symbols `&&` (و - AND), `||` (أو - OR), `!` (ليس - NOT).
-- **Precedence**: Clear operator precedence rules
-- **Extensibility**: Easy addition of new operators
+- **Precedence**: Clear operator precedence rules defined.
 - **Features & Status:**
-  - Full implementation
-  - Operator precedence table defined
-  - Binary and unary operators
-  - Assignment operators (=, +=, -=, *=, /=, %=)
-  - Increment/decrement operators (++, --)
-  - Comparison operators
-  - Arabic operator keyword support (planned/partial)
+  - Operator definitions, symbols, and precedence implemented.
+  - Basic validation stubs exist.
 
-### 6. Control Flow
+### 6. Control Flow (Semantic and AST Representation)
 
 Control structures with Arabic keywords:
 
@@ -129,71 +113,81 @@ Control structures with Arabic keywords:
 - **Loops**: `طالما` (while), `لكل` (for)
 - **Functions**: (Uses C-style declarations)
 - **Return**: `إرجع` (return)
-- **Status**: Lexer supports keywords. Parser and AST support are planned for the new design.
-- **Features & Status:**
-- Lexer tokenizes control flow keywords.
-- Parser rules and AST node definitions for control flow statements are part of the new design and are planned.
-- Old AST/Parser for control flow was removed.
+- **Status**: Keywords tokenized by Lexer. Parser rules and AST node definitions are part of the new Parser/AST design (ongoing). Semantic validation planned.
 
 ### 7. Utils
 
 Utility functions and support features:
 
-- **Error Handling**: Detailed Arabic error messages (planned)
-- **Memory Management**: Safe memory allocation and tracking
-- **String Handling**: UTF-16LE wide character string operations
-- **File Operations**: Source file handling with Arabic support (UTF-16LE reading)
-- **Features & Status:**
+- **Error Handling**: Basic error enums and reporting functions.
+- **Memory Management**: Safe memory allocation wrappers (`baa_malloc`, `baa_free`, `baa_strdup`).
+- **String Handling**: UTF-16LE wide character string operations.
+- **File Operations**: Source file handling with UTF-8/UTF-16LE auto-detection (in preprocessor) and UTF-16LE processing (in lexer).
+- **Features & Status:** Implemented.
 
-### 8. Code Generation (Planned)
+### 8. Semantic Analysis (Planned)
 
-Transforms the AST into executable code or intermediate representation.
+Responsible for verifying static semantics, name resolution, and type checking.
 
-- **Status**: Basic LLVM integration stubs exist. Blocked by Parser/AST re-implementation.
+- **Status**: Basic flow analysis structure exists (`src/analysis/`), but full semantic analysis is pending the new AST.
 - **Features (Planned):**
-  - LLVM IR generation from the new AST.
+  - Symbol table management and scope handling.
+  - Name resolution (linking identifiers to declarations).
+  - Comprehensive type checking and inference.
+  - Control flow analysis (reachability, return paths).
+  - AST annotation with semantic information.
+  - *See `docs/SEMANTIC_ANALYSIS.md` and `docs/SEMANTIC_ANALYSIS_ROADMAP.md`.*
+
+### 9. Code Generation (Planned)
+
+Transforms the (semantically analyzed) AST into executable code or intermediate representation.
+
+- **Status**: Basic LLVM integration stubs and conditional build logic exist. Actual IR generation from AST is pending.
+- **Features (Planned):**
+  - LLVM IR generation from the new, semantically-analyzed AST.
   - Optimization passes, debug information, source mapping.
+  - Support for multiple target platforms (x86-64, ARM64, Wasm).
+  - *See `docs/LLVM_CODEGEN.md` and `docs/LLVM_CODEGEN_ROADMAP.md`.*
 
 ## Build System
 
 The build system is based on CMake and provides:
 
-- **Component Management**: Each component built as a separate library
-- **Test Integration**: Automated testing for each component
-- **Cross-Platform**: Support for multiple operating systems
-- **Configuration**: Flexible build configuration options
+- **Component Management**: Each component built as a separate static library.
+- **Test Integration**: Automated testing for each component (via CTest).
+- **Cross-Platform**: Support for multiple operating systems.
+- **Configuration**: Flexible build configuration options (e.g., `USE_LLVM`).
 
 ## Testing Framework
 
 Comprehensive testing infrastructure:
 
-- **Unit Tests**: Tests for individual components
-- **Integration Tests**: Tests for component interaction
-- **Arabic Test Cases**: Test cases with Arabic input
-- **Coverage**: Test coverage tracking
+- **Unit Tests**: Tests for individual components (`tests/unit/`).
+- **Integration Tests**: Tests for component interaction (planned in `tests/integration/`).
+- **Arabic Test Cases**: Test cases with Arabic input (`tests/resources/`).
+- **Framework**: Simple assertion-based test framework in `tests/framework/`.
 
 ## Error Handling
 
 Robust error handling system:
 
-- **Error Types**: Syntax, type, memory, and runtime errors
-- **Arabic Messages**: Error messages in Arabic (planned for some areas)
-- **Error Recovery**: Graceful error recovery where possible
-- **Debug Info**: Detailed debugging information
+- **Error Types**: Lexical, Preprocessor, Parser (planned), Semantic (planned), CodeGen (planned).
+- **Arabic Messages**: Aim for error messages in Arabic (ongoing).
+- **Error Recovery**: Graceful error recovery where possible (e.g., preprocessor, parser panic mode).
+- **Source Location**: Precise error reporting with file, line, and column.
 
 ## Memory Management
 
 Memory management strategy:
 
-- **Allocation Tracking**: Track all memory allocations
-- **Garbage Collection**: Future support for garbage collection
-- **Memory Safety**: Checks for memory leaks and buffer overflows
-- **Resource Cleanup**: Automatic resource cleanup
+- **Manual Allocation**: Uses custom wrappers (`baa_malloc`, `baa_free`, `baa_strdup`) around standard library functions for potential tracking or replacement.
+- **Ownership Rules**: Components are responsible for freeing memory they allocate (e.g., lexer allocates tokens, parser/AST manages AST nodes).
 
 ## Future Extensions
 
 Planned enhancements:
 
-- **Code Generation**: LLVM-based code generator (see section above)
-- **Optimizer**: Code optimization passes
-- **IDE Integration**: Support for code editors and IDEs
+- Comprehensive Semantic Analysis and Code Generation.
+- Full Standard Library implementation.
+- Optimizer passes.
+- IDE Integration (LSP).
