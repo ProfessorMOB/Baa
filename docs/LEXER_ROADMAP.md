@@ -14,7 +14,7 @@ This roadmap outlines the planned improvements and current status of the Baa lan
 * [x] Token memory management (`make_token` allocates, `baa_free_token` frees).
 * [x] Tokenize whitespace and newlines instead of skipping.
 * [ ] **Future:** Add support for more token types for language extensions if Baa evolves significantly.
-* [ ]**Future:** Configurable tab width for column calculation in `advance()`. (Roadmap Section 8 refinement)
+* [ ] **Future:** Configurable tab width for column calculation in `advance()`. (Roadmap Section 8 refinement)
 
 ## 2. Token Types (Feature Completion)
 

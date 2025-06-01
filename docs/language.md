@@ -4,7 +4,7 @@
 
 ## 1. Basic Syntax Examples
 
-*(Note: See subsequent sections for detailed definitions)*
+* (Note: See subsequent sections for detailed definitions)*
 
 ### 1.1 Preprocessor Directives
 
@@ -26,37 +26,37 @@ Baa supports a preprocessor step that handles directives starting with `#` befor
 * **`#تعريف` (Define):** Defines a preprocessor macro. - *[Implemented]*
   * **Object-like macros:** Replaces an identifier with a token sequence.
 
-        ```baa
+      ```baa
         #تعريف PI 3.14159
         #تعريف GREETING "مرحباً بالعالم"
-        عدد_حقيقي x = PI.
+        عدد_حقيقي س = PI.
         اطبع(GREETING).
-        ```
+      ```
 
   * **Function-like macros:** Defines macros that take arguments.
 
-        ```baa
+      ```baa
         #تعريف MAX(a, b) ((a) > (b) ? (a) : (b))
         عدد_صحيح الأكبر = MAX(10, 20). // Expands to ((10) > (20) ? (10) : (20))
 
         #تعريف ADD(x, y) (x + y)
         عدد_صحيح المجموع = ADD(5, 3). // Expands to (5 + 3)
-        ```
+      ```
 
   * **Stringification Operator (`#`):** Converts a macro parameter into a string literal. - *[Implemented]*
 
-        ```baa
+      ```baa
         #تعريف STRINGIFY(val) #val
         اطبع(STRINGIFY(مرحبا)). // Expands to اطبع("مرحبا").
         اطبع(STRINGIFY(123)).   // Expands to اطبع("123").
-        ```
+      ```
 
   * **Token Pasting Operator (`##`):** Concatenates two tokens. - *[Implemented]*
 
-        ```baa
+      ```baa
         #تعريف CONCAT(a, b) a##b
         عدد_صحيح CONCAT(var, Name) = 10. // Declares عدد_صحيح varName = 10.
-        ```
+      ```
 
   * **Variadic Macros (C99):** Defines macros that can accept a variable number of arguments. For Baa, this is achieved using `وسائط_إضافية` in the parameter list and `__وسائط_متغيرة__` in the macro body. - *[Implemented]*
     * `وسائط_إضافية` (wasā'iṭ iḍāfiyyah - additional arguments): Used in the parameter list (must be the last parameter) to indicate variable arguments.
@@ -140,7 +140,7 @@ Directives for compiling parts of the code based on conditions. Expressions in t
 
 Baa plans to support other standard C preprocessor directives with Arabic keywords:
 
-* **`#خطأ "رسالة"` (`#error "message"`):** Instructs the preprocessor to report a fatal error. The compilation process stops. - *[Planned]*
+* **`#خطأ "رسالة"` (`#error "message"`):** Instructs the preprocessor to report a fatal error. The compilation process stops. - *[Implemented]*
 
     ```baa
     #إذا_لم_يعرف REQUIRED_FEATURE
@@ -148,7 +148,7 @@ Baa plans to support other standard C preprocessor directives with Arabic keywor
     #نهاية_إذا
     ```
 
-* **`#تحذير "رسالة"` (`#warning "message"`):** Instructs the preprocessor to issue a warning message. Compilation typically continues. - *[Planned]*
+* **`#تحذير "رسالة"` (`#warning "message"`):** Instructs the preprocessor to issue a warning message. Compilation typically continues. - *[Implemented]*
 
     ```baa
     #تحذير "هذه الميزة مهملة وسيتم إزالتها في الإصدارات القادمة."
@@ -181,7 +181,7 @@ Baa provides several predefined macros that offer information about the compilat
 * `__التاريخ__` : Expands to a string literal representing the compilation date (e.g., "May 09 2025").
 * `__الوقت__` : Expands to a string literal representing the compilation time (e.g., "07:40:00").
 * `__الدالة__` : Expands to a string literal placeholder `L"__BAA_FUNCTION_PLACEHOLDER__"`. Actual function name substitution is intended for later compiler stages. - *[Implemented by Preprocessor as placeholder]*
-* `__إصدار_المعيار_باء__` : Expands to a long integer constant `10010L` (representing Baa language version 0.1.10). - *[Implemented by Preprocessor]*
+* `__إصدار_المعيار_باء__` : Expands to a long integer constant `10150L` (representing Baa language version 0.1.15, value updated). - *[Implemented by Preprocessor]*
 
     ```baa
     اطبع("تم التجميع من الملف: " + __الملف__).
@@ -200,7 +200,7 @@ Statements are terminated with a dot (`.`) instead of a semicolon.
 
 ### 1.3 Function Declaration Example
 
-*(See Section 4.2 for full details)*
+* (See Section 4.2 for full details)*
 
 ```baa
 // [Implementation Pending] Main function (entry point) - Assuming void return if omitted
@@ -252,7 +252,7 @@ Control structures use Arabic keywords and dot termination.
 
 ### 1.6 Operator Examples
 
-*(See Section 5 for full details)*
+* (See Section 5 for full details)*
 
 ```baa
 عدد_صحيح a = 10.
@@ -278,7 +278,7 @@ Baa supports standard C/C++ style comments, as well as documentation comments:
 * **Multi-line:** Begins with `/*` and ends with `*/`. These comments can span multiple lines. The lexer produces a `BAA_TOKEN_MULTI_LINE_COMMENT` whose lexeme is the content between `/*` and `*/`. The token's location points to the start of `/*`. - *[Implemented]*
 * **Documentation Comments:** Begin with `/**` and end with `*/`. by the lexer as `BAA_TOKEN_DOC_COMMENT`. The lexeme is the content between `/**` and `*/`, and the token's location points to the start of `/**`. - *[Implemented by Lexer]*
 * **Preprocessor Directives:** Lines starting with `#` (e.g., `#تضمين`, `#تعريف`) are handled entirely by the preprocessor before lexical analysis. They are not treated as comments by the lexer. - *[Implemented for various directives]*
-* * **Whitespace and Newlines:** Sequences of spaces/tabs are tokenized as `BAA_TOKEN_WHITESPACE`.
+* **Whitespace and Newlines:** Sequences of spaces/tabs are tokenized as `BAA_TOKEN_WHITESPACE`.
 * Newline characters (`\n`, `\r`, `\r\n`) are tokenized as `BAA_TOKEN_NEWLINE`. These are passed to the parser. - *[Implemented]*
 
 ```baa
@@ -331,66 +331,55 @@ Keywords are reserved words with special meaning in the Baa language and cannot 
 
 ### 2.4 Literals
 
-Literals represent fixed values in the source code.
+Literals represent fixed values in the source code. The lexer captures the raw characters from the source for numeric literals; `number_parser.c` later converts these to values.
 
 * **Integer Literals (`عدد_صحيح`):** Represent whole numbers. The lexer tokenizes these as `BAA_TOKEN_INT_LIT`.
   * **Decimal:** Sequences of Western digits (`0`-`9`) and/or Arabic-Indic digits (`٠`-`٩` / U+0660-U+0669).
     * Examples: `123`, `٠`, `٤٢`, `1٠2` - *[Implemented]*
   * **Hexadecimal:** Must start with `0x` or `0X`, followed by hexadecimal digits (`0`-`9`, `a`-`f`, `A`-`F`).
     * Examples: `0xFF`, `0x1a`, `0XDEADBEEF` - *[Implemented]*
-  * **Binary:** Must start with `0b` or `0B`, followed by binary digits (`0` or `1`).
+  * **Binary:** Must start with `0b` or `0B`, followed by binary digits (`0` or `1`). - *[Implemented]*
     * Examples: `0b1010`, `0B11001` - *[Implemented]*
-  * **Underscores for Readability:** Single underscores (`_`) can be used as separators within the digits of any integer literal type. They cannot be consecutive, at the very beginning of the digit sequence (immediately after a prefix like `0x_`), or at the end of the number.
-    * Examples: `1_000_000`, `0xAB_CD`, `0b10_10`, `١_٢٣٤` - *[Implemented]*
-  * **Arabic Suffixes for Type:** Integer literals can have suffixes to indicate their type, similar to C's `U`, `L`, `LL`. The lexer includes these suffixes as part of the `BAA_TOKEN_INT_LIT` lexeme. The interpretation of these suffixes (e.g., to determine `unsigned long long`) is handled by later compiler stages (parser/semantic analysis).
-    * `غ` (Ghain): Indicates an unsigned type (similar to `U` in C).
-    * `ط` (Tah): Indicates a long type (similar to `L` in C).
-    * `طط` (TahTah): Indicates a long long type (similar to `LL` in C).
-    * **Combinations:** These suffixes can be combined, and the order is flexible (e.g., `غط` is equivalent to `طغ`).
-      * `123غ` (unsigned)
-      * `456ط` (long)
-      * `789طط` (long long)
-      * `100غط` or `100طغ` (unsigned long)
-      * `200غطط` or `200ططغ` (unsigned long long)
-    * These suffixes can be used with decimal, hexadecimal, or binary integer literals.
+  * **Underscores for Readability:** Single underscores (`_`) can be used as separators within the digits of any integer literal type.
+    * Examples: `1_000_000`, `٠_١٢٣_٤٥٦`, `0xAB_CD_EF`, `0b10_10_10` - *[Implemented]*
+  * **Arabic Suffixes for Type:** Integer literals can have suffixes `غ` (unsigned), `ط` (long), `طط` (long long), and combinations.
     * Examples: `123غ`, `0xFFط`, `0b101ططغ` - *[Lexer Implemented]*
-* **Floating-Point Literals (`عدد_حقيقي`):** Represent numbers with a fractional part or in scientific notation. The lexer tokenizes these as `BAA_TOKEN_FLOAT_LIT`.
-  * **Decimal Representation:** Consist of an integer part, a decimal point, and a fractional part. Digits can be Western or Arabic-Indic.
-    * The decimal point can be a period `.` (U+002E) or an Arabic Decimal Separator `٫` (U+066B).
-    * Examples: `3.14`, `0.5`, `١٢٫٣٤`, `٠.٥`, `123.0` - *[Implemented]*
-    * Note: Literals like `.5` or `123.` are tokenized by the lexer as separate tokens (e.g., `DOT`, `INT_LIT`); their validity as floats is a parser concern. - *[Implemented by Lexer]*
-  * **Scientific Notation:** Introduced by `e` or `E` (Arabic `أ` exponent marker is *[Planned]*), followed by an optional sign (`+` or `-`), and then one or more decimal digits (Western or Arabic-Indic). Can be applied to numbers with or without a decimal point.
-    * * Examples: `1.23e4`, `5E-2`, `42e+0`, `1e10`, `٣٫١٤E-٠٢`. Example with planned `أ`: `1.23أ4` - *[Current Lexer Implements e/E; `أ` is Planned]*
-  * **Underscores for Readability:** Single underscores (`_`) can be used as separators in the integer, fractional, and exponent parts of float literals, with the same restrictions as for integers.
-    * Examples: `1_234.567_890`, `3.141_592e+1_0` - *[Implemented]*
-  * **Hexadecimal Floating-Point Constants (C99):** Must start with `0x` or `0X`, include a hexadecimal significand, a `p` or `P` exponent indicator, and a binary exponent. - *[Planned]*
-    * Examples: `0x1.ap0`, `0X1.BCDEp-10` (Exact Baa syntax for Arabic digits TBD)
+* **Floating-Point Literals (`عدد_حقيقي`):** The lexer tokenizes these as `BAA_TOKEN_FLOAT_LIT`.
+  * **Decimal Representation:** Digits (Western or Arabic-Indic) with a decimal point (`.` or `٫` U+066B).
+    * Examples: `3.14`, `٠٫١٢٣` - *[Implemented]*
+  * **Scientific Notation:** Introduced by `أ` (ALIF WITH HAMZA ABOVE, U+0623), followed by an optional sign (`+`/`-`) and decimal/Arabic-Indic digits.
+    * Examples: `1.23أ4`, `10أ-2`, `٠٫٥أ+٣`, `1أ+٠٥` - *[Conceptual: `أ` implemented in lexer, `e`/`E` removed]*
+  * **Underscores for Readability:** Can be used in integer, fractional, and exponent parts.
+    * Examples: `1_234.567_890`, `3.141_592أ+1_0` - *[Implemented]*
+  * **Hexadecimal Floating-Point Constants (C99):** Baa may support a C99-like hex float format (e.g., `0x1.فأ+2` using `ف` for fraction part and `أ` for binary power exponent). - *[Planned]*
 * **Boolean Literals (`منطقي`):**
   * `صحيح` (true) - *[Implemented]*
   * `خطأ` (false) - *[Implemented]*
-* **Arabic Suffix for Type:** `ح` (Hah) for float (e.g., `3.14ح`). - *[Lexer Planned]*
-* **Character Literals (`حرف`):** Represent single characters enclosed in single quotes (`'`). Baa uses `\` as the escape character followed by an Arabic letter or specific sequences.
+* **Arabic Suffix for Type:** `ح` (Hah) for float (e.g., `3.14ح`). - *[Conceptual: Implemented in Lexer]*
+* **Character Literals (`حرف`):** Represent single characters enclosed in single quotes (`'`). Baa uses `\` as the escape character followed by a specific Baa escape character.
   * `'a'`, `'أ'`, `'#'`, `'١'` - *[Implemented]*
-  * Escape Sequences: - *[Planned for Arabic Escapes]*
+  * **Baa Escape Sequences (Arabic Syntax Only):**
     * `\س` (newline), `\م` (tab), `\\` (backslash), `\'` (single quote)
     * `\"` (double quote)
     * `\ر` (carriage return), `\ص` (null char)
-    * `\يXXXX` (Unicode escape, where XXXX are four hex digits)
-    * `\هـHH` (Hex byte escape, where HH are two hex digits)
-* **String Literals:** Represent sequences of characters enclosed in double quotes (`"`). Uses UTF-16LE encoding internally. Baa uses `\` as the escape character followed by an Arabic letter or specific sequences.
+    * `\يXXXX` (Unicode escape, where XXXX are four hex digits, e.g., `\ي0623` for 'أ')
+    * `\هـHH` (Hex byte escape, where `ـ` is Tatweel and HH are two hex digits, e.g., `\هـ41` for 'A')
+  * *Old C-style escapes like `\n`, `\t`, `\uXXXX` are **not** supported and will result in errors.* - *[Conceptual: Implemented in Lexer]*
+* **String Literals:** Represent sequences of characters enclosed in double quotes (`"`). Uses UTF-16LE encoding internally after preprocessing. Baa uses `\` as the escape character followed by a specific Baa escape character.
   * `"مرحباً"` - *[Implemented]*
   * `"Hello, World!"` - *[Implemented]*
-  * Escape Sequences: Similar to characters: `\س`, `\م`, `\"`, `\\`, `\ر`, `\ص`, `\يXXXX`, `\هـHH` are planned. - *[Planned for Arabic Escapes]*
-  * **Multiline Strings:** Sequences of characters enclosed in triple double quotes (`"""`). Newlines within the string are preserved. Escape sequences (using `\`) are processed as in regular strings. - *[Implemented, Arabic Escapes Planned]*
+  * **Baa Escape Sequences (Arabic Syntax Only):** Same as for character literals (`\س`, `\م`, `\"`, `\\`, `\ر`, `\ص`, `\يXXXX`, `\هـHH`).
+  * *Old C-style escapes like `\n`, `\t`, `\uXXXX` are **not** supported and will result in errors.* - *[Conceptual: Implemented in Lexer]*
+  * **Multiline Strings:** Sequences of characters enclosed in triple double quotes (`"""`). Newlines within the string are preserved. Baa escape sequences (using `\`) are processed as in regular strings. - *[Implemented, Baa Arabic Escapes conceptually implemented in Lexer]*
     * Example: `حرف نص_متعدد = """سطر أول\سطر ثاني مع \م تاب.""".`
   * **Raw String Literals:** Prefixed with `خ` (Kha), these strings do not process escape sequences. All characters between the delimiters are taken literally, including `\`.
     * Single-line raw strings: `خ"..."`
     * Multiline raw strings: `خ"""..."""` (newlines are preserved)
     * Examples:
       * `حرف مسار = خ"C:\Users\MyFolder\file.txt".` (Backslashes are literal)
-      * `حرف تعبير_نمطي = خ"\\d{3}-\\d{2}-\\d{4}".`
-      * `حرف خام_متعدد = خ"""هذا \n نص خام.
-              الهروب \t لا يعمل هنا.""".`
+      * `حرف تعبير_نمطي = خ"\\d{3}-\\d{2}-\\d{4}".` (`\d` is literal here, not a Baa escape)
+      * `حرف خام_متعدد = خ"""هذا \س نص خام.
+                الهروب \م لا يعمل هنا.""".` (`\س` and `\م` are literal here)
     * *[Implemented]*
 * **Compound Literals (C99):** Allow the creation of unnamed objects of a given type using an initializer list. The syntax is `(type_name){initializer_list}`. - *[Planned]*
   * Example: `دالة_تأخذ_مصفوفة((عدد_صحيح[]){1, 2, 3}).`
@@ -416,14 +405,14 @@ Baa has a static type system based on C, with Arabic names for built-in types.
 
 ### 3.1 Basic Types
 
-| Arabic Name | English Equiv. | Description            | Size   | Status      |
-| ----------- | -------------- | ---------------------- | ------ | ----------- |
-| `عدد_صحيح`  | `int`          | Signed Integer         | 32-bit | Implemented |
-| `عدد_صحيح_طويل_جدا` | `long long int` | Signed Long Long Integer | 64-bit | Planned     |
-| `عدد_حقيقي` | `float`        | Floating-point (suffix `ح` planned for literals)         | 32-bit | Implemented |
-| `حرف`       | `char`         | Character / String     | 16-bit | Implemented |
-| `منطقي`     | `bool`         | Boolean (`صحيح`/`خطأ`) | 8-bit? | Implemented |
-| `فراغ`      | `void`         | Represents no value    | N/A    | Implemented |
+| Arabic Name          | English Equiv.   | Description            | Size   | Status      |
+| -------------------- | ---------------- | ---------------------- | ------ | ----------- |
+| `عدد_صحيح`           | `int`            | Signed Integer         | 32-bit | Implemented |
+| `عدد_صحيح_طويل_جدا`  | `long long int`  | Signed Long Long Integer | 64-bit | Planned     |
+| `عدد_حقيقي`          | `float`          | Floating-point (suffix `ح` for literals) | 32-bit | Implemented |
+| `حرف`                | `char`           | Character / String     | 16-bit | Implemented |
+| `منطقي`              | `bool`           | Boolean (`صحيح`/`خطأ`) | 8-bit? | Implemented |
+| `فراغ`               | `void`           | Represents no value    | N/A    | Implemented |
 
 *(Internal representation sizes based on `types.c`)*
 
@@ -461,7 +450,7 @@ Variables store values that can potentially change.
 
 * **Syntax:** `type identifier ('=' initializer_expression)? '.'` - *[Implemented]*
 * **Initialization:** Optional. If omitted, default value depends on scope (e.g., zero/null for globals/static, potentially uninitialized for locals - *needs clarification*).
-  * The `initializer_expression` can use C99-style designated initializers for arrays (e.g., `[index] = value`) and structs/unions (e.g., `.member = value`). - *[Planned]*
+  * The `initializer_expression` can use C99-style designated initializers for arrays (e.g., `[index] = value`) and structs/unions (e.g., `::member = value`). - *[Planned]*
 * **Constants:** Use the `ثابت` keyword before the type to declare a constant whose value cannot be changed after initialization. Constants *must* be initialized. `ثابت type identifier = initializer_expression '.'` - *[Partial - Keyword parsed, semantic enforcement needed]*.
 
 ```baa
@@ -508,7 +497,7 @@ Type qualifiers modify the properties of types. Baa plans to support C99 qualifi
 
 * **`مستقر` (`static`):** For static storage duration / internal linkage. - *[Planned for Lexer/Parser]*
 * **`ثابت` (`const`):** Indicates that the object's value cannot be changed after initialization. Constants *must* be initialized.
-  `ثابت type identifier = initializer_expression '.'` - *[Lexer Implemented, Semantic enforcement needed]*
+    `ثابت type identifier = initializer_expression '.'` - *[Lexer Implemented, Semantic enforcement needed]*
 * **`مقيد` (`restrict`):** Can only be applied to pointers to an object type. It indicates that for the lifetime of the pointer, only that pointer itself or values derived directly from it (such as `pointer + 1`) will be used to access the object it points to. This is a hint for compiler optimizations and does not change the program's semantics if correctly used. - *[Lexer Implemented, Semantic enforcement needed]*
 * **`متطاير` (`volatile`):** Indicates that an object may be modified by means not under the control of the compiler (e.g., by hardware or another thread). Accesses to volatile objects should not be optimized away. - *[Planned]*
 
@@ -530,9 +519,9 @@ The following table summarizes operator precedence (highest first) and associati
 | (Equality)        | `==` `!=`          | Left-to-right | Equality                 | Implemented             |
 | (Bitwise AND)     | `&`                | Left-to-right | Bitwise AND              | Partial                 |
 | (Bitwise XOR)     | `^`                | Left-to-right | Bitwise XOR              | Partial                 |
-| (Bitwise OR)      | `                  | `             | Left-to-right            | Bitwise OR              | Partial    |
+| (Bitwise OR)      | `|`                | Left-to-right | Bitwise OR               | Partial                 |
 | (Logical AND)     | `&&`               | Left-to-right | Logical AND              | Implemented             |
-| (Logical OR)      | `                  |               | `                        | Left-to-right           | Logical OR | Implemented |
+| (Logical OR)      | `||`               | Left-to-right | Logical OR               | Implemented             |
 | Lowest(Assign)    | `=` `+=` `-=` etc. | Right-to-left | Assignment               | Implemented             |
 
 *(Status indicates parsing support based on `expression_parser.c` and `operators.h`. Semantic validation status for operators varies - see Section 3.3 and `c_comparison.md`)*.
@@ -724,9 +713,9 @@ Every executable program must have a main function (`رئيسية`) which serves
 
 Baa source code files typically use the `.ب` extension.
 
-```
-برنامج.ب
-my_module.ب
+```Baa
+  برنامج.ب
+  my_module.ب
 ```
 
 ## 9. Naming Conventions
@@ -736,6 +725,3 @@ my_module.ب
 * Use clear and descriptive names in Arabic or English.
 * Follow consistent casing (e.g., `snake_case` or `camelCase`).
 * Avoid overly short or ambiguous names.
-
-```
-```
