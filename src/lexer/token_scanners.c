@@ -53,7 +53,15 @@ BaaToken *scan_number(BaaLexer *lexer)
 
     wchar_t first_char_of_number = peek(lexer);
 
-    if (first_char_of_number == L'0')
+    // Handle numbers starting with a decimal point (e.g., .123)
+    if (first_char_of_number == L'.' || first_char_of_number == 0x066B) // Arabic decimal separator
+    {
+        // baa_lexer_next_token ensures a digit follows, so no need to check peek_next here for validity.
+        is_float = true;
+        advance(lexer);                      // Consume '.' or '٫'
+        number_start_index = lexer->current; // Digits start after the dot
+    }
+    else if (first_char_of_number == L'0')
     {
         wchar_t next = peek_next(lexer);
         if (next == L'x' || next == L'X')
@@ -715,8 +723,7 @@ BaaToken *scan_multiline_string_literal(BaaLexer *lexer, size_t token_start_line
             break;          // End of multiline string
         }
 
-        wchar_t c = peek(lexer);
-        if (c == L'\\')
+        if (peek(lexer) == L'\\')
         {
             advance(lexer); // Consume '\'
             if (is_at_end(lexer))
@@ -727,7 +734,6 @@ BaaToken *scan_multiline_string_literal(BaaLexer *lexer, size_t token_start_line
             }
             wchar_t baa_escape_char_key = advance(lexer); // Consume the Arabic escape key char
             wchar_t char_to_append_val;                   // Use a temp var to hold the char to append
-            bool needs_append = true;                     // Flag to control if append_char_to_buffer is called
 
             switch (baa_escape_char_key)
             {
@@ -791,18 +797,18 @@ BaaToken *scan_multiline_string_literal(BaaLexer *lexer, size_t token_start_line
                 synchronize(lexer);
                 return err_token;
             }
-            if (needs_append)
-                append_char_to_buffer(&buffer, &buffer_len, &buffer_cap, char_to_append_val);
+            // Always append the resolved character after an escape sequence
+            append_char_to_buffer(&buffer, &buffer_len, &buffer_cap, char_to_append_val);
             if (buffer == NULL) // Check after append_char_to_buffer
                 return make_error_token(lexer, L"فشل في إعادة تخصيص ذاكرة لسلسلة متعددة الأسطر (السطر %zu)", token_start_line);
         }
         else
         {
+            wchar_t c_to_append = advance(lexer); // Consume and get the character
             // advance() handles line/column updates for newline
-            append_char_to_buffer(&buffer, &buffer_len, &buffer_cap, c);
+            append_char_to_buffer(&buffer, &buffer_len, &buffer_cap, c_to_append);
             if (buffer == NULL)
                 return make_error_token(lexer, L"فشل في إعادة تخصيص ذاكرة لسلسلة متعددة الأسطر (السطر %zu)", token_start_line);
-            advance(lexer);
         }
     }
 

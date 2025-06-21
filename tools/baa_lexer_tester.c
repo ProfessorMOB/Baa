@@ -43,7 +43,13 @@ void print_token_for_tester(const BaaToken *token, int count)
             count, type_str ? type_str : L"UNKNOWN_TYPE_STR",
             token->line, token->column, token->length);
     print_wide_string_tester(stdout, token->lexeme);
-    wprintf(L"'\n");
+    wprintf(L"' [Hex: ");
+    if (token->lexeme) {
+        for (size_t i = 0; i < token->length; ++i) {
+            wprintf(L"%04X ", (unsigned int)token->lexeme[i]);
+        }
+    }
+    wprintf(L"]\n");
 }
 
 int main(int argc, char *argv_char[])

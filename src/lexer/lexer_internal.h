@@ -2,7 +2,7 @@
 #define BAA_LEXER_INTERNAL_H
 
 #include "baa/lexer/lexer.h"      // For BaaLexer, BaaToken, BaaTokenType
-#include "lexer_char_utils.h" // For character classification
+#include "baa/lexer/lexer_char_utils.h" // For character classification
 
 // --- Forward declarations of core lexer helper functions (from lexer.c) ---
 // These are made available to other .c files within the lexer module.
