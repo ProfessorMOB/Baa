@@ -1,5 +1,5 @@
 #include "baa/lexer/token_scanners.h" // For BaaToken and BaaLexer types, and scan_* declarations
-#include "baa/lexer/lexer_internal.h" // For make_token, make_error_token, peek, advance etc.
+#include "lexer_internal.h" // For make_token, make_error_token, peek, advance etc.
 #include <stdlib.h>                   // For malloc, realloc, free
 #include <string.h>                   // For wcslen, wcsncpy, wcscpy
 #include <wctype.h>                   // For iswalnum

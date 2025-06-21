@@ -6,8 +6,7 @@
 #include <string.h>
 #include <wctype.h>
 #include <stdarg.h> // Needed for va_list, etc.
-// lexer_char_utils.h is included via lexer_internal.h
-#include "baa/lexer/lexer_internal.h" // For internal helper declarations
+#include "lexer_internal.h" // For internal helper declarations
 #include "baa/lexer/token_scanners.h" // For scan_* function declarations (public as requested)
 
 // Array of keywords and their corresponding token types
