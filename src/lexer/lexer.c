@@ -17,7 +17,7 @@
 struct KeywordMapping keywords[] = {
     {L"إرجع", BAA_TOKEN_RETURN},
     {L"إذا", BAA_TOKEN_IF},
-    {L"إلا", BAA_TOKEN_ELSE},
+    {L"وإلا", BAA_TOKEN_ELSE},
     {L"طالما", BAA_TOKEN_WHILE},
     {L"لكل", BAA_TOKEN_FOR}, // Note: docs/language.md uses لكل for "for" - lexer uses لأجل
     {L"افعل", BAA_TOKEN_DO},
