@@ -166,8 +166,6 @@ This roadmap outlines the planned improvements and current status of the Baa lan
 6. **Performance Optimizations:** As needed, based on profiling.
 
 ## Known Issues / Bugs to Fix (from recent testing)
-
-   **[BUG] Keyword Mismatch:** Keyword `وإلا` is tokenized as `BAA_TOKEN_IDENTIFIER` instead of `BAA_TOKEN_ELSE`.
    **[BUG] Float Literal Error:** Input like `.456` is tokenized as `BAA_TOKEN_INT_LIT` instead of `BAA_TOKEN_FLOAT_LIT`.
    **[BUG] Multiline String Escape Error:** Backslash (`\`) for Baa escapes (e.g., `\س`) within multiline strings is causing an "Unexpected character: '\'" error. Escape processing in `scan_multiline_string_literal` needs review.
    **[VERIFY] Numeric Lexeme Content:** Arabic-Indic digits (e.g., `٠١٢٣`) and the Arabic decimal separator (`٫`) in source code appear as Western digits or `?` in the `baa_lexer_tester`'s printout of token lexemes. Need to verify (e.g., via hex dump of lexeme in tester) if this is purely a display issue in the tester tool/console or if the lexer itself is altering the characters in `BaaToken.lexeme`. The lexeme should contain the raw source characters.
