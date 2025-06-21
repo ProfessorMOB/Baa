@@ -4,6 +4,25 @@ All notable changes to the B (باء) compiler project will be documented in thi
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.29.0] - 2025-06-21
+
+### Added
+
+- **Lexer: Float Literal Error Fix:**
+  - Correctly tokenized inputs like `.456` as `BAA_TOKEN_FLOAT_LIT` instead of `BAA_TOKEN_INT_LIT`.
+  - Commit: `fa153f171fe824ebdb92d187ecb3d1de9ef22d76`
+- **Lexer: Multiline String Escape Error Fix (Partial):**
+  - Refactored `scan_multiline_string_literal` to clarify escape sequence processing.
+  - *Note: Further fixes are needed for correct multiline string tokenization and escape handling.*
+  - Commit: `632b3e627b6eb5aa57e6b8b6e88c09a7e734b156`
+- **Lexer: Numeric Lexeme Content Verification:**
+  - Added debug output to `baa_lexer_tester` to print hexadecimal values of `wchar_t` lexemes, confirming that the lexer correctly preserves raw Arabic-Indic digits and Arabic decimal separators. The display issue is console-related.
+  - Commit: `9e7db85e2ab57e5ba32c20e46d9b71875fb7cdfe`
+- **Documentation Updates:**
+  - Updated `docs/LEXER_ROADMAP.md` and `docs/lexer.md` to reflect current status of lexer tasks.
+  - Commit: `e4939dc6862db597aba97d3b93701ccb20cce505`
+  - Commit: `83efb68e92552606a6f095313625ae19893c6489`
+
 ## [0.1.28.0] - 2025-06-20 (Ternary Operator Support)
 
 ### Added
