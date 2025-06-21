@@ -30,20 +30,21 @@ This roadmap outlines the planned improvements and current status of the Baa lan
     * [x] Underscores (`_`) for readability. (v0.1.10.0)
     * [x] Arabic Suffixes (`غ`, `ط`, `طط`, combinations like `غط`, `ططغ`) - Lexer tokenizes as part of `BAA_TOKEN_INT_LIT`. (v0.1.13.0)
   * [ ] Floating-Point Literals (`BAA_TOKEN_FLOAT_LIT`):
-    * [x] Decimal representation with `.` or Arabic `٫` (U+066B). (v0.1.10.0) - *Note: Display issue with `٫` in tester.*
+    * [x] Decimal representation with `.` or Arabic `٫` (U+066B). (v0.1.10.0) - *Note: Lexer correctly captures `٫`, display issue in tester.*
+    * [x] Float literal starting with `.` (e.g., `.456`). (v0.1.21.0)
     * [x] Scientific notation (now uses `أ`, `e`/`E` removed). (Conceptual: `أ` implemented, `e`/`E` removed)
     * [x] Underscores for readability. (v0.1.10.0)
     * [x] Implement Baa Arabic float suffix `ح`. (Conceptual: Implemented)
-    * [ ] Support C99 hexadecimal float constants (e.g., `0x1.fp+2`), adapting to Baa's `أ` exponent marker if applicable.
+    * [ ] Support C99 hexadecimal float constants (e.g., `0x1.fp+2`), adapting to Baa's `أ` exponent marker. (Pending)
   * [x] Character Literals (`BAA_TOKEN_CHAR_LIT`):
     * [x] Unicode escape sequences (`\uXXXX` removed; now `\يXXXX`). (Conceptual: Implemented `\ي`, removed `\u`)
     * [x] Implement Baa-specific Arabic escape sequences (`\س`, `\م`, `\ر`, `\ص`, `\يXXXX`, `\هـHH`) using `\` as the escape character. (Conceptual: Implemented)
-  * [x] String Literals (`BAA_TOKEN_STRING_LIT`):
+  * [ ] String Literals (`BAA_TOKEN_STRING_LIT`):
     * [x] Standard C escape sequences (now replaced by Baa Arabic equivalents).
     * [x] Unicode escape sequences (`\uXXXX` removed; now `\يXXXX`). (Conceptual: Implemented `\ي`, removed `\u`)
-    * [x] Multiline strings (`"""..."""`). (v0.1.11.0)
+    * [ ] Multiline strings (`"""..."""`). (v0.1.11.0) - *Known Bug: Escape sequences within multiline strings are not correctly processed, leading to "Unexpected character: '\'" errors. Lexer also incorrectly tokenizes the opening `"""` as an empty string literal.*
     * [x] Raw string literals (`خ"..."`, `خ"""..."""`), including single-line newline error handling. (v0.1.11.0)
-    * [x] Implement Baa-specific Arabic escape sequences (`\س`, `\م`, `\ر`, `\ص`, `\يXXXX`, `\هـHH`) in `scan_string` and `scan_multiline_string_literal`. (Conceptual: Implemented)
+    * [ ] Implement Baa-specific Arabic escape sequences (`\س`, `\م`, `\ر`, `\ص`, `\يXXXX`, `\هـHH`) in `scan_string` and `scan_multiline_string_literal`. (Conceptual: Implemented, but bug in multiline string processing)
   * [x] Boolean Literals (`BAA_TOKEN_BOOL_LIT`): `صحيح`, `خطأ`.
 * **Keywords:**
   * [x] All current Baa keywords tokenized correctly (e.g., `إذا`, `لكل`, `ثابت`).
@@ -166,6 +167,5 @@ This roadmap outlines the planned improvements and current status of the Baa lan
 6. **Performance Optimizations:** As needed, based on profiling.
 
 ## Known Issues / Bugs to Fix (from recent testing)
-   **[BUG] Float Literal Error:** Input like `.456` is tokenized as `BAA_TOKEN_INT_LIT` instead of `BAA_TOKEN_FLOAT_LIT`.
-   **[BUG] Multiline String Escape Error:** Backslash (`\`) for Baa escapes (e.g., `\س`) within multiline strings is causing an "Unexpected character: '\'" error. Escape processing in `scan_multiline_string_literal` needs review.
-   **[VERIFY] Numeric Lexeme Content:** Arabic-Indic digits (e.g., `٠١٢٣`) and the Arabic decimal separator (`٫`) in source code appear as Western digits or `?` in the `baa_lexer_tester`'s printout of token lexemes. Need to verify (e.g., via hex dump of lexeme in tester) if this is purely a display issue in the tester tool/console or if the lexer itself is altering the characters in `BaaToken.lexeme`. The lexeme should contain the raw source characters.
+   **[BUG] Multiline String Escape Error:** Backslash (`\`) for Baa escapes (e.g., `\س`) within multiline strings is causing an "Unexpected character: '\'" error. Escape processing in `scan_multiline_string_literal` needs review. Additionally, the lexer incorrectly tokenizes the opening `"""` as an empty string literal.
+   **[VERIFY] Numeric Lexeme Content:** Arabic-Indic digits (e.g., `٠١٢٣`) and the Arabic decimal separator (`٫`) in source code appear as Western digits or `?` in the `baa_lexer_tester`'s printout of token lexemes. This has been verified to be a display issue in the tester tool/console; the lexer correctly preserves the raw source characters in `BaaToken.lexeme`.

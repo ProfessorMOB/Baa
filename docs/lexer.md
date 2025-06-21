@@ -31,12 +31,13 @@ The primary role of the lexer is to identify and categorize sequences of charact
   * Allows underscores (`_`) as separators for readability in numbers.
   * Recognizes Arabic integer literal suffixes (`غ` for unsigned, `ط` for long, `طط` for long long, and their combinations like `غط`). The lexer includes these in the token's lexeme.
   * Parses floating-point numbers using `.` or the Arabic decimal separator `٫`.
-  * Supports scientific notation for floats using `e` or `E` (Arabic `أ` exponent marker planned).
+  * Supports scientific notation for floats using Arabic `أ` exponent marker. (Previously `e` or `E` were used).
+  * Support for hexadecimal float constants (e.g., `0x1.fp+2`) using Baa's `أ` exponent marker is planned.
 * **String and Character Literals:**
   * (Details on string/char literals, including multiline, raw, and escape sequences remain largely the same as previously documented.)
   * Handles standard double-quoted strings (`"..."`), multiline triple-quoted strings (`"""..."""`), and raw strings (prefixed with `خ`, e.g., `خ"..."`, `خ"""..."""`).
   * Handles single-quoted character literals (`'...'`).
-  * Processes standard C-style escape sequences (`\n`, `\t`, `\\`, `\"`, `\'`) and Unicode escapes (`\uXXXX`). (Baa-specific Arabic escapes are planned).
+  * Processes Baa-specific Arabic escape sequences (`\س`, `\م`, `\ر`, `\ص`, `\يXXXX`, `\هـHH`) using `\` as the escape character. (Standard C-style escapes like `\n`, `\t`, `\uXXXX` are replaced by their Arabic equivalents).
 
 ### 3. Comment Handling
 
@@ -149,8 +150,7 @@ A comprehensive list of `BaaTokenType` values can be found in `include/baa/lexer
 
 ## Future Improvements and Roadmap Items
 
-* Implementation of Baa-specific Arabic escape sequences for string and character literals.
-* Support for Arabic float exponent marker (`أ`) and float suffix (`ح`).
+* Support for hexadecimal float constants (e.g., `0x1.fp+2`) using Baa's `أ` exponent marker.
 * Enhanced error recovery mechanisms and more specific error token types.
 * Further Unicode support for identifiers based on UAX #31.
 * Performance optimizations (e.g., for keyword lookup, string interning) as needed.
