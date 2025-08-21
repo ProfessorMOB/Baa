@@ -34,6 +34,7 @@ else()
     # target_link_options(your_target PRIVATE "-Wl,--no-warn-mismatch") # Example for a common Linux linker option
 endif()
 
+add_definitions(-D__STDC_LIB_EXT1__ -D__STDC_WANT_LIB_EXT1__=1)
 
 add_subdirectory(src)
 

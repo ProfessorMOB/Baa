@@ -36,10 +36,10 @@ if(WIN32)
     # No need to link with a separate math library
 else()
     # On Unix systems, link with the math library
-    target_link_libraries(test_lexer m)
-    target_link_libraries(test_number_parser m)
-    target_link_libraries(test_tokens m)
-    target_link_libraries(test_program_files m)
+    target_link_libraries(test_lexer PRIVATE m)
+    target_link_libraries(test_number_parser PRIVATE m)
+    target_link_libraries(test_tokens PRIVATE m)
+    target_link_libraries(test_program_files PRIVATE m)
 endif()
 
 # Update existing tests with proper configuration
